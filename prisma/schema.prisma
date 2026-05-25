@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  avatar        String?
+  password      String?
+  xp            Int      @default(0)
+  coins         Int      @default(0)
+  level         Int      @default(1)
+  rankTitle     String   @default("طالب طب")
+  streak        Int      @default(0)
+  maxStreak     Int      @default(0)
+  subscription  String   @default("free") // free, premium, instructor
+  specialty     String?
+  totalHours    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  enrollments   Enrollment[]
+  badges        UserBadge[]
+  quizResults   QuizResult[]
+  simulations   SimulationResult[]
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String
+  description String?
+  category    String
+  instructor  String
+  rating      Float    @default(0)
+  students    Int      @default(0)
+  duration    String?
+  level       String   @default("beginner")
+  price       Int      @default(0)
+  isPremium   Boolean  @default(false)
+  lessons     Int      @default(0)
+  tags        String?
+  thumbnail   String?
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  progress  Int      @default(0)
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earned    Boolean  @default(false)
+  earnedAt  DateTime?
+  
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, badgeId])
+}
+
+model QuizResult {
+  id          String   @id @default(cuid())
+  userId      String
+  category    String?
+  score       Int
+  totalQuestions Int
+  timeTaken   Int?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model SimulationResult {
+  id          String   @id @default(cuid())
+  userId      String
+  caseId      String
+  score       Int
+  timeTaken   Int?
+  decisions   String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model DailyMission {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  titleAr     String
+  description String?
+  xpReward    Int      @default(0)
+  coinReward  Int      @default(0)
+  progress    Int      @default(0)
+  target      Int
+  type        String   // lesson, quiz, simulation, streak, community
+  completed   Boolean  @default(false)
+  date        DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info") // info, success, warning
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model CommunityGroup {
+  id        String   @id @default(cuid())
+  name      String
+  nameAr    String
+  icon      String?
+  members   Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model CommunityPost {
+  id        String   @id @default(cuid())
+  groupId   String
+  authorId  String
+  content   String
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+}
