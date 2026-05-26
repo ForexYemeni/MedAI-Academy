@@ -142,7 +142,7 @@ const LIVE_EVENTS = [
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function HomePage() {
-  const { user, courses, dailyMissions, leaderboard, quizQuestions, simulationCases } = useAppStore()
+  const { user, courses, dailyMissions, leaderboard, quizQuestions, simulationCases, openCourse } = useAppStore()
 
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
@@ -340,7 +340,8 @@ export function HomePage() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.1 }}
                     whileHover={cardHover}
-                    className="glass-card w-72 shrink-0 overflow-hidden group"
+                    className="glass-card w-72 shrink-0 overflow-hidden group cursor-pointer"
+                    onClick={() => openCourse(course.id)}
                   >
                     {/* Thumbnail placeholder */}
                     <div className="relative h-36 bg-gradient-to-bl from-neon-purple/20 via-neon-blue/10 to-neon-cyan/20 overflow-hidden">
@@ -373,6 +374,7 @@ export function HomePage() {
                         </div>
                         <Button
                           size="sm"
+                          onClick={() => openCourse(course.id)}
                           className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 h-7 text-xs px-3"
                         >
                           متابعة
@@ -479,6 +481,7 @@ export function HomePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 whileHover={cardHover}
+                onClick={() => openCourse(course.id)}
                 className="glass-card gradient-border p-4 group cursor-pointer"
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -592,6 +595,7 @@ export function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.08 }}
                   whileHover={cardHover}
+                  onClick={() => openCourse(course.id)}
                   className="glass-card overflow-hidden group cursor-pointer"
                 >
                   <div className={`relative h-32 bg-gradient-to-bl ${gradients[i % gradients.length]}`}>
@@ -631,6 +635,7 @@ export function HomePage() {
                       </div>
                       <Button
                         size="sm"
+                        onClick={() => openCourse(course.id)}
                         className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 h-7 text-xs px-3"
                       >
                         {course.price === 0 ? 'مجاني' : `${course.price}$`}

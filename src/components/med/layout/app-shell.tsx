@@ -19,6 +19,7 @@ import dynamic from 'next/dynamic'
 
 const HomePage = dynamic(() => import('@/components/med/pages/home-page').then(m => ({ default: m.HomePage })), { ssr: false })
 const CoursesPage = dynamic(() => import('@/components/med/pages/courses-page').then(m => ({ default: m.CoursesPage })), { ssr: false })
+const CourseViewerPage = dynamic(() => import('@/components/med/pages/course-viewer-page').then(m => ({ default: m.CourseViewerPage })), { ssr: false })
 const AITutorPage = dynamic(() => import('@/components/med/pages/ai-tutor-page').then(m => ({ default: m.AITutorPage })), { ssr: false })
 const SimulationPage = dynamic(() => import('@/components/med/pages/simulation-page').then(m => ({ default: m.SimulationPage })), { ssr: false })
 const ShortsPage = dynamic(() => import('@/components/med/pages/shorts-page').then(m => ({ default: m.ShortsPage })), { ssr: false })
@@ -325,6 +326,7 @@ function PageRenderer() {
   const pages: Record<PageId, React.ComponentType> = {
     home: HomePage,
     courses: CoursesPage,
+    'course-viewer': CourseViewerPage,
     'ai-tutor': AITutorPage,
     simulation: SimulationPage,
     shorts: ShortsPage,

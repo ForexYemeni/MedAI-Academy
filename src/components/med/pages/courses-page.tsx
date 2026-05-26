@@ -93,6 +93,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 function CourseCard({ course, index }: { course: Course; index: number }) {
+  const { openCourse } = useAppStore()
   const gradient = categoryGradients[course.category] || 'from-cyan-600/80 via-blue-500/60 to-indigo-400/40'
   const icon = categoryIcons[course.category] || '📚'
   const level = levelConfig[course.level]
@@ -104,6 +105,7 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4 }}
       whileHover={{ scale: 1.03, y: -4 }}
+      onClick={() => openCourse(course.id)}
       className="group relative flex-shrink-0 w-[260px] sm:w-[280px] cursor-pointer"
     >
       {/* Neon glow on hover */}
@@ -207,6 +209,7 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
             <Button
               size="sm"
               variant="ghost"
+              onClick={(e) => { e.stopPropagation(); openCourse(course.id) }}
               className="h-7 text-xs text-neon-cyan hover:text-neon-cyan hover:bg-neon-cyan/10"
             >
               {isEnrolled ? 'متابعة' : 'سجل الآن'}
@@ -285,7 +288,7 @@ function HorizontalCourseRow({
 }
 
 export function CoursesPage() {
-  const { courses, searchQuery, setSearchQuery } = useAppStore()
+  const { courses, searchQuery, setSearchQuery, openCourse } = useAppStore()
   const [activeCategory, setActiveCategory] = useState('all')
   const [activeLevel, setActiveLevel] = useState<string>('all')
   const [sortBy, setSortBy] = useState('popular')
@@ -531,11 +534,18 @@ export function CoursesPage() {
               </div>
 
               <div className="flex items-center gap-3 pt-2">
-                <Button className="bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold hover:shadow-[0_0_30px_rgba(0,245,255,0.3)] transition-all">
+                <Button
+                  onClick={() => openCourse(featuredCourse.id)}
+                  className="bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold hover:shadow-[0_0_30px_rgba(0,245,255,0.3)] transition-all"
+                >
                   <Play className="w-4 h-4 ml-2 fill-med-dark" />
                   ابدأ الآن
                 </Button>
-                <Button variant="ghost" className="text-white border border-white/10 hover:bg-white/5">
+                <Button
+                  onClick={() => openCourse(featuredCourse.id)}
+                  variant="ghost"
+                  className="text-white border border-white/10 hover:bg-white/5"
+                >
                   <Zap className="w-4 h-4 ml-2" />
                   نظرة سريعة
                 </Button>

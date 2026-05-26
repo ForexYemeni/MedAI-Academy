@@ -129,7 +129,7 @@ const cardHover = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function ProfilePage() {
-  const { user, courses, updateUser } = useAppStore()
+  const { user, courses, updateUser, openCourse } = useAppStore()
   const [selectedBadge, setSelectedBadge] = useState<BadgeType | null>(null)
   const [heatmapData] = useState(() => generateHeatmapData())
   const [editingProfile, setEditingProfile] = useState(false)
@@ -570,6 +570,7 @@ export function ProfilePage() {
                   {/* Continue button */}
                   <Button
                     size="sm"
+                    onClick={() => openCourse(course.id)}
                     className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 h-8 text-xs px-3 shrink-0"
                   >
                     متابعة
