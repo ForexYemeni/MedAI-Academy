@@ -485,6 +485,7 @@ export function AdminPage() {
   const [notifTitle, setNotifTitle] = useState('')
   const [notifMessage, setNotifMessage] = useState('')
   const [sendingNotif, setSendingNotif] = useState(false)
+  const [screenshotView, setScreenshotView] = useState<string | null>(null)
 
   // ─── API Fetch Functions ────────────────────────────────
 
@@ -531,19 +532,61 @@ export function AdminPage() {
     } catch (err) { console.error('Fetch stats error:', err) }
   }, [])
 
-  // ─── Initial Data Load ──────────────────────────────────
+  // ─── Initial Data Load (Lazy - only load data for the active section) ───
 
+  const [loadedSections, setLoadedSections] = useState<Set<AdminSection>>(new Set())
+  const [sectionLoading, setSectionLoading] = useState<Set<AdminSection>>(new Set())
+
+  // Load data for a specific section
+  const loadSectionData = useCallback(async (section: AdminSection) => {
+    if (loadedSections.has(section) || sectionLoading.has(section)) return
+    setSectionLoading(prev => new Set(prev).add(section))
+    try {
+      switch (section) {
+        case 'overview':
+          await Promise.all([fetchStats(), fetchPayments()])
+          break
+        case 'courses':
+          await fetchCourses()
+          break
+        case 'users':
+          await fetchUsers()
+          break
+        case 'payments':
+          await fetchPayments()
+          break
+        case 'payment-methods':
+          await fetchPaymentMethods()
+          break
+      }
+      setLoadedSections(prev => new Set(prev).add(section))
+    } catch (err) { console.error('Load section error:', err) }
+    setSectionLoading(prev => { const next = new Set(prev); next.delete(section); return next })
+  }, [loadedSections, sectionLoading, fetchStats, fetchPayments, fetchCourses, fetchUsers, fetchPaymentMethods])
+
+  // Initial load: only load overview data
   useEffect(() => {
-    const loadAll = async () => {
+    const loadInitial = async () => {
       setLoading(true)
-      await Promise.all([fetchCourses(), fetchUsers(), fetchPayments(), fetchPaymentMethods(), fetchStats()])
+      try {
+        await Promise.all([fetchStats(), fetchPayments()])
+        setLoadedSections(new Set(['overview']))
+      } catch (err) { console.error('Initial load error:', err) }
       setLoading(false)
     }
-    loadAll()
-  }, [fetchCourses, fetchUsers, fetchPayments, fetchPaymentMethods, fetchStats])
+    loadInitial()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-fetch users when search/page changes
+  // Load data when section changes
   useEffect(() => {
+    if (!loadedSections.has(activeSection)) {
+      loadSectionData(activeSection)
+    }
+  }, [activeSection]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fetch users when search/page changes (only if users section was loaded)
+  useEffect(() => {
+    if (!loadedSections.has('users')) return
     const load = async () => {
       try {
         const res = await fetch(`/api/admin/users?page=${usersPage}&limit=20&search=${usersSearch}`, { headers: getAuthHeaders() })
@@ -694,7 +737,9 @@ export function AdminPage() {
   }
 
   const handleRefreshAll = () => {
-    fetchCourses(); fetchUsers(); fetchPayments(); fetchPaymentMethods(); fetchStats()
+    // Reset loaded sections and reload current section
+    setLoadedSections(new Set())
+    loadSectionData(activeSection)
   }
 
   const handleSectionChange = (section: AdminSection) => {
@@ -1322,10 +1367,10 @@ export function AdminPage() {
                 <span>{new Date(payment.createdAt).toLocaleDateString('ar')}</span>
               </div>
               {payment.screenshotUrl && (
-                <a href={payment.screenshotUrl} target="_blank" rel="noopener noreferrer"
+                <button onClick={() => setScreenshotView(payment.screenshotUrl!)}
                   className="text-xs text-neon-cyan hover:underline flex items-center gap-1">
                   <ImageIcon className="h-3 w-3" /> عرض لقطة الشاشة
-                </a>
+                </button>
               )}
               {payment.status === 'pending' && (
                 <div className="flex gap-2 pt-1">
@@ -1387,6 +1432,41 @@ export function AdminPage() {
             <AlertCircle className="h-4 w-4" />
             {error}
             <Button variant="ghost" size="icon" className="h-6 w-6 ml-2" onClick={() => setError('')}><X className="h-3 w-3" /></Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Screenshot Viewer Modal */}
+      <AnimatePresence>
+        {screenshotView && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setScreenshotView(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-3xl max-h-[90vh] overflow-auto rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setScreenshotView(null)}
+                className="absolute top-3 left-3 z-10 h-9 w-9 rounded-full bg-black/60 hover:bg-black/80 text-white"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              <img
+                src={screenshotView}
+                alt="لقطة شاشة إثبات الدفع"
+                className="w-full h-auto rounded-2xl"
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

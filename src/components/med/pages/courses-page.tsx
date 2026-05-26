@@ -607,8 +607,10 @@ export function CoursesPage() {
               keyPoints: l.keyPoints,
             })) || [],
           }))
+          // Extract all lessons from courses and update the store's lessons array
+          const allLessons = apiCourses.flatMap(c => c.lessonsData || [])
           // Only update store if we got courses from the API
-          useAppStore.setState({ courses: apiCourses })
+          useAppStore.setState({ courses: apiCourses, lessons: allLessons })
         }
       } catch (err) {
         // Keep using Zustand mock data as fallback

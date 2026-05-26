@@ -440,8 +440,17 @@ export function CourseViewerPage() {
   )
 
   const courseLessons = useMemo(
-    () => lessons.filter(l => l.courseId === activeCourseId).sort((a, b) => a.order - b.order),
-    [lessons, activeCourseId]
+    () => {
+      // First try to get lessons from the store's lessons array
+      const storeLessons = lessons.filter(l => l.courseId === activeCourseId).sort((a, b) => a.order - b.order)
+      if (storeLessons.length > 0) return storeLessons
+      // Fallback: use lessonsData from the course object
+      if (course?.lessonsData && course.lessonsData.length > 0) {
+        return course.lessonsData.sort((a, b) => a.order - b.order)
+      }
+      return []
+    },
+    [lessons, activeCourseId, course?.lessonsData]
   )
 
   const progress = useMemo(

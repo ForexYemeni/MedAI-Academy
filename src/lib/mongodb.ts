@@ -9,15 +9,7 @@ let cachedDb: Db | null = null
 export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
   // إذا كان الاتصال موجوداً مسبقاً، أعد استخدامه
   if (cachedClient && cachedDb) {
-    try {
-      // تحقق من أن الاتصال لا يزال حياً
-      await cachedClient.db('admin').command({ ping: 1 })
-      return { client: cachedClient, db: cachedDb }
-    } catch {
-      // الاتصال مكسور، أعد إنشاءه
-      cachedClient = null
-      cachedDb = null
-    }
+    return { client: cachedClient, db: cachedDb }
   }
 
   if (!MONGODB_URI) {
@@ -29,9 +21,9 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
     maxPoolSize: 10,
     minPoolSize: 2,
     maxIdleTimeMS: 30000,
-    connectTimeoutMS: 15000,
-    socketTimeoutMS: 45000,
-    serverSelectionTimeoutMS: 15000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 30000,
+    serverSelectionTimeoutMS: 10000,
   })
 
   await client.connect()

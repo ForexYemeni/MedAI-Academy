@@ -13,18 +13,28 @@ export async function GET(req: NextRequest) {
     if (level) query.level = level
 
     const courses = await db.collection('courses')
-      .find(query, { projection: { lessonsData: 0 } })
+      .find(query)
       .sort({ rating: -1, students: -1 })
       .toArray()
 
-    // إضافة عدد المسجلين لكل دورة
+    // Process courses: add stats and filter lesson content
     const coursesWithStats = await Promise.all(
       courses.map(async (course) => {
         const studentCount = await db.collection('enrollments').countDocuments({ courseId: course._id })
+        // Filter lessonsData: include all metadata but strip content for non-free lessons
+        const filteredLessonsData = (course.lessonsData || []).map((lesson: any) => {
+          if (lesson.isFree) {
+            return lesson
+          }
+          // For non-free lessons, exclude content/videoUrl to prevent unauthorized access
+          const { content, videoUrl, ...metaOnly } = lesson
+          return metaOnly
+        })
         return {
           ...course,
           id: course._id.toString(),
           students: studentCount || course.students || 0,
+          lessonsData: filteredLessonsData,
         }
       })
     )
