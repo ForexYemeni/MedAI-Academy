@@ -953,7 +953,7 @@ function AuthScreen() {
 // Main App Shell
 // =============================================
 export default function AppShell() {
-  const { isLoggedIn, mustChangePassword, setMustChangePassword } = useAppStore()
+  const { isLoggedIn, mustChangePassword, setMustChangePassword, user, activePage } = useAppStore()
 
   // Show change password modal if admin must change password
   if (isLoggedIn && mustChangePassword) {
@@ -974,13 +974,22 @@ export default function AppShell() {
     return <AuthScreen />
   }
 
+  // Admin gets a completely separate layout - no user shell elements
+  if (user.role === 'admin' && activePage === 'admin') {
+    return (
+      <div className="min-h-screen bg-background text-foreground" dir="rtl">
+        <AdminPage />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground" dir="rtl">
       <Sidebar />
-      
+
       <div className="lg:mr-[260px] flex flex-col min-h-screen">
         <MobileHeader />
-        
+
         <main className="flex-1 pb-20 lg:pb-4">
           <PageRenderer />
         </main>
