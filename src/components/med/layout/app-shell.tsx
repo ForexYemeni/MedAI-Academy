@@ -1104,19 +1104,11 @@ export default function AppShell() {
     return <AuthScreen />
   }
 
-  // Admin view
+  // Admin view - AdminPage now has its own sidebar navigation
   if (user.role === 'admin') {
     return (
       <div className="min-h-screen bg-background text-foreground" dir="rtl">
-        <AdminSidebar />
-
-        <div className="lg:mr-[260px] flex flex-col min-h-screen">
-          <AdminMobileHeader />
-
-          <main className="flex-1 pb-4">
-            <AdminPage />
-          </main>
-        </div>
+        <AdminPage />
       </div>
     )
   }
