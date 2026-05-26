@@ -99,6 +99,7 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
   const level = levelConfig[course.level]
   const progress = courseProgress.find(p => p.courseId === course.id)
   const isEnrolled = !!progress
+  const hasProgress = isEnrolled && progress.progress > 0
 
   return (
     <motion.div
@@ -182,8 +183,8 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
             </div>
           </div>
 
-          {/* Progress bar if enrolled */}
-          {isEnrolled && progress && (
+          {/* Progress bar only if started */}
+          {hasProgress && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-neon-cyan">التقدم</span>
@@ -213,7 +214,7 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
               onClick={(e) => { e.stopPropagation(); openCourse(course.id) }}
               className="h-7 text-xs text-neon-cyan hover:text-neon-cyan hover:bg-neon-cyan/10"
             >
-              {isEnrolled ? (progress && progress.progress > 0 ? 'متابعة' : 'ابدأ الدورة') : (course.price === 0 ? 'ابدأ مجاناً' : `${course.price.toLocaleString()} ر.ي`)}
+              {hasProgress ? 'متابعة' : isEnrolled ? 'ابدأ الدورة' : (course.price === 0 ? 'ابدأ مجاناً' : `${course.price.toLocaleString()} ر.ي`)}
             </Button>
           </div>
         </div>

@@ -76,7 +76,7 @@ function Sidebar() {
       <div className="px-3 mt-2">
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-sm font-bold">
-            {user.name ? user.name.charAt(user.name.indexOf('.') + 2) || user.name.charAt(0) : '?'}
+            {user.name ? user.name.replace(/^(د\.|دكتور|Dr\.?)\s*/i, '').charAt(0) : '?'}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user.name}</p>
@@ -226,7 +226,7 @@ function MobileHeader() {
             onClick={() => setActivePage('profile')}
           >
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-xs font-bold">
-              {user.name ? user.name.charAt(user.name.indexOf('.') + 2) || user.name.charAt(0) : '?'}
+              {user.name ? user.name.replace(/^(د\.|دكتور|Dr\.?)\s*/i, '').charAt(0) : '?'}
             </div>
           </Button>
         </div>
@@ -243,7 +243,7 @@ function MobileNavContent() {
       <div className="p-4">
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-sm font-bold">
-            {user.name ? user.name.charAt(user.name.indexOf('.') + 2) || user.name.charAt(0) : '?'}
+            {user.name ? user.name.replace(/^(د\.|دكتور|Dr\.?)\s*/i, '').charAt(0) : '?'}
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium">{user.name}</p>

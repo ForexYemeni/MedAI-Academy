@@ -49,7 +49,7 @@ import {
 function getGreeting(): string {
   const hour = new Date().getHours()
   if (hour < 12) return 'صباح الخير'
-  if (hour < 17) return 'مساء الخير'
+  if (hour < 18) return 'مساء الخير'
   return 'مساء الخير'
 }
 
@@ -218,7 +218,7 @@ export function HomePage() {
               <div className="relative">
                 <Avatar className="h-14 w-14 border-2 border-neon-cyan/40">
                   <AvatarFallback className="bg-neon-purple/20 text-neon-purple text-lg font-bold">
-                    {user.name ? user.name.charAt(user.name.indexOf('.') + 2) || user.name.charAt(0) : '?'}
+                    {user.name ? user.name.replace(/^(د\.|دكتور|Dr\.?)\s*/i, '').charAt(0) : '?'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-1 -left-1 text-lg">{user.rankIcon}</div>
@@ -788,7 +788,7 @@ export function HomePage() {
                     {/* Avatar */}
                     <Avatar className="h-9 w-9 border border-white/10">
                       <AvatarFallback className="bg-neon-purple/20 text-neon-purple text-xs font-bold">
-                        {entry.name.charAt(entry.name.indexOf('.') + 2) || entry.name.charAt(0)}
+                        {entry.name.replace(/^(د\.|دكتور|Dr\.?)\s*/i, '').charAt(0)}
                       </AvatarFallback>
                     </Avatar>
 
