@@ -8,7 +8,7 @@ import {
   SlidersHorizontal, GraduationCap, Zap, ArrowRight,
   Lock, CreditCard, CheckCircle2, Loader2, X, Image as ImageIcon
 } from 'lucide-react'
-import { useAppStore, type Course } from '@/store/app-store'
+import { useAppStore, type Course, type CourseProgress } from '@/store/app-store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -613,8 +613,44 @@ export function CoursesPage() {
           }))
           // Extract all lessons from courses and update the store's lessons array
           const allLessons = apiCourses.flatMap(c => c.lessonsData || [])
+
+          // Sync courseProgress with API enrollments
+          // This ensures that after admin approves payment, the user can access the course
+          const currentProgress = useAppStore.getState().courseProgress
+          const existingCourseIds = new Set(currentProgress.map(p => p.courseId))
+          const newProgressEntries: CourseProgress[] = []
+
+          for (const apiCourse of data.courses) {
+            const courseId = apiCourse._id?.toString() || apiCourse.id
+            const isEnrolled = apiCourse.isEnrolled === true
+
+            // If the API says the user is enrolled but there's no progress entry, create one
+            if (isEnrolled && !existingCourseIds.has(courseId)) {
+              const courseLessons = allLessons.filter(l => l.courseId === courseId)
+              const firstLesson = courseLessons.sort((a, b) => a.order - b.order)[0]
+              newProgressEntries.push({
+                courseId,
+                completedLessons: [],
+                lastAccessedLessonId: firstLesson?.id || null,
+                progress: 0,
+                lastAccessedAt: Date.now(),
+              })
+            }
+          }
+
+          const updatedProgress = [...currentProgress, ...newProgressEntries]
+
           // Only update store if we got courses from the API
-          useAppStore.setState({ courses: apiCourses, lessons: allLessons })
+          useAppStore.setState({
+            courses: apiCourses,
+            lessons: allLessons,
+            courseProgress: updatedProgress,
+          })
+
+          // Save updated progress to localStorage
+          if (typeof window !== 'undefined' && newProgressEntries.length > 0) {
+            localStorage.setItem('medai-progress', JSON.stringify(updatedProgress))
+          }
         }
       } catch (err) {
         // Keep using Zustand mock data as fallback

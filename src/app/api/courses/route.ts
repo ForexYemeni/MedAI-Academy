@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
           id: course._id.toString(),
           students: studentCount || course.students || 0,
           lessonsData: filteredLessonsData,
+          isEnrolled: isEnrolled || isCourseFree,
         }
       })
     )

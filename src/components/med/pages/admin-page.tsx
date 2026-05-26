@@ -468,7 +468,7 @@ export function AdminPage() {
   const [payments, setPayments] = useState<ApiPayment[]>([])
   const [paymentMethods, setPaymentMethods] = useState<ApiPaymentMethod[]>([])
   const [stats, setStats] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -583,16 +583,9 @@ export function AdminPage() {
     setSectionLoading(prev => { const next = new Set(prev); next.delete(section); return next })
   }, [loadedSections, sectionLoading, fetchStats, fetchPayments, fetchCourses, fetchUsers, fetchPaymentMethods])
 
-  // Initial load: only load overview data with max timeout
+  // Initial load: fetch data in background, no loading screen
   useEffect(() => {
     const loadInitial = async () => {
-      setLoading(true)
-      // Max loading timeout - always show admin after 6 seconds even if API is slow
-      const maxTimeout = setTimeout(() => {
-        console.log('Admin loading timeout - showing page anyway')
-        setLoading(false)
-      }, 6000)
-
       try {
         await Promise.all([
           fetchStats().catch(e => console.error('Stats fetch failed:', e)),
@@ -600,8 +593,6 @@ export function AdminPage() {
         ])
         setLoadedSections(new Set(['overview']))
       } catch (err) { console.error('Initial load error:', err) }
-      clearTimeout(maxTimeout)
-      setLoading(false)
     }
     // Small delay to ensure token is saved to localStorage before fetching
     const timer = setTimeout(loadInitial, 300)
@@ -1443,14 +1434,7 @@ export function AdminPage() {
 
   // ─── Render ─────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <div dir="rtl" className="min-h-screen flex items-center justify-center bg-[#060810]">
-        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-          className="h-10 w-10 border-3 border-neon-cyan/30 border-t-neon-cyan rounded-full" />
-      </div>
-    )
-  }
+  // No loading screen - admin dashboard shows immediately
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#060810] flex">
