@@ -15,9 +15,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'جلسة غير صالحة' }, { status: 401 })
     }
 
-    const { courseId, amount, walletName, walletPhone, screenshotUrl } = await req.json()
+    const { courseId, amount, screenshotUrl } = await req.json()
 
-    if (!courseId || !amount || !walletName || !walletPhone) {
+    if (!courseId || !amount) {
       return NextResponse.json({ error: 'جميع الحقول مطلوبة' }, { status: 400 })
     }
 
@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
       userPhone: authUser.phone,
       courseId,
       amount,
-      walletName,
-      walletPhone,
+      walletName: '',
+      walletPhone: '',
       screenshotUrl: screenshotUrl || '',
       status: 'pending',
       adminNote: '',

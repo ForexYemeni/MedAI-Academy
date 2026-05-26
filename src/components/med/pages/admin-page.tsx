@@ -972,57 +972,54 @@ export function AdminPage() {
                 <div className="p-3 sm:p-4">
                   <div className="flex items-start gap-2 sm:gap-3">
                     {/* Course number */}
-                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-sm sm:text-base font-bold shrink-0`}>
+                    <div className={`w-7 h-7 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-xs sm:text-base font-bold shrink-0`}>
                       {courseIdx + 1}
                     </div>
                     {/* Course info - tappable to expand */}
                     <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
                       className="flex-1 min-w-0 text-right hover:bg-white/5 rounded-lg transition-colors">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="font-bold text-sm truncate">{course.titleAr}</h3>
-                        <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[8px] px-1">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <h3 className="font-bold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">{course.titleAr}</h3>
+                        <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[7px] sm:text-[8px] px-1 shrink-0">
                           {getCategoryLabel(course.category)}
                         </Badge>
                         {!course.published && (
-                          <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] px-1">مسودة</Badge>
+                          <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[7px] sm:text-[8px] px-1 shrink-0">مسودة</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
-                        <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> {courseLessons.length} درس</span>
-                        <span className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-400" /> {course.rating}</span>
+                      <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[9px] sm:text-xs text-muted-foreground flex-wrap">
+                        <span className="flex items-center gap-0.5"><FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> {courseLessons.length} درس</span>
+                        <span className="flex items-center gap-0.5"><Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-amber-400" /> {course.rating}</span>
                         <span className={`${getLevelColor(course.level)} font-medium`}>{getLevelLabel(course.level)}</span>
                       </div>
                     </button>
-                    {/* Price + expand chevron */}
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Price + expand chevron + action buttons - compact on mobile */}
+                    <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
                       {course.isPremium ? (
-                        <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[8px] sm:text-[9px] px-1">
+                        <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[7px] sm:text-[9px] px-1">
                           {course.price.toLocaleString()} ر.ي
                         </Badge>
                       ) : (
-                        <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[8px] sm:text-[9px] px-1">مجاني</Badge>
+                        <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[7px] sm:text-[9px] px-1">مجاني</Badge>
                       )}
-                      <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                      <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="hidden sm:block">
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       </motion.div>
-                    </div>
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-0.5 shrink-0">
                       <Button variant="ghost" size="icon" onClick={() => handleTogglePublish(course)}
-                        className="h-7 w-7" title={course.published ? 'إلغاء النشر' : 'نشر'}>
+                        className="h-6 w-6 sm:h-7 sm:w-7" title={course.published ? 'إلغاء النشر' : 'نشر'}>
                         {course.published ? (
-                          <ToggleRight className="h-3.5 w-3.5 text-neon-green" />
+                          <ToggleRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-green" />
                         ) : (
-                          <ToggleLeft className="h-3.5 w-3.5 text-muted-foreground" />
+                          <ToggleLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
                         )}
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => { setEditingCourse(course); setShowAddCourse(false) }}
-                        className="h-7 w-7 hover:bg-neon-cyan/10">
-                        <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
+                        className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-neon-cyan/10">
+                        <Edit3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-cyan" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteCourse(course._id)}
-                        className="h-7 w-7 hover:bg-red-500/10">
-                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                        className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-red-500/10">
+                        <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-400" />
                       </Button>
                     </div>
                   </div>
@@ -1033,20 +1030,20 @@ export function AdminPage() {
                   {isExpanded && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3 }} className="overflow-hidden">
-                      <div className="px-3 sm:px-5 pb-4 sm:pb-5 space-y-2 border-t border-white/5 pt-4">
+                      <div className="px-2 sm:px-5 pb-3 sm:pb-5 space-y-2 border-t border-white/5 pt-3 sm:pt-4 overflow-x-auto">
                         {/* Lessons count + Add Lesson Button */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-2 rounded-lg bg-white/5 text-xs text-muted-foreground gap-2">
-                          <span>دروس هذه الدورة ({courseLessons.length})</span>
-                          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <div className="w-2 h-2 rounded-full bg-neon-green" /> مجاني: {courseLessons.filter(l => l.isFree).length}
+                          <span className="text-[10px] sm:text-xs">دروس هذه الدورة ({courseLessons.length})</span>
+                          <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
+                            <span className="flex items-center gap-0.5 text-[9px] sm:text-xs">
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-neon-green" /> مجاني: {courseLessons.filter(l => l.isFree).length}
                             </span>
-                            <span className="flex items-center gap-1">
-                              <div className="w-2 h-2 rounded-full bg-neon-orange" /> مدفوع: {courseLessons.filter(l => !l.isFree).length}
+                            <span className="flex items-center gap-0.5 text-[9px] sm:text-xs">
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-neon-orange" /> مدفوع: {courseLessons.filter(l => !l.isFree).length}
                             </span>
                             <Button onClick={() => setAddingLessonToCourse(course._id)}
-                              className="h-7 text-[10px] sm:text-xs bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 px-2 sm:px-3">
-                              <Plus className="h-3 w-3 ml-1" /> إضافة درس
+                              className="h-6 sm:h-7 text-[9px] sm:text-xs bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 px-1.5 sm:px-3">
+                              <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5 sm:ml-1" /> إضافة درس
                             </Button>
                           </div>
                         </div>
@@ -1075,17 +1072,17 @@ export function AdminPage() {
                                   onCancel={() => setEditingLesson(null)} />
                               ) : (
                                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: lessonIdx * 0.02 }}
-                                  className="p-2 sm:p-3 rounded-lg sm:rounded-xl hover:bg-white/5 transition-colors group">
+                                  className="p-1.5 sm:p-3 rounded-lg sm:rounded-xl hover:bg-white/5 transition-colors group">
                                   {/* Lesson info row */}
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-white/5 flex items-center justify-center text-[10px] sm:text-xs font-bold text-muted-foreground shrink-0">
+                                  <div className="flex items-center gap-1 sm:gap-2">
+                                    <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-md bg-white/5 flex items-center justify-center text-[9px] sm:text-xs font-bold text-muted-foreground shrink-0">
                                       {lesson.order}
                                     </div>
                                     <div className="shrink-0 hidden sm:block">{getLessonTypeIcon(lesson.type)}</div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-xs sm:text-sm font-medium truncate">{lesson.titleAr}</p>
-                                      <div className="flex items-center gap-1.5 mt-0.5 text-[9px] sm:text-xs text-muted-foreground">
-                                        <span className="flex items-center gap-0.5">{getLessonTypeIcon(lesson.type)} <span className="sm:hidden text-[8px]">{getLessonTypeLabel(lesson.type)}</span></span>
+                                      <p className="text-[10px] sm:text-sm font-medium truncate">{lesson.titleAr}</p>
+                                      <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 text-[8px] sm:text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-0.5">{getLessonTypeIcon(lesson.type)} <span className="sm:hidden text-[7px]">{getLessonTypeLabel(lesson.type)}</span></span>
                                         <span className="hidden sm:inline">{getLessonTypeLabel(lesson.type)}</span>
                                         <span>•</span>
                                         <span>{lesson.duration} د</span>
@@ -1093,21 +1090,21 @@ export function AdminPage() {
                                       </div>
                                     </div>
                                     {lesson.isFree ? (
-                                      <Badge className="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[8px] px-1 shrink-0">مجاني</Badge>
+                                      <Badge className="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[7px] sm:text-[8px] px-1 shrink-0">مجاني</Badge>
                                     ) : (
-                                      <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] px-1 shrink-0">مدفوع</Badge>
+                                      <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[7px] sm:text-[8px] px-1 shrink-0">مدفوع</Badge>
                                     )}
-                                    {/* Action buttons - always inline */}
-                                    <div className="flex items-center gap-0.5 shrink-0">
+                                    {/* Action buttons - compact on mobile */}
+                                    <div className="flex items-center gap-0 shrink-0">
                                       <Button variant="ghost" size="icon"
                                         onClick={() => setEditingLesson({ course, lesson })}
-                                        className="h-7 w-7 hover:bg-neon-cyan/10">
-                                        <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
+                                        className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-neon-cyan/10">
+                                        <Edit3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-cyan" />
                                       </Button>
                                       <Button variant="ghost" size="icon"
                                         onClick={() => handleDeleteLesson(course._id, lesson.id)}
-                                        className="h-7 w-7 hover:bg-red-500/10">
-                                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                                        className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-red-500/10">
+                                        <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-400" />
                                       </Button>
                                     </div>
                                   </div>
@@ -1433,8 +1430,8 @@ export function AdminPage() {
       </header>
 
       {/* ═══════════ MAIN CONTENT AREA ═══════════ */}
-      <main className="flex-1 lg:mr-[260px] min-h-screen">
-        <div className="pt-14 lg:pt-0 px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 lg:mr-[260px] min-h-screen overflow-x-hidden">
+        <div className="pt-14 lg:pt-0 px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
           <motion.div variants={containerVariants} initial="hidden" animate="visible">
             {/* Section Header Bar (Desktop) */}
             <div className="hidden lg:flex items-center justify-between mb-6">

@@ -339,8 +339,6 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [screenshot, setScreenshot] = useState<string | null>(null)
-  const [walletName, setWalletName] = useState('')
-  const [walletPhone, setWalletPhone] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -369,7 +367,7 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
   }
 
   const handleSubmit = async () => {
-    if (!selectedMethod || !screenshot || !walletName || !walletPhone) return
+    if (!selectedMethod || !screenshot) return
     setSubmitting(true)
     setError('')
     try {
@@ -383,8 +381,6 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
         body: JSON.stringify({
           courseId: course.id,
           amount: course.price,
-          walletName,
-          walletPhone,
           paymentMethodId: selectedMethod._id,
           screenshotUrl: screenshot,
         }),
@@ -486,29 +482,6 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
               </div>
             )}
 
-            {/* Sender info */}
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">اسم المرسل *</label>
-                <Input
-                  value={walletName}
-                  onChange={e => setWalletName(e.target.value)}
-                  placeholder="اسمك على المحفظة"
-                  className="bg-white/5 border-white/10 h-10 text-sm text-white placeholder:text-muted-foreground/50"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">رقم هاتف المرسل *</label>
-                <Input
-                  value={walletPhone}
-                  onChange={e => setWalletPhone(e.target.value)}
-                  placeholder="رقم هاتفك"
-                  className="bg-white/5 border-white/10 h-10 text-sm text-white placeholder:text-muted-foreground/50"
-                  dir="ltr"
-                />
-              </div>
-            </div>
-
             {/* Screenshot upload */}
             <div>
               <label className="text-xs text-muted-foreground mb-2 block">لقطة شاشة التحويل *</label>
@@ -544,7 +517,7 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
             {/* Submit */}
             <Button
               onClick={handleSubmit}
-              disabled={!selectedMethod || !screenshot || !walletName || !walletPhone || submitting}
+              disabled={!selectedMethod || !screenshot || submitting}
               className="w-full h-12 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
