@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home, BookOpen, Brain, Activity, Play, HelpCircle, Users, User,
-  Menu, X, Search, Bell, Globe, ChevronRight, Sparkles, LogOut, Settings, Award, MessageSquare
+  Menu, X, Search, Bell, Globe, ChevronRight, Sparkles, LogOut, Settings, Award, MessageSquare, Eye, EyeOff, Lock, Phone, UserPlus, Shield, Heart
 } from 'lucide-react'
 import { useAppStore, type PageId } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
@@ -66,7 +66,7 @@ function Logo() {
 }
 
 function Sidebar() {
-  const { activePage, setActivePage, user, notifications, setSidebarOpen } = useAppStore()
+  const { activePage, setActivePage, user, notifications } = useAppStore()
   const unreadCount = notifications.filter(n => !n.read).length
 
   return (
@@ -86,7 +86,6 @@ function Sidebar() {
         </div>
       </div>
 
-      {/* XP Bar */}
       <div className="px-4 mt-3">
         <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
           <span>{user.xp.toLocaleString()} XP</span>
@@ -138,7 +137,6 @@ function Sidebar() {
         </div>
       </ScrollArea>
 
-      {/* Bottom Section */}
       <div className="p-3 border-t border-med-border space-y-2">
         <div className="glass-card p-2.5 flex items-center gap-2">
           <div className="text-lg">🔥</div>
@@ -349,7 +347,7 @@ function PageRenderer() {
     quizzes: QuizzesPage,
     community: CommunityPage,
     profile: ProfilePage,
-    auth: HomePage, // fallback
+    auth: HomePage,
   }
 
   const PageComponent = pages[activePage] || HomePage
@@ -370,169 +368,551 @@ function PageRenderer() {
   )
 }
 
-export default function AppShell() {
-  const { activePage, setActivePage, isLoggedIn, setIsLoggedIn, user, updateUser } = useAppStore()
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
-  const [authName, setAuthName] = useState('')
-  const [authEmail, setAuthEmail] = useState('')
-  const [authPassword, setAuthPassword] = useState('')
-  const [authSpecialty, setAuthSpecialty] = useState('طب الطوارئ')
-  const [authLoading, setAuthLoading] = useState(false)
+// =============================================
+// Change Password Modal
+// =============================================
+function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
+  const { authToken } = useAppStore()
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
 
-  const handleAuth = async () => {
-    if (!authEmail || !authPassword) return
-    setAuthLoading(true)
+  const handleChangePassword = async () => {
+    setError('')
     
-    // Simulate auth delay
-    await new Promise(r => setTimeout(r, 800))
-    
-    const userName = authMode === 'register' ? (authName || 'طبيب جديد') : (authEmail.split('@')[0])
-    
-    // Save user data
-    const newUser = {
-      name: userName,
-      email: authEmail,
-      avatar: '',
-      xp: 0,
-      coins: 0,
-      level: 1,
-      rankTitle: 'طالب طب',
-      rankIcon: '🩺',
-      streak: 0,
-      maxStreak: 0,
-      completedCourses: 0,
-      totalHours: 0,
-      badges: [],
-      joinDate: new Date().toISOString().split('T')[0],
-      subscription: 'free' as const,
-      medicalSpecialty: authSpecialty,
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError('جميع الحقول مطلوبة')
+      return
     }
     
-    updateUser(newUser)
-    setIsLoggedIn(true)
-    
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('medai-user', JSON.stringify(newUser))
-      localStorage.setItem('medai-auth', 'true')
+    if (newPassword.length < 6) {
+      setError('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل')
+      return
     }
     
-    setAuthLoading(false)
+    if (newPassword !== confirmPassword) {
+      setError('كلمة المرور الجديدة غير متطابقة')
+      return
+    }
+
+    if (newPassword === currentPassword) {
+      setError('كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية')
+      return
+    }
+
+    setLoading(true)
+    
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: authToken,
+          currentPassword,
+          newPassword,
+        }),
+      })
+      
+      const data = await res.json()
+      
+      if (data.success) {
+        onComplete()
+      } else {
+        setError(data.error || 'حدث خطأ في تغيير كلمة المرور')
+      }
+    } catch (err) {
+      setError('حدث خطأ في الاتصال بالخادم')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Show auth screen if not logged in
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4" dir="rtl">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-neon-cyan/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-neon-purple/5 rounded-full blur-3xl" />
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+      dir="rtl"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.4, type: 'spring' }}
+        className="relative glass-card p-8 w-full max-w-md"
+      >
+        {/* Security Icon */}
+        <div className="text-center mb-6">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/30"
+          >
+            <Shield className="w-8 h-8 text-white" />
+          </motion.div>
+          <h2 className="text-xl font-black text-white">تغيير كلمة المرور</h2>
+          <p className="text-sm text-amber-400 mt-1">يجب تغيير كلمة المرور الافتراضية قبل المتابعة</p>
         </div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="relative glass-card p-8 w-full max-w-md"
-        >
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/20">
-              <Activity className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-              MedAI Academy
-            </h1>
-            <p className="text-sm text-muted-foreground mt-2">منصة التعليم الطبي الذكي</p>
-          </div>
 
-          {/* Auth tabs */}
-          <div className="flex gap-2 mb-6">
-            <button
-              onClick={() => setAuthMode('login')}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                authMode === 'login'
-                  ? 'bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30'
-                  : 'text-muted-foreground hover:text-white border border-transparent'
-              }`}
-            >
-              تسجيل الدخول
-            </button>
-            <button
-              onClick={() => setAuthMode('register')}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                authMode === 'register'
-                  ? 'bg-neon-purple/15 text-neon-purple border border-neon-purple/30'
-                  : 'text-muted-foreground hover:text-white border border-transparent'
-              }`}
-            >
-              إنشاء حساب
-            </button>
-          </div>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center"
+          >
+            {error}
+          </motion.div>
+        )}
 
-          {/* Form */}
-          <div className="space-y-4">
-            {authMode === 'register' && (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1.5 block">الاسم الكامل</label>
-                <input
-                  type="text"
-                  value={authName}
-                  onChange={(e) => setAuthName(e.target.value)}
-                  placeholder="د. أحمد الخالدي"
-                  className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-neon-cyan/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan/40 text-sm"
-                />
-              </div>
-            )}
-            
-            <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">البريد الإلكتروني</label>
+        <div className="space-y-4">
+          {/* Current Password */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">كلمة المرور الحالية</label>
+            <div className="relative">
               <input
-                type="email"
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                placeholder="doctor@medai.com"
-                className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-neon-cyan/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan/40 text-sm"
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border border-amber-500/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
                 dir="ltr"
               />
+              <button
+                type="button"
+                onClick={() => setShowCurrent(!showCurrent)}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+              >
+                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-            
-            <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">كلمة المرور</label>
+          </div>
+
+          {/* New Password */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">كلمة المرور الجديدة</label>
+            <div className="relative">
               <input
-                type="password"
+                type={showNew ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="6 أحرف على الأقل"
+                className="w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border border-amber-500/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
+                dir="ltr"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNew(!showNew)}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+              >
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">تأكيد كلمة المرور الجديدة</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-amber-500/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
+              dir="ltr"
+            />
+          </div>
+
+          <Button
+            onClick={handleChangePassword}
+            disabled={loading || !currentPassword || !newPassword || !confirmPassword}
+            className="w-full h-12 font-bold text-base bg-gradient-to-l from-amber-500 to-red-500 text-white hover:shadow-[0_0_30px_rgba(245,158,11,0.3)]"
+          >
+            {loading ? (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                className="w-5 h-5 border-2 border-current border-t-transparent rounded-full"
+              />
+            ) : 'تغيير كلمة المرور'}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// =============================================
+// Auth Screen (Login + Register)
+// =============================================
+function AuthScreen() {
+  const { setIsLoggedIn, updateUser, setAuthToken, setMustChangePassword } = useAppStore()
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  const [authName, setAuthName] = useState('')
+  const [authPhone, setAuthPhone] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [focusedField, setFocusedField] = useState<string | null>(null)
+
+  const handleLogin = async () => {
+    setAuthError('')
+    if (!authPhone || !authPassword) {
+      setAuthError('رقم الهاتف وكلمة المرور مطلوبان')
+      return
+    }
+    
+    setAuthLoading(true)
+    
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: authPhone, password: authPassword }),
+      })
+      
+      const data = await res.json()
+      
+      if (data.success) {
+        const { user, token } = data
+        
+        const newUser = {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          avatar: '',
+          xp: 0,
+          coins: 0,
+          level: 1,
+          rankTitle: user.role === 'admin' ? 'مدير النظام' : 'طالب طب',
+          rankIcon: user.role === 'admin' ? '👑' : '🩺',
+          streak: 0,
+          maxStreak: 0,
+          completedCourses: 0,
+          totalHours: 0,
+          badges: [],
+          joinDate: new Date().toISOString().split('T')[0],
+          subscription: user.role === 'admin' ? 'premium' as const : 'free' as const,
+          medicalSpecialty: '',
+          role: user.role as 'admin' | 'user',
+        }
+        
+        updateUser(newUser)
+        setAuthToken(token)
+        setIsLoggedIn(true)
+        
+        if (user.mustChangePassword) {
+          setMustChangePassword(true)
+        }
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('medai-user', JSON.stringify(newUser))
+          localStorage.setItem('medai-auth', 'true')
+          localStorage.setItem('medai-token', token)
+        }
+      } else {
+        setAuthError(data.error || 'حدث خطأ في تسجيل الدخول')
+      }
+    } catch (err) {
+      setAuthError('حدث خطأ في الاتصال بالخادم')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleRegister = async () => {
+    setAuthError('')
+    if (!authName || !authPhone || !authPassword) {
+      setAuthError('جميع الحقول مطلوبة')
+      return
+    }
+    
+    if (authPassword.length < 6) {
+      setAuthError('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
+      return
+    }
+    
+    setAuthLoading(true)
+    
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: authName, phone: authPhone, password: authPassword }),
+      })
+      
+      const data = await res.json()
+      
+      if (data.success) {
+        const { user, token } = data
+        
+        const newUser = {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          avatar: '',
+          xp: 0,
+          coins: 0,
+          level: 1,
+          rankTitle: 'طالب طب',
+          rankIcon: '🩺',
+          streak: 0,
+          maxStreak: 0,
+          completedCourses: 0,
+          totalHours: 0,
+          badges: [],
+          joinDate: new Date().toISOString().split('T')[0],
+          subscription: 'free' as const,
+          medicalSpecialty: '',
+          role: 'user' as const,
+        }
+        
+        updateUser(newUser)
+        setAuthToken(token)
+        setIsLoggedIn(true)
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('medai-user', JSON.stringify(newUser))
+          localStorage.setItem('medai-auth', 'true')
+          localStorage.setItem('medai-token', token)
+        }
+      } else {
+        setAuthError(data.error || 'حدث خطأ في إنشاء الحساب')
+      }
+    } catch (err) {
+      setAuthError('حدث خطأ في الاتصال بالخادم')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleAuth = () => {
+    if (authMode === 'login') {
+      handleLogin()
+    } else {
+      handleRegister()
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4" dir="rtl">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-neon-cyan/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-neon-purple/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/3 rounded-full blur-3xl" />
+        {/* Grid pattern */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'linear-gradient(rgba(0,245,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,245,255,0.3) 1px, transparent 1px)',
+          backgroundSize: '60px 60px'
+        }} />
+      </div>
+      
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="relative glass-card p-8 w-full max-w-md"
+      >
+        {/* Animated border glow */}
+        <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-cyan-500/20 blur-sm -z-10" />
+        
+        {/* Logo */}
+        <motion.div 
+          className="text-center mb-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 200, damping: 15 }}
+            className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/30 relative"
+          >
+            <Heart className="w-10 h-10 text-white" />
+            <motion.div
+              className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-400 to-purple-500"
+              animate={{ opacity: [0, 0.5, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+          </motion.div>
+          <h1 className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+            MedAI Academy
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2">منصة التعليم الطبي الذكي</p>
+        </motion.div>
+
+        {/* Auth tabs */}
+        <motion.div 
+          className="flex gap-2 mb-6"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <button
+            onClick={() => { setAuthMode('login'); setAuthError('') }}
+            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 relative overflow-hidden ${
+              authMode === 'login'
+                ? 'bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 shadow-[0_0_20px_rgba(0,245,255,0.1)]'
+                : 'text-muted-foreground hover:text-white border border-transparent hover:border-white/10'
+            }`}
+          >
+            {authMode === 'login' && (
+              <motion.div
+                layoutId="auth-tab-glow"
+                className="absolute inset-0 bg-gradient-to-l from-cyan-500/10 to-transparent"
+              />
+            )}
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              <Lock className="w-4 h-4" />
+              تسجيل الدخول
+            </span>
+          </button>
+          <button
+            onClick={() => { setAuthMode('register'); setAuthError('') }}
+            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 relative overflow-hidden ${
+              authMode === 'register'
+                ? 'bg-neon-purple/15 text-neon-purple border border-neon-purple/30 shadow-[0_0_20px_rgba(139,92,246,0.1)]'
+                : 'text-muted-foreground hover:text-white border border-transparent hover:border-white/10'
+            }`}
+          >
+            {authMode === 'register' && (
+              <motion.div
+                layoutId="auth-tab-glow"
+                className="absolute inset-0 bg-gradient-to-l from-purple-500/10 to-transparent"
+              />
+            )}
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              <UserPlus className="w-4 h-4" />
+              إنشاء حساب
+            </span>
+          </button>
+        </motion.div>
+
+        {/* Error Message */}
+        <AnimatePresence>
+          {authError && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -10 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -10 }}
+              className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center overflow-hidden"
+            >
+              {authError}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Form */}
+        <motion.div 
+          className="space-y-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          {/* Name (Register only) */}
+          <AnimatePresence>
+            {authMode === 'register' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <label className="text-xs text-muted-foreground mb-1.5 block flex items-center gap-1.5">
+                  <User className="w-3 h-3" />
+                  الاسم
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    onFocus={() => setFocusedField('name')}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder="أدخل اسمك الكامل"
+                    className={`w-full h-11 px-4 rounded-xl bg-med-card/80 border text-white placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
+                      focusedField === 'name' ? 'border-neon-purple/50 shadow-[0_0_15px_rgba(139,92,246,0.15)]' : 'border-neon-purple/15'
+                    }`}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          {/* Phone */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block flex items-center gap-1.5">
+              <Phone className="w-3 h-3" />
+              الرقم
+            </label>
+            <div className="relative">
+              <input
+                type="tel"
+                value={authPhone}
+                onChange={(e) => setAuthPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                onFocus={() => setFocusedField('phone')}
+                onBlur={() => setFocusedField(null)}
+                placeholder="7XXXXXXXX"
+                className={`w-full h-11 px-4 rounded-xl bg-med-card/80 border text-white placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
+                  focusedField === 'phone' ? 'border-neon-cyan/50 shadow-[0_0_15px_rgba(0,245,255,0.15)]' : 'border-neon-cyan/15'
+                }`}
+                dir="ltr"
+              />
+              {authPhone && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-400"
+                />
+              )}
+            </div>
+          </div>
+          
+          {/* Password */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block flex items-center gap-1.5">
+              <Lock className="w-3 h-3" />
+              كلمة السر
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
                 value={authPassword}
                 onChange={(e) => setAuthPassword(e.target.value)}
+                onFocus={() => setFocusedField('password')}
+                onBlur={() => setFocusedField(null)}
                 placeholder="••••••••"
-                className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-neon-cyan/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan/40 text-sm"
+                className={`w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border text-white placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
+                  focusedField === 'password' ? 'border-neon-cyan/50 shadow-[0_0_15px_rgba(0,245,255,0.15)]' : 'border-neon-cyan/15'
+                }`}
                 dir="ltr"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+          </div>
 
-            {authMode === 'register' && (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1.5 block">التخصص الطبي</label>
-                <select
-                  value={authSpecialty}
-                  onChange={(e) => setAuthSpecialty(e.target.value)}
-                  className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-neon-cyan/15 text-white focus:outline-none focus:border-neon-cyan/40 text-sm appearance-none cursor-pointer"
-                >
-                  <option value="طب الطوارئ">طب الطوارئ</option>
-                  <option value="أمراض القلب">أمراض القلب</option>
-                  <option value="الأعصاب">الأعصاب</option>
-                  <option value="طب الأطفال">طب الأطفال</option>
-                  <option value="الجراحة">الجراحة</option>
-                  <option value="الطب الباطني">الطب الباطني</option>
-                  <option value="الأشعة">الأشعة</option>
-                  <option value="علم الأدوية">علم الأدوية</option>
-                  <option value="طب عام">طب عام</option>
-                </select>
-              </div>
-            )}
-
+          {/* Submit Button */}
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
             <Button
               onClick={handleAuth}
-              disabled={authLoading || !authEmail || !authPassword}
-              className={`w-full h-12 font-bold text-base ${
+              disabled={authLoading || (authMode === 'login' ? (!authPhone || !authPassword) : (!authName || !authPhone || !authPassword))}
+              className={`w-full h-12 font-bold text-base rounded-xl transition-all duration-300 ${
                 authMode === 'login'
                   ? 'bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark hover:shadow-[0_0_30px_rgba(0,245,255,0.3)]'
                   : 'bg-gradient-to-l from-neon-purple to-purple-400 text-white hover:shadow-[0_0_30px_rgba(139,92,246,0.3)]'
@@ -546,14 +926,45 @@ export default function AppShell() {
                 />
               ) : authMode === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب'}
             </Button>
-          </div>
-
-          <p className="text-center text-xs text-muted-foreground mt-6">
-            بالتسجيل، أنت توافق على شروط الاستخدام وسياسة الخصوصية
-          </p>
+          </motion.div>
         </motion.div>
-      </div>
+
+        <motion.p 
+          className="text-center text-xs text-muted-foreground mt-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+        >
+          بالتسجيل، أنت توافق على شروط الاستخدام وسياسة الخصوصية
+        </motion.p>
+      </motion.div>
+    </div>
+  )
+}
+
+// =============================================
+// Main App Shell
+// =============================================
+export default function AppShell() {
+  const { isLoggedIn, mustChangePassword, setMustChangePassword } = useAppStore()
+
+  // Show change password modal if admin must change password
+  if (isLoggedIn && mustChangePassword) {
+    return (
+      <>
+        <ChangePasswordModal
+          onComplete={() => {
+            setMustChangePassword(false)
+          }}
+        />
+        <div className="min-h-screen bg-background" dir="rtl" />
+      </>
     )
+  }
+
+  // Show auth screen if not logged in
+  if (!isLoggedIn) {
+    return <AuthScreen />
   }
 
   return (
@@ -575,7 +986,7 @@ export default function AppShell() {
         className="fixed bottom-24 lg:bottom-6 left-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 shadow-lg shadow-cyan-500/25 flex items-center justify-center group"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setActivePage('ai-tutor')}
+        onClick={() => useAppStore.getState().setActivePage('ai-tutor')}
       >
         <Brain className="w-6 h-6 text-white" />
         <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-background animate-pulse" />

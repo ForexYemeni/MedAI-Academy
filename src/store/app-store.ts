@@ -127,8 +127,9 @@ export interface ShortVideo {
 }
 
 export interface UserProfile {
+  id: string
   name: string
-  email: string
+  phone: string
   avatar: string
   xp: number
   coins: number
@@ -143,6 +144,7 @@ export interface UserProfile {
   joinDate: string
   subscription: 'free' | 'premium' | 'instructor'
   medicalSpecialty: string
+  role: 'admin' | 'user'
 }
 
 interface AppState {
@@ -216,6 +218,10 @@ interface AppState {
   // Auth
   isLoggedIn: boolean
   setIsLoggedIn: (loggedIn: boolean) => void
+  authToken: string | null
+  setAuthToken: (token: string | null) => void
+  mustChangePassword: boolean
+  setMustChangePassword: (must: boolean) => void
   showAuthModal: boolean
   setShowAuthModal: (show: boolean) => void
   logout: () => void
@@ -254,29 +260,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // User
   user: {
-    name: 'د. أحمد الخالدي',
-    email: 'ahmed@medai.com',
+    id: '',
+    name: '',
+    phone: '',
     avatar: '',
-    xp: 3750,
-    coins: 1250,
-    level: getLevelForXP(3750),
-    rankTitle: getRankForXP(3750).title,
-    rankIcon: getRankForXP(3750).icon,
-    streak: 14,
-    maxStreak: 28,
-    completedCourses: 12,
-    totalHours: 156,
-    badges: [
-      { id: '1', name: 'First Steps', nameAr: 'الخطوات الأولى', description: 'أكمل أول درس', icon: '🎯', earned: true, earnedAt: Date.now() - 86400000 * 30, rarity: 'common' },
-      { id: '2', name: 'Streak Master', nameAr: 'سيد التتابع', description: '7 أيام متتالية', icon: '🔥', earned: true, earnedAt: Date.now() - 86400000 * 7, rarity: 'rare' },
-      { id: '3', name: 'Quiz Champion', nameAr: 'بطل الاختبارات', description: '100% في اختبار صعب', icon: '🏆', earned: true, earnedAt: Date.now() - 86400000 * 3, rarity: 'epic' },
-      { id: '4', name: 'Life Saver', nameAr: 'منقذ الحياة', description: 'أكمل محاكاة إنقاذ', icon: '❤️', earned: true, earnedAt: Date.now() - 86400000, rarity: 'legendary' },
-      { id: '5', name: 'Night Owl', nameAr: 'بومة الليل', description: 'ادرس بعد منتصف الليل', icon: '🦉', earned: false, rarity: 'rare' },
-      { id: '6', name: 'ICU Ready', nameAr: 'جاهز للعناية المركزة', description: 'أكمل كل محاكاة ICU', icon: '🏥', earned: false, rarity: 'legendary' },
-    ],
-    joinDate: '2025-09-15',
-    subscription: 'premium',
-    medicalSpecialty: 'طب الطوارئ',
+    xp: 0,
+    coins: 0,
+    level: 1,
+    rankTitle: 'طالب طب',
+    rankIcon: '🩺',
+    streak: 0,
+    maxStreak: 0,
+    completedCourses: 0,
+    totalHours: 0,
+    badges: [],
+    joinDate: '',
+    subscription: 'free' as const,
+    medicalSpecialty: '',
+    role: 'user' as const,
   },
   updateUser: (updates) => set((state) => {
     const newUser = { ...state.user, ...updates }
@@ -566,6 +567,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       localStorage.setItem('medai-auth', loggedIn ? 'true' : 'false')
     }
   },
+  authToken: null,
+  setAuthToken: (token) => {
+    set({ authToken: token })
+    if (typeof window !== 'undefined') {
+      if (token) {
+        localStorage.setItem('medai-token', token)
+      } else {
+        localStorage.removeItem('medai-token')
+      }
+    }
+  },
+  mustChangePassword: false,
+  setMustChangePassword: (must) => set({ mustChangePassword: must }),
   showAuthModal: false,
   setShowAuthModal: (show) => set({ showAuthModal: show }),
 
@@ -574,12 +588,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       localStorage.removeItem('medai-user')
       localStorage.removeItem('medai-auth')
       localStorage.removeItem('medai-progress')
+      localStorage.removeItem('medai-token')
     }
     set({
       isLoggedIn: false,
+      authToken: null,
+      mustChangePassword: false,
       user: {
+        id: '',
         name: '',
-        email: '',
+        phone: '',
         avatar: '',
         xp: 0,
         coins: 0,
@@ -594,6 +612,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         joinDate: '',
         subscription: 'free' as const,
         medicalSpecialty: '',
+        role: 'user' as const,
       },
       courseProgress: [],
       activePage: 'home' as PageId,
@@ -622,5 +641,10 @@ if (typeof window !== 'undefined') {
   const savedAuth = localStorage.getItem('medai-auth')
   if (savedAuth === 'true') {
     useAppStore.setState({ isLoggedIn: true })
+  }
+
+  const savedToken = localStorage.getItem('medai-token')
+  if (savedToken) {
+    useAppStore.setState({ authToken: savedToken })
   }
 }
