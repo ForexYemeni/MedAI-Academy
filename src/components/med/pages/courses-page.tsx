@@ -572,7 +572,11 @@ export function CoursesPage() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const res = await fetch('/api/courses')
+        // Send auth token so API can include lesson content for enrolled courses
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        const res = await fetch('/api/courses', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
         const data = await res.json()
         if (data.courses && data.courses.length > 0) {
           // Map API courses to store format

@@ -124,7 +124,9 @@ const cardHover = { scale: 1.02, transition: { duration: 0.25, ease: 'easeOut' a
 // ─── Helper Functions ───────────────────────────────────────
 
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+  // First try Zustand store (faster, always in sync), then fallback to localStorage
+  const storeToken = useAppStore.getState().authToken
+  const token = storeToken || (typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null)
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 }
 
@@ -537,6 +539,23 @@ export function AdminPage() {
   const [loadedSections, setLoadedSections] = useState<Set<AdminSection>>(new Set())
   const [sectionLoading, setSectionLoading] = useState<Set<AdminSection>>(new Set())
 
+  // Helper: fetch with timeout to avoid infinite loading
+  const fetchWithTimeout = useCallback(async (url: string, timeoutMs = 8000) => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const res = await fetch(url, { headers: getAuthHeaders(), signal: controller.signal })
+      clearTimeout(timeoutId)
+      return res
+    } catch (err: any) {
+      clearTimeout(timeoutId)
+      if (err.name === 'AbortError') {
+        console.error(`Fetch timeout for ${url}`)
+      }
+      throw err
+    }
+  }, [])
+
   // Load data for a specific section
   const loadSectionData = useCallback(async (section: AdminSection) => {
     if (loadedSections.has(section) || sectionLoading.has(section)) return
@@ -564,17 +583,29 @@ export function AdminPage() {
     setSectionLoading(prev => { const next = new Set(prev); next.delete(section); return next })
   }, [loadedSections, sectionLoading, fetchStats, fetchPayments, fetchCourses, fetchUsers, fetchPaymentMethods])
 
-  // Initial load: only load overview data
+  // Initial load: only load overview data with max timeout
   useEffect(() => {
     const loadInitial = async () => {
       setLoading(true)
+      // Max loading timeout - always show admin after 6 seconds even if API is slow
+      const maxTimeout = setTimeout(() => {
+        console.log('Admin loading timeout - showing page anyway')
+        setLoading(false)
+      }, 6000)
+
       try {
-        await Promise.all([fetchStats(), fetchPayments()])
+        await Promise.all([
+          fetchStats().catch(e => console.error('Stats fetch failed:', e)),
+          fetchPayments().catch(e => console.error('Payments fetch failed:', e)),
+        ])
         setLoadedSections(new Set(['overview']))
       } catch (err) { console.error('Initial load error:', err) }
+      clearTimeout(maxTimeout)
       setLoading(false)
     }
-    loadInitial()
+    // Small delay to ensure token is saved to localStorage before fetching
+    const timer = setTimeout(loadInitial, 300)
+    return () => clearTimeout(timer)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load data when section changes

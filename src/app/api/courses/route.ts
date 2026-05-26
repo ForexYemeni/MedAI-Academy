@@ -17,16 +17,33 @@ export async function GET(req: NextRequest) {
       .sort({ rating: -1, students: -1 })
       .toArray()
 
+    // Get user enrollment status if token is provided
+    const authHeader = req.headers.get('Authorization')
+    let enrolledCourseIds: Set<string> = new Set()
+    if (authHeader) {
+      try {
+        const token = authHeader.replace('Bearer ', '')
+        const { verifyToken } = await import('@/lib/auth')
+        const authUser = verifyToken(token)
+        if (authUser && authUser.role === 'user') {
+          const enrollments = await db.collection('enrollments').find({ userId: authUser.id }).toArray()
+          enrolledCourseIds = new Set(enrollments.map((e: any) => e.courseId.toString()))
+        }
+      } catch { /* ignore auth errors */ }
+    }
+
     // Process courses: add stats and filter lesson content
     const coursesWithStats = await Promise.all(
       courses.map(async (course) => {
         const studentCount = await db.collection('enrollments').countDocuments({ courseId: course._id })
-        // Filter lessonsData: include all metadata but strip content for non-free lessons
+        const isEnrolled = enrolledCourseIds.has(course._id.toString())
+        const isCourseFree = course.price === 0
+        // Filter lessonsData: include all content for free courses or enrolled courses
         const filteredLessonsData = (course.lessonsData || []).map((lesson: any) => {
-          if (lesson.isFree) {
+          if (isCourseFree || isEnrolled || lesson.isFree) {
             return lesson
           }
-          // For non-free lessons, exclude content/videoUrl to prevent unauthorized access
+          // For non-free lessons in paid courses (not enrolled), exclude content/videoUrl
           const { content, videoUrl, ...metaOnly } = lesson
           return metaOnly
         })
