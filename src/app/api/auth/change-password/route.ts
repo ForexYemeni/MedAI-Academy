@@ -29,11 +29,28 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { db } = await connectToDatabase()
+    let dbResult
+    try {
+      dbResult = await connectToDatabase()
+    } catch (dbConnError) {
+      console.error('MongoDB connection failed for change-password:', dbConnError instanceof Error ? dbConnError.message : 'Unknown error')
+      return NextResponse.json(
+        { error: 'تعذر الاتصال بقاعدة البيانات' },
+        { status: 500 }
+      )
+    }
+
+    const { db } = dbResult
 
     // Find user
     const { ObjectId } = await import('mongodb')
-    const user = await db.collection('users').findOne({ _id: new ObjectId(authUser.id) })
+    let user
+    try {
+      user = await db.collection('users').findOne({ _id: new ObjectId(authUser.id) })
+    } catch {
+      // If ID is not a valid ObjectId (fallback admin), try by phone
+      user = await db.collection('users').findOne({ phone: authUser.phone })
+    }
 
     if (!user) {
       return NextResponse.json(

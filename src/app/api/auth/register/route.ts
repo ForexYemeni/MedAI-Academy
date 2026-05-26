@@ -20,7 +20,26 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { db } = await connectToDatabase()
+    // Validate phone format
+    if (!/^7\d{8}$/.test(phone.toString())) {
+      return NextResponse.json(
+        { error: 'رقم الهاتف يجب أن يبدأ بـ 7 ويتكون من 9 أرقام' },
+        { status: 400 }
+      )
+    }
+
+    let dbResult
+    try {
+      dbResult = await connectToDatabase()
+    } catch (dbConnError) {
+      console.error('MongoDB connection failed for register:', dbConnError instanceof Error ? dbConnError.message : 'Unknown error')
+      return NextResponse.json(
+        { error: 'تعذر الاتصال بقاعدة البيانات. يرجى المحاولة لاحقاً.' },
+        { status: 500 }
+      )
+    }
+
+    const { db } = dbResult
 
     // Check if phone already exists
     const existingUser = await db.collection('users').findOne({ phone: phone.toString() })
