@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Filter, Star, Clock, Users, BookOpen, Crown,
@@ -295,6 +295,56 @@ export function CoursesPage() {
   const [activeLevel, setActiveLevel] = useState<string>('all')
   const [sortBy, setSortBy] = useState('popular')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Fetch courses from API on mount
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const res = await fetch('/api/courses')
+        const data = await res.json()
+        if (data.courses && data.courses.length > 0) {
+          // Map API courses to store format
+          const apiCourses: Course[] = data.courses.map((c: any) => ({
+            id: c._id?.toString() || c.id,
+            title: c.title || '',
+            titleAr: c.titleAr || '',
+            description: c.descriptionAr || c.description || '',
+            category: c.category || 'general',
+            thumbnail: c.thumbnail || '',
+            instructor: c.instructorName || c.instructor || '',
+            rating: c.rating || 0,
+            students: c.students || 0,
+            duration: c.duration || '0 ساعة',
+            level: c.level || 'beginner',
+            price: c.price || 0,
+            isPremium: c.isPremium || false,
+            lessons: c.lessons || (c.lessonsData?.length || 0),
+            tags: c.tags || [],
+            lessonsData: c.lessonsData?.map((l: any) => ({
+              id: l.id,
+              courseId: c._id?.toString() || c.id,
+              title: l.title || '',
+              titleAr: l.titleAr || '',
+              type: l.type || 'article',
+              duration: l.duration || 15,
+              order: l.order || 1,
+              isFree: l.isFree || false,
+              content: l.content,
+              videoUrl: l.videoUrl,
+              summary: l.summary,
+              keyPoints: l.keyPoints,
+            })) || [],
+          }))
+          // Only update store if we got courses from the API
+          useAppStore.setState({ courses: apiCourses })
+        }
+      } catch (err) {
+        // Keep using Zustand mock data as fallback
+        console.log('Using local course data as fallback')
+      }
+    }
+    fetchCourses()
+  }, [])
 
   // Filter and sort courses
   const filteredCourses = useMemo(() => {
