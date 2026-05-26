@@ -8,7 +8,7 @@ import {
   Eye, Clock, Search, ChevronLeft, Wallet, DollarSign,
   BarChart3, RefreshCw, CheckCircle2, Image as ImageIcon,
   FileText, BookOpenCheck, ToggleLeft, ToggleRight, Menu,
-  Settings, LogOut, XCircle, ArrowLeft, Play,
+  Settings, LogOut, XCircle, ArrowLeft, Play, HelpCircle, Phone,
 } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -590,7 +590,51 @@ export function AdminPage() {
         </div>
         <Badge variant="outline" className="text-xs">{usersTotal} مستخدم</Badge>
       </div>
-      <div className="glass-card overflow-hidden">
+
+      {/* Mobile: Card Layout */}
+      <div className="lg:hidden space-y-3">
+        {users.length === 0 ? (
+          <div className="glass-card p-8 text-center">
+            <Users className="h-10 w-10 text-neon-cyan/50 mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">لا يوجد مستخدمين</p>
+          </div>
+        ) : users.map((u) => (
+          <motion.div key={u._id} variants={staggerItem} className="glass-card p-4 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-16 h-16 rounded-full blur-3xl opacity-10 bg-neon-cyan" />
+            <div className="relative z-10">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-sm font-bold shrink-0">
+                    {u.name?.charAt(0) || '?'}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{u.name}</p>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground" dir="ltr">
+                      <Phone className="h-3 w-3" />
+                      <span>{u.phone}</span>
+                    </div>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-500/10 shrink-0" onClick={() => handleDeleteUser(u._id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px]">
+                  <BookOpen className="h-2.5 w-2.5 ml-0.5" /> {u.enrollmentCount || 0} دورة
+                </Badge>
+                <Badge className="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[10px]">
+                  <CreditCard className="h-2.5 w-2.5 ml-0.5" /> {u.paymentCount || 0} دفعة
+                </Badge>
+                <span className="text-[10px] text-muted-foreground">{formatDate(u.createdAt)}</span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Desktop: Table Layout */}
+      <div className="hidden lg:block glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -636,6 +680,15 @@ export function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Mobile Pagination */}
+      {usersTotal > 20 && (
+        <div className="lg:hidden flex items-center justify-between p-3 glass-card">
+          <Button variant="ghost" size="sm" disabled={usersPage <= 1} onClick={() => setUsersPage(p => p - 1)}>السابق</Button>
+          <span className="text-xs text-muted-foreground">صفحة {usersPage} من {Math.ceil(usersTotal / 20)}</span>
+          <Button variant="ghost" size="sm" disabled={usersPage >= Math.ceil(usersTotal / 20)} onClick={() => setUsersPage(p => p + 1)}>التالي</Button>
+        </div>
+      )}
     </div>
   )
 
@@ -666,8 +719,8 @@ export function AdminPage() {
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{course.descriptionAr}</p>
                 </div>
                 <div className="flex gap-1.5 mr-2 shrink-0">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-400 hover:bg-blue-500/10" onClick={() => openCourseLessons(course)} title="الدروس">
-                    <BookOpenCheck className="h-3.5 w-3.5" />
+                  <Button className="h-7 px-2 text-xs bg-neon-purple/15 text-neon-purple border border-neon-purple/25 hover:bg-neon-purple/25" onClick={() => openCourseLessons(course)}>
+                    <BookOpenCheck className="h-3.5 w-3.5 ml-1" /> الدروس
                   </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-neon-cyan hover:bg-neon-cyan/10" onClick={() => startEditCourse(course)}>
                     <Pencil className="h-3.5 w-3.5" />
@@ -695,15 +748,21 @@ export function AdminPage() {
                 <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" /> {(course.revenue || 0).toLocaleString()} ر.ي</span>
                 {course.instructorName && <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {course.instructorName}</span>}
               </div>
-              {/* Free/Paid lesson indicator */}
-              <div className="mt-3 pt-3 border-t border-white/5">
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span>الدروس المجانية:</span>
-                  <span className="text-neon-green font-medium">{course.lessonsData?.filter((l: any) => l.isFree).length || 0}</span>
-                  <span>من</span>
-                  <span className="font-medium">{course.lessonsData?.length || 0}</span>
+              {/* Free/Paid lesson indicator - clickable to view lessons */}
+              <button onClick={() => openCourseLessons(course)} className="mt-3 pt-3 border-t border-white/5 w-full text-right hover:bg-white/5 -mx-1 px-1 rounded-lg transition-colors cursor-pointer">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <BookOpenCheck className="h-3 w-3 text-neon-purple" />
+                    <span>الدروس المجانية:</span>
+                    <span className="text-neon-green font-medium">{course.lessonsData?.filter((l: any) => l.isFree).length || 0}</span>
+                    <span>من</span>
+                    <span className="font-medium">{course.lessonsData?.length || 0}</span>
+                  </div>
+                  <span className="text-neon-purple flex items-center gap-1">
+                    إدارة الدروس <ChevronLeft className="h-2.5 w-2.5" />
+                  </span>
                 </div>
-              </div>
+              </button>
             </div>
           </motion.div>
         ))}
