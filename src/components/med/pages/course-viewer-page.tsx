@@ -62,14 +62,37 @@ const lessonTypeColors = {
   flashcard: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
 }
 
-// ─── Markdown-like Content Renderer ─────────────────────────
+// ─── Professional Markdown Content Renderer ──────────────────
+
+function formatInline(text: string): React.ReactNode {
+  // Process bold text with medical-style highlight
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <span key={i} className="text-white font-bold bg-neon-cyan/8 px-1 rounded">
+          {part.slice(2, -2)}
+        </span>
+      )
+    }
+    return part
+  })
+}
+
+let _globalKey = 0
+function getKey() { return `c-${++_globalKey}` }
 
 function renderContent(content: string) {
+  _globalKey = 0
   const lines = content.split('\n')
   const elements: React.ReactNode[] = []
   let inTable = false
   let tableRows: string[][] = []
   let tableHeaders: string[] = []
+  let inWarningBox = false
+  let warningContent: string[] = []
+  let inInfoBox = false
+  let infoContent: string[] = []
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
@@ -85,105 +108,205 @@ function renderContent(content: string) {
       continue
     }
 
+    // Warning/alert box detection (lines starting with > )
+    if (line.startsWith('> ')) {
+      const text = line.slice(2)
+      // Check if it's a warning prefix
+      if (text.startsWith('⚠️') || text.startsWith('تحذير') || text.startsWith('مهم') || text.startsWith('تنبيه')) {
+        if (inInfoBox) { elements.push(renderInfoBox(infoContent)); inInfoBox = false; infoContent = [] }
+        inWarningBox = true
+        warningContent.push(text)
+        continue
+      }
+      // Regular info box
+      if (inWarningBox) { elements.push(renderWarningBox(warningContent)); inWarningBox = false; warningContent = [] }
+      inInfoBox = true
+      infoContent.push(text)
+      continue
+    } else {
+      if (inWarningBox) { elements.push(renderWarningBox(warningContent)); inWarningBox = false; warningContent = [] }
+      if (inInfoBox) { elements.push(renderInfoBox(infoContent)); inInfoBox = false; infoContent = [] }
+    }
+
     // Table detection
     if (line.startsWith('|') && line.endsWith('|')) {
       const cells = line.split('|').filter(c => c.trim()).map(c => c.trim())
-      // Check if separator row
-      if (cells.every(c => /^[-:]+$/.test(c))) {
-        continue
-      }
-      if (!inTable) {
-        inTable = true
-        tableHeaders = cells
-      } else {
-        tableRows.push(cells)
-      }
+      if (cells.every(c => /^[-:]+$/.test(c))) continue
+      if (!inTable) { inTable = true; tableHeaders = cells }
+      else { tableRows.push(cells) }
       continue
     } else if (inTable) {
       elements.push(renderTable(tableHeaders, tableRows))
-      inTable = false
-      tableHeaders = []
-      tableRows = []
+      inTable = false; tableHeaders = []; tableRows = []
     }
 
-    // Headers
+    // H3 - Sub-section header with medical accent
     if (line.startsWith('### ')) {
       elements.push(
-        <h3 key={i} className="text-lg font-bold text-white mt-6 mb-3 flex items-center gap-2">
-          <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-neon-cyan to-neon-purple" />
-          {formatInline(line.slice(4))}
-        </h3>
-      )
-      continue
-    }
-    if (line.startsWith('## ')) {
-      elements.push(
-        <h2 key={i} className="text-xl font-bold text-white mt-8 mb-4 flex items-center gap-3">
-          <Sparkles className="w-5 h-5 text-neon-cyan" />
-          {formatInline(line.slice(3))}
-        </h2>
-      )
-      continue
-    }
-    if (line.startsWith('# ')) {
-      elements.push(
-        <h1 key={i} className="text-2xl font-black neon-text mt-6 mb-5">
-          {formatInline(line.slice(2))}
-        </h1>
+        <div key={getKey()} className="mt-8 mb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1 h-8 rounded-full bg-gradient-to-b from-neon-cyan to-neon-purple shadow-[0_0_8px_rgba(0,245,255,0.3)]" />
+            <h3 className="text-lg font-bold text-white">{formatInline(line.slice(4))}</h3>
+          </div>
+          <div className="h-px bg-gradient-to-l from-neon-cyan/20 via-neon-purple/10 to-transparent mr-4" />
+        </div>
       )
       continue
     }
 
-    // Numbered list
+    // H2 - Section header with icon and glow
+    if (line.startsWith('## ')) {
+      elements.push(
+        <div key={getKey()} className="mt-10 mb-5 relative">
+          <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-16 h-16 bg-neon-cyan/5 rounded-full blur-2xl" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-neon-cyan/20 to-neon-purple/20 border border-neon-cyan/20 flex items-center justify-center shadow-[0_0_15px_rgba(0,245,255,0.1)]">
+              <Sparkles className="w-4 h-4 text-neon-cyan" />
+            </div>
+            <h2 className="text-xl font-bold text-white">{formatInline(line.slice(3))}</h2>
+          </div>
+          <div className="mt-3 h-0.5 rounded-full bg-gradient-to-l from-neon-cyan/30 via-neon-purple/15 to-transparent" />
+        </div>
+      )
+      continue
+    }
+
+    // H1 - Main title with neon glow
+    if (line.startsWith('# ')) {
+      elements.push(
+        <div key={getKey()} className="mt-6 mb-6 relative">
+          <div className="absolute -right-4 top-0 w-24 h-24 bg-neon-cyan/8 rounded-full blur-3xl" />
+          <h1 className="relative text-2xl font-black neon-text leading-relaxed">
+            {formatInline(line.slice(2))}
+          </h1>
+          <div className="mt-3 h-1 rounded-full bg-gradient-to-l from-neon-cyan/40 via-neon-purple/20 to-transparent w-1/2" />
+        </div>
+      )
+      continue
+    }
+
+    // Numbered list - Professional step display
     if (/^\d+\.\s/.test(line)) {
       const num = line.match(/^(\d+)\.\s/)?.[1] || ''
       const text = line.replace(/^\d+\.\s/, '')
       elements.push(
-        <div key={i} className="flex gap-3 my-2 items-start">
-          <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-neon-cyan/10 border border-neon-cyan/20 text-neon-cyan text-xs font-bold flex items-center justify-center mt-0.5">
-            {num}
-          </span>
-          <span className="text-gray-300 leading-7 flex-1">{formatInline(text)}</span>
-        </div>
+        <motion.div
+          key={getKey()}
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: parseInt(num) * 0.05 }}
+          className="flex gap-4 my-3 items-start group"
+        >
+          <div className="flex-shrink-0 relative">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-neon-cyan/20 to-neon-blue/10 border border-neon-cyan/25 flex items-center justify-center shadow-[0_0_10px_rgba(0,245,255,0.1)] group-hover:shadow-[0_0_15px_rgba(0,245,255,0.2)] transition-shadow">
+              <span className="text-neon-cyan text-xs font-black">{num}</span>
+            </div>
+            {parseInt(num) > 1 && (
+              <div className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-full h-2 w-0.5 bg-neon-cyan/15" />
+            )}
+          </div>
+          <span className="text-gray-300 leading-8 flex-1 text-[15px]">{formatInline(text)}</span>
+        </motion.div>
       )
       continue
     }
 
-    // Bullet list
+    // Bullet list - Professional with subtle cards
     if (line.startsWith('- ')) {
       const text = line.slice(2)
       elements.push(
-        <div key={i} className="flex gap-3 my-1.5 items-start mr-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan mt-3 flex-shrink-0" />
-          <span className="text-gray-300 leading-7">{formatInline(text)}</span>
-        </div>
+        <motion.div
+          key={getKey()}
+          initial={{ opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex gap-3 my-2.5 items-start mr-2 group"
+        >
+          <div className="flex-shrink-0 mt-2.5">
+            <div className="w-2 h-2 rounded-full bg-gradient-to-br from-neon-cyan to-neon-blue shadow-[0_0_6px_rgba(0,245,255,0.4)]" />
+          </div>
+          <div className="flex-1 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04] group-hover:border-neon-cyan/15 group-hover:bg-white/[0.04] transition-all">
+            <span className="text-gray-300 leading-7 text-[15px]">{formatInline(text)}</span>
+          </div>
+        </motion.div>
       )
       continue
     }
 
-    // Regular paragraph
+    // Regular paragraph with improved typography
     elements.push(
-      <p key={i} className="text-gray-300 leading-8 my-2">
+      <p key={getKey()} className="text-gray-300 leading-[2] my-3 text-[15px]">
         {formatInline(line)}
       </p>
     )
   }
 
-  if (inTable) {
-    elements.push(renderTable(tableHeaders, tableRows))
-  }
+  // Close any remaining boxes
+  if (inWarningBox) { elements.push(renderWarningBox(warningContent)) }
+  if (inInfoBox) { elements.push(renderInfoBox(infoContent)) }
+  if (inTable) { elements.push(renderTable(tableHeaders, tableRows)) }
 
   return elements
 }
 
+function renderWarningBox(content: string[]) {
+  return (
+    <motion.div
+      key={getKey()}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="my-5 rounded-xl overflow-hidden border border-amber-500/25"
+    >
+      <div className="bg-gradient-to-l from-amber-500/10 to-amber-600/5 px-4 py-2.5 flex items-center gap-2 border-b border-amber-500/15">
+        <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center">
+          <Zap className="w-3.5 h-3.5 text-amber-400" />
+        </div>
+        <span className="text-amber-400 font-bold text-sm">تنبيه طبي</span>
+      </div>
+      <div className="bg-amber-500/[0.03] px-5 py-3 space-y-2">
+        {content.map((line, i) => (
+          <p key={i} className="text-amber-200/80 text-sm leading-7">{formatInline(line.replace(/^[⚠️🩺💊❗]\s*/, ''))}</p>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+function renderInfoBox(content: string[]) {
+  return (
+    <motion.div
+      key={getKey()}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="my-5 rounded-xl overflow-hidden border border-neon-cyan/20"
+    >
+      <div className="bg-gradient-to-l from-neon-cyan/10 to-neon-blue/5 px-4 py-2.5 flex items-center gap-2 border-b border-neon-cyan/15">
+        <div className="w-6 h-6 rounded-lg bg-neon-cyan/20 flex items-center justify-center">
+          <Lightbulb className="w-3.5 h-3.5 text-neon-cyan" />
+        </div>
+        <span className="text-neon-cyan font-bold text-sm">معلومة مهمة</span>
+      </div>
+      <div className="bg-neon-cyan/[0.02] px-5 py-3 space-y-2">
+        {content.map((line, i) => (
+          <p key={i} className="text-gray-300 text-sm leading-7">{formatInline(line)}</p>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
 function renderTable(headers: string[], rows: string[][]) {
   return (
-    <div className="my-5 overflow-x-auto rounded-xl border border-white/10">
+    <motion.div
+      key={getKey()}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="my-6 overflow-x-auto rounded-xl border border-white/10 shadow-[0_0_20px_rgba(0,245,255,0.05)]"
+    >
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-white/5">
+          <tr className="bg-gradient-to-l from-neon-cyan/10 to-neon-blue/5">
             {headers.map((h, i) => (
-              <th key={i} className="px-4 py-3 text-right font-bold text-neon-cyan border-b border-white/10">
+              <th key={i} className="px-5 py-3.5 text-right font-bold text-neon-cyan border-b border-neon-cyan/15 text-[13px]">
                 {h}
               </th>
             ))}
@@ -191,9 +314,9 @@ function renderTable(headers: string[], rows: string[][]) {
         </thead>
         <tbody>
           {rows.map((row, ri) => (
-            <tr key={ri} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+            <tr key={ri} className={`border-b border-white/5 ${ri % 2 === 0 ? 'bg-white/[0.01]' : ''} hover:bg-white/[0.04] transition-colors`}>
               {row.map((cell, ci) => (
-                <td key={ci} className="px-4 py-2.5 text-gray-300">
+                <td key={ci} className="px-5 py-3 text-gray-300 text-[13px] leading-6">
                   {formatInline(cell)}
                 </td>
               ))}
@@ -201,19 +324,8 @@ function renderTable(headers: string[], rows: string[][]) {
           ))}
         </tbody>
       </table>
-    </div>
+    </motion.div>
   )
-}
-
-function formatInline(text: string): React.ReactNode {
-  // Process bold text
-  const parts = text.split(/(\*\*[^*]+\*\*)/g)
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="text-white font-bold">{part.slice(2, -2)}</strong>
-    }
-    return part
-  })
 }
 
 // ─── Lesson Sidebar Item ─────────────────────────────────────
@@ -314,7 +426,7 @@ export function CourseViewerPage() {
   const {
     activeCourseId, activeLessonId, setActiveLessonId,
     courses, lessons, courseProgress, completeLesson, openCourse,
-    setActivePage
+    setActivePage, showEnrollModal, setShowEnrollModal, enrollInCourse
   } = useAppStore()
 
   const [showSidebar, setShowSidebar] = useState(true)
@@ -357,7 +469,7 @@ export function CourseViewerPage() {
       if (lesson.isFree) return false
       // If course is free (price === 0), all lessons are unlocked
       if (course?.price === 0) return false
-      // Otherwise, check if enrolled (has progress)
+      // If enrolled, all lessons unlocked
       if (progress) return false
       // If no enrollment and lesson is not free, it's locked
       return !lesson.isFree
@@ -378,9 +490,15 @@ export function CourseViewerPage() {
     setActiveLessonId(lesson.id)
     setLessonCompleted(false)
     setShowCelebration(false)
-    // Update last accessed
-    if (progress) {
-      const existing = { ...progress, lastAccessedLessonId: lesson.id, lastAccessedAt: Date.now() }
+    // Update last accessed lesson in localStorage
+    if (progress && activeCourseId && typeof window !== 'undefined') {
+      const updatedProgress = { ...progress, lastAccessedLessonId: lesson.id, lastAccessedAt: Date.now() }
+      const state = useAppStore.getState()
+      const newProgressArr = state.courseProgress.map(p =>
+        p.courseId === activeCourseId ? updatedProgress : p
+      )
+      useAppStore.setState({ courseProgress: newProgressArr })
+      localStorage.setItem('medai-progress', JSON.stringify(newProgressArr))
     }
   }
 
@@ -423,7 +541,7 @@ export function CourseViewerPage() {
   const gradient = categoryGradients[course.category] || 'from-cyan-600/80 via-blue-500/60 to-indigo-400/40'
   const icon = categoryIcons[course.category] || '📚'
   const level = levelConfig[course.level]
-  const progressPercent = progress?.progress || course.progress || 0
+  const progressPercent = progress?.progress || 0
 
   return (
     <div className="min-h-screen" dir="rtl">
@@ -690,10 +808,36 @@ export function CourseViewerPage() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 }}
-                      className="glass-card p-6 sm:p-8 mb-6"
+                      className="relative mb-6"
                     >
-                      <div className="prose-content">
-                        {renderContent(currentLesson.content)}
+                      {/* Decorative background glow */}
+                      <div className="absolute -right-6 top-20 w-32 h-32 bg-neon-cyan/5 rounded-full blur-3xl pointer-events-none" />
+                      <div className="absolute -left-6 bottom-20 w-24 h-24 bg-neon-purple/5 rounded-full blur-3xl pointer-events-none" />
+                      
+                      <div className="relative glass-card p-6 sm:p-8 lg:p-10">
+                        {/* Reading progress indicator */}
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-neon-cyan/60" />
+                            <span className="text-xs text-muted-foreground">محتوى تعليمي</span>
+                          </div>
+                          <div className="flex-1" />
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>وقت القراءة: ~{currentLesson.duration} دقيقة</span>
+                          </div>
+                        </div>
+                        
+                        <div className="prose-content">
+                          {renderContent(currentLesson.content)}
+                        </div>
+                        
+                        {/* End of lesson decoration */}
+                        <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-center gap-2">
+                          <div className="w-8 h-0.5 rounded-full bg-gradient-to-l from-transparent to-neon-cyan/30" />
+                          <Activity className="w-4 h-4 text-neon-cyan/30" />
+                          <div className="w-8 h-0.5 rounded-full bg-gradient-to-r from-transparent to-neon-cyan/30" />
+                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -824,6 +968,36 @@ export function CourseViewerPage() {
           </ScrollArea>
         </div>
       </div>
+
+      {/* Enrollment Modal for Paid Courses */}
+      <AnimatePresence>
+        {showEnrollModal && course && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card p-8 max-w-md mx-4 text-center border border-yellow-500/20"
+            >
+              <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-white mb-2">هذه الدورة مميزة</h2>
+              <p className="text-gray-400 mb-4">يجب الدفع للوصول لهذه الدورة</p>
+              <div className="text-2xl font-bold text-neon-cyan mb-6">{course.price.toLocaleString()} ر.ي</div>
+              <Button onClick={() => enrollInCourse(course.id)} className="w-full bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold h-12">
+                تسجيل والدفع
+              </Button>
+              <Button onClick={() => setShowEnrollModal(false)} variant="ghost" className="mt-3 text-muted-foreground">
+                إلغاء
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

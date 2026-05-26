@@ -13,7 +13,7 @@ import {
   Lock, CheckCircle2, Circle, ChevronLeft, Settings,
   Bell, Shield, Globe, Info, Star, Award, Target,
   TrendingUp, Heart, Activity, Crown, Sparkles,
-  Languages, Volume2, Eye, ChevronDown
+  Languages, Volume2, Eye, ChevronDown, LogOut
 } from 'lucide-react'
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -129,7 +129,7 @@ const cardHover = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function ProfilePage() {
-  const { user, courses, updateUser, openCourse } = useAppStore()
+  const { user, courses, updateUser, openCourse, courseProgress, logout } = useAppStore()
   const [selectedBadge, setSelectedBadge] = useState<BadgeType | null>(null)
   const [heatmapData] = useState(() => generateHeatmapData())
   const [editingProfile, setEditingProfile] = useState(false)
@@ -146,8 +146,11 @@ export function ProfilePage() {
   const nextRank = useMemo(() => getNextRank(user.xp), [user.xp])
 
   const enrolledCourses = useMemo(
-    () => courses.filter((c) => c.progress !== undefined && c.progress > 0),
-    [courses]
+    () => {
+      const enrolledIds = courseProgress.map(p => p.courseId)
+      return courses.filter((c) => enrolledIds.includes(c.id))
+    },
+    [courses, courseProgress]
   )
 
   const stats = useMemo(() => [
@@ -208,7 +211,7 @@ export function ProfilePage() {
                 <div className="absolute -inset-1.5 rounded-full bg-gradient-to-bl from-neon-cyan via-neon-purple to-neon-pink opacity-60 animate-neon-pulse" />
                 <Avatar className="h-24 w-24 border-4 border-med-dark relative z-10">
                   <AvatarFallback className="bg-gradient-to-br from-neon-cyan/30 to-neon-purple/30 text-3xl font-bold text-white">
-                    أ.خ
+                    {user.name ? user.name.substring(0, 2) : '??'}
                   </AvatarFallback>
                 </Avatar>
                 {/* Level badge */}
@@ -559,12 +562,12 @@ export function ProfilePage() {
                       <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${course.progress}%` }}
+                          animate={{ width: `${courseProgress.find(p => p.courseId === course.id)?.progress || 0}%` }}
                           transition={{ duration: 1, delay: i * 0.15 }}
                           className="h-full rounded-full bg-gradient-to-l from-neon-cyan to-neon-blue"
                         />
                       </div>
-                      <span className="text-xs font-bold text-neon-cyan shrink-0">{course.progress}%</span>
+                      <span className="text-xs font-bold text-neon-cyan shrink-0">{courseProgress.find(p => p.courseId === course.id)?.progress || 0}%</span>
                     </div>
                   </div>
                   {/* Continue button */}
@@ -573,7 +576,7 @@ export function ProfilePage() {
                     onClick={() => openCourse(course.id)}
                     className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 h-8 text-xs px-3 shrink-0"
                   >
-                    متابعة
+                    {(courseProgress.find(p => p.courseId === course.id)?.progress ?? 0) > 0 ? 'متابعة' : 'ابدأ'}
                   </Button>
                 </motion.div>
               ))
@@ -616,6 +619,24 @@ export function ProfilePage() {
                 <ChevronLeft className="w-4 h-4 text-muted-foreground rtl-flip" />
               </motion.button>
             ))}
+            {/* Logout button */}
+            <motion.button
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: settingsItems.length * 0.05 }}
+              whileHover={{ backgroundColor: 'rgba(239,68,68,0.05)' }}
+              onClick={() => logout()}
+              className="w-full flex items-center gap-4 p-4 text-right transition-colors"
+            >
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-semibold text-red-400">تسجيل الخروج</span>
+                <p className="text-xs text-muted-foreground">خروج من حسابك</p>
+              </div>
+              <ChevronLeft className="w-4 h-4 text-muted-foreground rtl-flip" />
+            </motion.button>
           </div>
         </motion.section>
 

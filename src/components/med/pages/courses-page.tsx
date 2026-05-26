@@ -93,11 +93,12 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 function CourseCard({ course, index }: { course: Course; index: number }) {
-  const { openCourse } = useAppStore()
+  const { openCourse, courseProgress } = useAppStore()
   const gradient = categoryGradients[course.category] || 'from-cyan-600/80 via-blue-500/60 to-indigo-400/40'
   const icon = categoryIcons[course.category] || '📚'
   const level = levelConfig[course.level]
-  const isEnrolled = course.progress !== undefined && course.progress > 0
+  const progress = courseProgress.find(p => p.courseId === course.id)
+  const isEnrolled = !!progress
 
   return (
     <motion.div
@@ -182,16 +183,16 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
           </div>
 
           {/* Progress bar if enrolled */}
-          {isEnrolled && (
+          {isEnrolled && progress && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-neon-cyan">التقدم</span>
-                <span className="text-muted-foreground">{course.progress}%</span>
+                <span className="text-muted-foreground">{progress.progress}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${course.progress}%` }}
+                  animate={{ width: `${progress.progress}%` }}
                   transition={{ duration: 1, delay: 0.3 }}
                   className="h-full rounded-full bg-gradient-to-l from-neon-cyan to-neon-purple"
                 />
@@ -204,7 +205,7 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
             {course.price === 0 ? (
               <span className="text-sm font-bold text-emerald-400">مجاني</span>
             ) : (
-              <span className="text-sm font-bold text-neon-cyan">${course.price}</span>
+              <span className="text-sm font-bold text-neon-cyan">{course.price.toLocaleString()} ر.ي</span>
             )}
             <Button
               size="sm"
@@ -212,7 +213,7 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
               onClick={(e) => { e.stopPropagation(); openCourse(course.id) }}
               className="h-7 text-xs text-neon-cyan hover:text-neon-cyan hover:bg-neon-cyan/10"
             >
-              {isEnrolled ? 'متابعة' : 'سجل الآن'}
+              {isEnrolled ? (progress && progress.progress > 0 ? 'متابعة' : 'ابدأ الدورة') : (course.price === 0 ? 'ابدأ مجاناً' : `${course.price.toLocaleString()} ر.ي`)}
             </Button>
           </div>
         </div>
@@ -288,7 +289,7 @@ function HorizontalCourseRow({
 }
 
 export function CoursesPage() {
-  const { courses, searchQuery, setSearchQuery, openCourse } = useAppStore()
+  const { courses, searchQuery, setSearchQuery, openCourse, courseProgress } = useAppStore()
   const [activeCategory, setActiveCategory] = useState('all')
   const [activeLevel, setActiveLevel] = useState<string>('all')
   const [sortBy, setSortBy] = useState('popular')
@@ -352,8 +353,11 @@ export function CoursesPage() {
     [courses]
   )
   const continueLearning = useMemo(
-    () => courses.filter((c) => c.progress && c.progress > 0),
-    [courses]
+    () => {
+      const enrolledIds = courseProgress.map(p => p.courseId)
+      return courses.filter((c) => enrolledIds.includes(c.id) && (courseProgress.find(p => p.courseId === c.id)?.progress ?? 0) > 0)
+    },
+    [courses, courseProgress]
   )
   const featuredCourse = useMemo(
     () => courses.find((c) => c.id === '1') || courses[0],

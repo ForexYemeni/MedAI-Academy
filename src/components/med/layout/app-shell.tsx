@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Home, BookOpen, Brain, Activity, Play, HelpCircle, Users, User, Crown, Shield,
+  Home, BookOpen, Brain, Activity, Play, HelpCircle, Users, User,
   Menu, X, Search, Bell, Globe, ChevronRight, Sparkles, LogOut, Settings, Award, MessageSquare
 } from 'lucide-react'
 import { useAppStore, type PageId } from '@/store/app-store'
@@ -26,8 +26,6 @@ const ShortsPage = dynamic(() => import('@/components/med/pages/shorts-page').th
 const QuizzesPage = dynamic(() => import('@/components/med/pages/quizzes-page').then(m => ({ default: m.QuizzesPage })), { ssr: false })
 const CommunityPage = dynamic(() => import('@/components/med/pages/community-page').then(m => ({ default: m.CommunityPage })), { ssr: false })
 const ProfilePage = dynamic(() => import('@/components/med/pages/profile-page').then(m => ({ default: m.ProfilePage })), { ssr: false })
-const SubscriptionPage = dynamic(() => import('@/components/med/pages/subscription-page').then(m => ({ default: m.SubscriptionPage })), { ssr: false })
-const AdminPage = dynamic(() => import('@/components/med/pages/admin-page').then(m => ({ default: m.AdminPage })), { ssr: false })
 
 const NAV_ITEMS: Array<{
   id: PageId
@@ -44,8 +42,6 @@ const NAV_ITEMS: Array<{
   { id: 'quizzes', label: 'الاختبارات', icon: HelpCircle, color: 'text-amber-400' },
   { id: 'community', label: 'المجتمع', icon: Users, color: 'text-green-400', badge: 5 },
   { id: 'profile', label: 'حسابي', icon: User, color: 'text-emerald-400' },
-  { id: 'subscription', label: 'الاشتراك', icon: Crown, color: 'text-yellow-400' },
-  { id: 'admin', label: 'الإدارة', icon: Shield, color: 'text-orange-400' },
 ]
 
 const BOTTOM_NAV_ITEMS = NAV_ITEMS.slice(0, 5)
@@ -80,7 +76,7 @@ function Sidebar() {
       <div className="px-3 mt-2">
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-sm font-bold">
-            أ
+            {user.name ? user.name.charAt(user.name.indexOf('.') + 2) || user.name.charAt(0) : '?'}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user.name}</p>
@@ -152,6 +148,15 @@ function Sidebar() {
           </div>
           <div className="text-xs font-bold text-amber-400">{user.coins} 🪙</div>
         </div>
+        <motion.button
+          onClick={() => useAppStore.getState().logout()}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-all"
+          whileHover={{ x: -4 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <LogOut className="w-4.5 h-4.5" />
+          <span className="flex-1 text-right">تسجيل الخروج</span>
+        </motion.button>
       </div>
     </div>
   )
@@ -221,7 +226,7 @@ function MobileHeader() {
             onClick={() => setActivePage('profile')}
           >
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-xs font-bold">
-              أ
+              {user.name ? user.name.charAt(user.name.indexOf('.') + 2) || user.name.charAt(0) : '?'}
             </div>
           </Button>
         </div>
@@ -238,7 +243,7 @@ function MobileNavContent() {
       <div className="p-4">
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-sm font-bold">
-            أ
+            {user.name ? user.name.charAt(user.name.indexOf('.') + 2) || user.name.charAt(0) : '?'}
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium">{user.name}</p>
@@ -278,6 +283,17 @@ function MobileNavContent() {
           })}
         </div>
       </ScrollArea>
+      <div className="p-3 border-t border-med-border">
+        <motion.button
+          onClick={() => useAppStore.getState().logout()}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-all"
+          whileHover={{ x: -4 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <LogOut className="w-4.5 h-4.5" />
+          <span className="flex-1 text-right">تسجيل الخروج</span>
+        </motion.button>
+      </div>
     </>
   )
 }
@@ -333,8 +349,6 @@ function PageRenderer() {
     quizzes: QuizzesPage,
     community: CommunityPage,
     profile: ProfilePage,
-    subscription: SubscriptionPage,
-    admin: AdminPage,
     auth: HomePage, // fallback
   }
 
@@ -357,7 +371,190 @@ function PageRenderer() {
 }
 
 export default function AppShell() {
-  const { activePage, setActivePage } = useAppStore()
+  const { activePage, setActivePage, isLoggedIn, setIsLoggedIn, user, updateUser } = useAppStore()
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  const [authName, setAuthName] = useState('')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authSpecialty, setAuthSpecialty] = useState('طب الطوارئ')
+  const [authLoading, setAuthLoading] = useState(false)
+
+  const handleAuth = async () => {
+    if (!authEmail || !authPassword) return
+    setAuthLoading(true)
+    
+    // Simulate auth delay
+    await new Promise(r => setTimeout(r, 800))
+    
+    const userName = authMode === 'register' ? (authName || 'طبيب جديد') : (authEmail.split('@')[0])
+    
+    // Save user data
+    const newUser = {
+      name: userName,
+      email: authEmail,
+      avatar: '',
+      xp: 0,
+      coins: 0,
+      level: 1,
+      rankTitle: 'طالب طب',
+      rankIcon: '🩺',
+      streak: 0,
+      maxStreak: 0,
+      completedCourses: 0,
+      totalHours: 0,
+      badges: [],
+      joinDate: new Date().toISOString().split('T')[0],
+      subscription: 'free' as const,
+      medicalSpecialty: authSpecialty,
+    }
+    
+    updateUser(newUser)
+    setIsLoggedIn(true)
+    
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('medai-user', JSON.stringify(newUser))
+      localStorage.setItem('medai-auth', 'true')
+    }
+    
+    setAuthLoading(false)
+  }
+
+  // Show auth screen if not logged in
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4" dir="rtl">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-neon-cyan/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-neon-purple/5 rounded-full blur-3xl" />
+        </div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="relative glass-card p-8 w-full max-w-md"
+        >
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/20">
+              <Activity className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-black bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+              MedAI Academy
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2">منصة التعليم الطبي الذكي</p>
+          </div>
+
+          {/* Auth tabs */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setAuthMode('login')}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                authMode === 'login'
+                  ? 'bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30'
+                  : 'text-muted-foreground hover:text-white border border-transparent'
+              }`}
+            >
+              تسجيل الدخول
+            </button>
+            <button
+              onClick={() => setAuthMode('register')}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                authMode === 'register'
+                  ? 'bg-neon-purple/15 text-neon-purple border border-neon-purple/30'
+                  : 'text-muted-foreground hover:text-white border border-transparent'
+              }`}
+            >
+              إنشاء حساب
+            </button>
+          </div>
+
+          {/* Form */}
+          <div className="space-y-4">
+            {authMode === 'register' && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">الاسم الكامل</label>
+                <input
+                  type="text"
+                  value={authName}
+                  onChange={(e) => setAuthName(e.target.value)}
+                  placeholder="د. أحمد الخالدي"
+                  className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-neon-cyan/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan/40 text-sm"
+                />
+              </div>
+            )}
+            
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">البريد الإلكتروني</label>
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder="doctor@medai.com"
+                className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-neon-cyan/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan/40 text-sm"
+                dir="ltr"
+              />
+            </div>
+            
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">كلمة المرور</label>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-neon-cyan/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan/40 text-sm"
+                dir="ltr"
+              />
+            </div>
+
+            {authMode === 'register' && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">التخصص الطبي</label>
+                <select
+                  value={authSpecialty}
+                  onChange={(e) => setAuthSpecialty(e.target.value)}
+                  className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-neon-cyan/15 text-white focus:outline-none focus:border-neon-cyan/40 text-sm appearance-none cursor-pointer"
+                >
+                  <option value="طب الطوارئ">طب الطوارئ</option>
+                  <option value="أمراض القلب">أمراض القلب</option>
+                  <option value="الأعصاب">الأعصاب</option>
+                  <option value="طب الأطفال">طب الأطفال</option>
+                  <option value="الجراحة">الجراحة</option>
+                  <option value="الطب الباطني">الطب الباطني</option>
+                  <option value="الأشعة">الأشعة</option>
+                  <option value="علم الأدوية">علم الأدوية</option>
+                  <option value="طب عام">طب عام</option>
+                </select>
+              </div>
+            )}
+
+            <Button
+              onClick={handleAuth}
+              disabled={authLoading || !authEmail || !authPassword}
+              className={`w-full h-12 font-bold text-base ${
+                authMode === 'login'
+                  ? 'bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark hover:shadow-[0_0_30px_rgba(0,245,255,0.3)]'
+                  : 'bg-gradient-to-l from-neon-purple to-purple-400 text-white hover:shadow-[0_0_30px_rgba(139,92,246,0.3)]'
+              }`}
+            >
+              {authLoading ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  className="w-5 h-5 border-2 border-current border-t-transparent rounded-full"
+                />
+              ) : authMode === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب'}
+            </Button>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            بالتسجيل، أنت توافق على شروط الاستخدام وسياسة الخصوصية
+          </p>
+        </motion.div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground" dir="rtl">

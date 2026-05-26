@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type PageId = 'home' | 'courses' | 'course-viewer' | 'ai-tutor' | 'simulation' | 'shorts' | 'quizzes' | 'community' | 'profile' | 'subscription' | 'admin' | 'auth'
+export type PageId = 'home' | 'courses' | 'course-viewer' | 'ai-tutor' | 'simulation' | 'shorts' | 'quizzes' | 'community' | 'profile' | 'auth'
 
 export interface Message {
   id: string
@@ -172,6 +172,11 @@ interface AppState {
   openCourse: (courseId: string, lessonId?: string) => void
   completeLesson: (courseId: string, lessonId: string) => void
   getCourseProgress: (courseId: string) => CourseProgress | undefined
+  enrollInCourse: (courseId: string) => void
+
+  // Enrollment modal
+  showEnrollModal: boolean
+  setShowEnrollModal: (show: boolean) => void
   
   // Simulation
   simulationCases: SimulationCase[]
@@ -213,6 +218,7 @@ interface AppState {
   setIsLoggedIn: (loggedIn: boolean) => void
   showAuthModal: boolean
   setShowAuthModal: (show: boolean) => void
+  logout: () => void
 }
 
 const MEDICAL_RANKS = [
@@ -297,14 +303,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Courses
   courses: [
-    { id: '1', title: 'Emergency Medicine Masterclass', titleAr: 'دورة طب الطوارئ الشاملة', description: 'أكبر دورة طب طوارئ عربية', category: 'emergency', thumbnail: '', instructor: 'د. محمد العلي', rating: 4.9, students: 15200, duration: '42 ساعة', level: 'advanced', price: 0, isPremium: false, progress: 65, lessons: 12, tags: ['طوارئ', 'ACLs', 'trauma'] },
-    { id: '2', title: 'Cardiology Essentials', titleAr: 'أساسيات أمراض القلب', description: 'تعلم أمراض القلب من الصفر', category: 'cardiology', thumbnail: '', instructor: 'د. سارة الأحمد', rating: 4.8, students: 8900, duration: '28 ساعة', level: 'intermediate', price: 49, isPremium: true, progress: 30, lessons: 10, tags: ['قلب', 'ECG', 'أمراض قلبية'] },
-    { id: '3', title: 'Neurology Deep Dive', titleAr: 'الغوص في علم الأعصاب', description: 'كل ما تحتاجه عن الأعصاب', category: 'neurology', thumbnail: '', instructor: 'د. خالد المنصور', rating: 4.7, students: 6300, duration: '35 ساعة', level: 'advanced', price: 59, isPremium: true, progress: 0, lessons: 10, tags: ['أعصاب', 'stroke', 'دماغ'] },
-    { id: '4', title: 'Pediatrics Fundamentals', titleAr: 'أساسيات طب الأطفال', description: 'طب الأطفال بطريقة ممتعة', category: 'pediatrics', thumbnail: '', instructor: 'د. نورة الحربي', rating: 4.9, students: 11200, duration: '30 ساعة', level: 'beginner', price: 0, isPremium: false, progress: 85, lessons: 10, tags: ['أطفال', 'حديثي الولادة', 'لقاحات'] },
-    { id: '5', title: 'Surgery Techniques', titleAr: 'تقنيات الجراحة', description: 'تعلم الجراحة خطوة بخطوة', category: 'surgery', thumbnail: '', instructor: 'د. فهد العمري', rating: 4.6, students: 4500, duration: '50 ساعة', level: 'advanced', price: 79, isPremium: true, progress: 0, lessons: 10, tags: ['جراحة', 'خياطة', 'تنظير'] },
-    { id: '6', title: 'Internal Medicine Review', titleAr: 'مراجعة الطب الباطني', description: 'مراجعة شاملة للطب الباطني', category: 'internal', thumbnail: '', instructor: 'د. ليلى القحطاني', rating: 4.8, students: 9800, duration: '38 ساعة', level: 'intermediate', price: 39, isPremium: true, progress: 45, lessons: 10, tags: ['باطني', 'تشخيص', 'علاج'] },
-    { id: '7', title: 'Radiology Interpretation', titleAr: 'تفسير الأشعة', description: 'اتقان قراءة الأشعة', category: 'radiology', thumbnail: '', instructor: 'د. عمر الشمري', rating: 4.7, students: 5600, duration: '25 ساعة', level: 'intermediate', price: 49, isPremium: true, progress: 0, lessons: 10, tags: ['أشعة', 'CT', 'MRI'] },
-    { id: '8', title: 'Pharmacology Made Easy', titleAr: 'علم الأدوية مبسط', description: 'أدوية بشكل سهل وممتع', category: 'pharmacology', thumbnail: '', instructor: 'د. ريم الدوسري', rating: 4.9, students: 13500, duration: '32 ساعة', level: 'beginner', price: 0, isPremium: false, progress: 50, lessons: 10, tags: ['أدوية', 'جرعات', 'تداخلات'] },
+    { id: '1', title: 'Emergency Medicine Masterclass', titleAr: 'دورة طب الطوارئ الشاملة', description: 'أكبر دورة طب طوارئ عربية', category: 'emergency', thumbnail: '', instructor: 'د. محمد العلي', rating: 4.9, students: 15200, duration: '42 ساعة', level: 'advanced', price: 0, isPremium: false, progress: undefined, lessons: 12, tags: ['طوارئ', 'ACLs', 'trauma'] },
+    { id: '2', title: 'Cardiology Essentials', titleAr: 'أساسيات أمراض القلب', description: 'تعلم أمراض القلب من الصفر', category: 'cardiology', thumbnail: '', instructor: 'د. سارة الأحمد', rating: 4.8, students: 8900, duration: '28 ساعة', level: 'intermediate', price: 27000, isPremium: true, progress: undefined, lessons: 10, tags: ['قلب', 'ECG', 'أمراض قلبية'] },
+    { id: '3', title: 'Neurology Deep Dive', titleAr: 'الغوص في علم الأعصاب', description: 'كل ما تحتاجه عن الأعصاب', category: 'neurology', thumbnail: '', instructor: 'د. خالد المنصور', rating: 4.7, students: 6300, duration: '35 ساعة', level: 'advanced', price: 32000, isPremium: true, progress: undefined, lessons: 10, tags: ['أعصاب', 'stroke', 'دماغ'] },
+    { id: '4', title: 'Pediatrics Fundamentals', titleAr: 'أساسيات طب الأطفال', description: 'طب الأطفال بطريقة ممتعة', category: 'pediatrics', thumbnail: '', instructor: 'د. نورة الحربي', rating: 4.9, students: 11200, duration: '30 ساعة', level: 'beginner', price: 0, isPremium: false, progress: undefined, lessons: 10, tags: ['أطفال', 'حديثي الولادة', 'لقاحات'] },
+    { id: '5', title: 'Surgery Techniques', titleAr: 'تقنيات الجراحة', description: 'تعلم الجراحة خطوة بخطوة', category: 'surgery', thumbnail: '', instructor: 'د. فهد العمري', rating: 4.6, students: 4500, duration: '50 ساعة', level: 'advanced', price: 43000, isPremium: true, progress: undefined, lessons: 10, tags: ['جراحة', 'خياطة', 'تنظير'] },
+    { id: '6', title: 'Internal Medicine Review', titleAr: 'مراجعة الطب الباطني', description: 'مراجعة شاملة للطب الباطني', category: 'internal', thumbnail: '', instructor: 'د. ليلى القحطاني', rating: 4.8, students: 9800, duration: '38 ساعة', level: 'intermediate', price: 21000, isPremium: true, progress: undefined, lessons: 10, tags: ['باطني', 'تشخيص', 'علاج'] },
+    { id: '7', title: 'Radiology Interpretation', titleAr: 'تفسير الأشعة', description: 'اتقان قراءة الأشعة', category: 'radiology', thumbnail: '', instructor: 'د. عمر الشمري', rating: 4.7, students: 5600, duration: '25 ساعة', level: 'intermediate', price: 27000, isPremium: true, progress: undefined, lessons: 10, tags: ['أشعة', 'CT', 'MRI'] },
+    { id: '8', title: 'Pharmacology Made Easy', titleAr: 'علم الأدوية مبسط', description: 'أدوية بشكل سهل وممتع', category: 'pharmacology', thumbnail: '', instructor: 'د. ريم الدوسري', rating: 4.9, students: 13500, duration: '32 ساعة', level: 'beginner', price: 0, isPremium: false, progress: undefined, lessons: 10, tags: ['أدوية', 'جرعات', 'تداخلات'] },
   ],
 
   // Lessons data for each course
@@ -348,66 +354,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     { id: '8-10', courseId: '8', title: 'Pharmacology Quiz', titleAr: 'اختبار علم الأدوية', type: 'quiz', duration: 15, order: 10, isFree: true, content: 'اختبار شامل في علم الأدوية' },
   ],
 
-  // Course progress tracking
-  courseProgress: [
-    { courseId: '1', completedLessons: ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8'], lastAccessedLessonId: '1-8', progress: 65, lastAccessedAt: Date.now() - 3600000 },
-    { courseId: '2', completedLessons: ['2-1', '2-2', '2-3'], lastAccessedLessonId: '2-3', progress: 30, lastAccessedAt: Date.now() - 86400000 },
-    { courseId: '4', completedLessons: ['8-1', '8-2', '8-3', '8-4', '8-5', '8-6', '8-7', '8-8'], lastAccessedLessonId: '8-8', progress: 85, lastAccessedAt: Date.now() - 7200000 },
-    { courseId: '6', completedLessons: ['8-1', '8-2', '8-3', '8-4', '8-5'], lastAccessedLessonId: '8-5', progress: 45, lastAccessedAt: Date.now() - 172800000 },
-    { courseId: '8', completedLessons: ['8-1', '8-2', '8-3', '8-4', '8-5'], lastAccessedLessonId: '8-5', progress: 50, lastAccessedAt: Date.now() - 43200000 },
-  ],
 
-  openCourse: (courseId, lessonId) => {
-    const state = get()
-    const progress = state.courseProgress.find(p => p.courseId === courseId)
-    const targetLesson = lessonId || progress?.lastAccessedLessonId || null
-    set({
-      activeCourseId: courseId,
-      activeLessonId: targetLesson,
-      activePage: 'course-viewer' as PageId,
-    })
-  },
-
-  completeLesson: (courseId, lessonId) => set((state) => {
-    const existing = state.courseProgress.find(p => p.courseId === courseId)
-    const courseLessons = state.lessons.filter(l => l.courseId === courseId)
-    const totalLessons = Math.max(courseLessons.length, 1)
-
-    if (existing) {
-      const updatedCompleted = existing.completedLessons.includes(lessonId)
-        ? existing.completedLessons
-        : [...existing.completedLessons, lessonId]
-      const newProgress = Math.round((updatedCompleted.length / totalLessons) * 100)
-      const newProgressData = {
-        ...existing,
-        completedLessons: updatedCompleted,
-        lastAccessedLessonId: lessonId,
-        progress: newProgress,
-        lastAccessedAt: Date.now(),
-      }
-      return {
-        courseProgress: state.courseProgress.map(p => p.courseId === courseId ? newProgressData : p),
-        courses: state.courses.map(c => c.id === courseId ? { ...c, progress: newProgress } : c),
-      }
-    } else {
-      const newProgress = Math.round((1 / totalLessons) * 100)
-      const newProgressEntry: CourseProgress = {
-        courseId,
-        completedLessons: [lessonId],
-        lastAccessedLessonId: lessonId,
-        progress: newProgress,
-        lastAccessedAt: Date.now(),
-      }
-      return {
-        courseProgress: [...state.courseProgress, newProgressEntry],
-        courses: state.courses.map(c => c.id === courseId ? { ...c, progress: newProgress } : c),
-      }
-    }
-  }),
-
-  getCourseProgress: (courseId) => {
-    return get().courseProgress.find(p => p.courseId === courseId)
-  },
   
   // Simulation
   simulationCases: [
@@ -496,9 +443,184 @@ export const useAppStore = create<AppState>((set, get) => ({
     { id: '3', title: 'دورة جديدة متاحة', message: 'دورة "تقنيات الجراحة" متاحة الآن!', type: 'info', read: true, timestamp: Date.now() - 86400000 },
   ],
   
+  // Course progress - initialize empty
+  courseProgress: [],
+
+  // Enrollment modal
+  showEnrollModal: false,
+  setShowEnrollModal: (show) => set({ showEnrollModal: show }),
+
+  openCourse: (courseId, lessonId) => {
+    const state = get()
+    const course = state.courses.find(c => c.id === courseId)
+    if (!course) return
+
+    const progress = state.courseProgress.find(p => p.courseId === courseId)
+    const isEnrolled = !!progress
+
+    // Free courses auto-enroll
+    if (course.price === 0 && !isEnrolled) {
+      const courseLessons = state.lessons.filter(l => l.courseId === courseId)
+      const firstLesson = courseLessons.sort((a, b) => a.order - b.order)[0]
+      const newProgress: CourseProgress = {
+        courseId,
+        completedLessons: [],
+        lastAccessedLessonId: firstLesson?.id || null,
+        progress: 0,
+        lastAccessedAt: Date.now(),
+      }
+      const newProgressArr = [...state.courseProgress, newProgress]
+      set({
+        activeCourseId: courseId,
+        activeLessonId: lessonId || firstLesson?.id || null,
+        activePage: 'course-viewer' as PageId,
+        courseProgress: newProgressArr,
+      })
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('medai-progress', JSON.stringify(newProgressArr))
+      }
+      return
+    }
+
+    // Paid courses need enrollment check
+    if (course.price > 0 && !isEnrolled) {
+      set({ showEnrollModal: true, activeCourseId: courseId })
+      return
+    }
+
+    // Already enrolled - navigate to course
+    const targetLesson = lessonId || progress?.lastAccessedLessonId || null
+    set({
+      activeCourseId: courseId,
+      activeLessonId: targetLesson,
+      activePage: 'course-viewer' as PageId,
+    })
+  },
+
+  completeLesson: (courseId, lessonId) => {
+    const state = get()
+    const existing = state.courseProgress.find(p => p.courseId === courseId)
+    if (!existing) return
+
+    if (existing.completedLessons.includes(lessonId)) return
+
+    const courseLessons = state.lessons.filter(l => l.courseId === courseId)
+    const newCompleted = [...existing.completedLessons, lessonId]
+    const progressPercent = Math.round((newCompleted.length / courseLessons.length) * 100)
+
+    const updatedProgress: CourseProgress = {
+      ...existing,
+      completedLessons: newCompleted,
+      lastAccessedLessonId: lessonId,
+      progress: progressPercent,
+      lastAccessedAt: Date.now(),
+    }
+
+    const newProgressArr = state.courseProgress.map(p =>
+      p.courseId === courseId ? updatedProgress : p
+    )
+
+    set({ courseProgress: newProgressArr })
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('medai-progress', JSON.stringify(newProgressArr))
+    }
+  },
+
+  getCourseProgress: (courseId) => {
+    return get().courseProgress.find(p => p.courseId === courseId)
+  },
+
+  enrollInCourse: (courseId) => {
+    const state = get()
+    const existing = state.courseProgress.find(p => p.courseId === courseId)
+    if (existing) return // Already enrolled
+
+    const courseLessons = state.lessons.filter(l => l.courseId === courseId)
+    const firstLesson = courseLessons.sort((a, b) => a.order - b.order)[0]
+    const newProgress: CourseProgress = {
+      courseId,
+      completedLessons: [],
+      lastAccessedLessonId: firstLesson?.id || null,
+      progress: 0,
+      lastAccessedAt: Date.now(),
+    }
+    const newProgressArr = [...state.courseProgress, newProgress]
+    set({
+      courseProgress: newProgressArr,
+      showEnrollModal: false,
+      activeCourseId: courseId,
+      activeLessonId: firstLesson?.id || null,
+      activePage: 'course-viewer' as PageId,
+    })
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('medai-progress', JSON.stringify(newProgressArr))
+    }
+  },
+
   // Auth
-  isLoggedIn: true,
-  setIsLoggedIn: (loggedIn) => set({ isLoggedIn: loggedIn }),
+  isLoggedIn: false,
+  setIsLoggedIn: (loggedIn) => {
+    set({ isLoggedIn: loggedIn })
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('medai-auth', loggedIn ? 'true' : 'false')
+    }
+  },
   showAuthModal: false,
   setShowAuthModal: (show) => set({ showAuthModal: show }),
+
+  logout: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('medai-user')
+      localStorage.removeItem('medai-auth')
+      localStorage.removeItem('medai-progress')
+    }
+    set({
+      isLoggedIn: false,
+      user: {
+        name: '',
+        email: '',
+        avatar: '',
+        xp: 0,
+        coins: 0,
+        level: 1,
+        rankTitle: 'طالب طب',
+        rankIcon: '🩺',
+        streak: 0,
+        maxStreak: 0,
+        completedCourses: 0,
+        totalHours: 0,
+        badges: [],
+        joinDate: '',
+        subscription: 'free' as const,
+        medicalSpecialty: '',
+      },
+      courseProgress: [],
+      activePage: 'home' as PageId,
+    })
+  },
 }))
+
+// Hydrate from localStorage on client
+if (typeof window !== 'undefined') {
+  const savedProgress = localStorage.getItem('medai-progress')
+  if (savedProgress) {
+    try {
+      const parsed = JSON.parse(savedProgress)
+      useAppStore.setState({ courseProgress: parsed })
+    } catch { /* ignore */ }
+  }
+
+  const savedUser = localStorage.getItem('medai-user')
+  if (savedUser) {
+    try {
+      const parsed = JSON.parse(savedUser)
+      useAppStore.setState({ user: parsed, isLoggedIn: true })
+    } catch { /* ignore */ }
+  }
+
+  const savedAuth = localStorage.getItem('medai-auth')
+  if (savedAuth === 'true') {
+    useAppStore.setState({ isLoggedIn: true })
+  }
+}

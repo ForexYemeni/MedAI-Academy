@@ -142,7 +142,7 @@ const LIVE_EVENTS = [
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function HomePage() {
-  const { user, courses, dailyMissions, leaderboard, quizQuestions, simulationCases, openCourse } = useAppStore()
+  const { user, courses, dailyMissions, leaderboard, quizQuestions, simulationCases, openCourse, courseProgress } = useAppStore()
 
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
@@ -159,8 +159,12 @@ export function HomePage() {
   const greeting = useMemo(() => getGreeting(), [])
   const xpInfo = useMemo(() => xpToNextLevel(user.xp), [user.xp])
   const inProgressCourses = useMemo(
-    () => courses.filter((c) => (c.progress ?? 0) > 0).sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0)),
-    [courses]
+    () => {
+      const enrolledIds = courseProgress.map(p => p.courseId)
+      return courses.filter((c) => enrolledIds.includes(c.id) && (courseProgress.find(p => p.courseId === c.id)?.progress ?? 0) > 0)
+        .sort((a, b) => (courseProgress.find(p => p.courseId === b.id)?.progress ?? 0) - (courseProgress.find(p => p.courseId === a.id)?.progress ?? 0))
+    },
+    [courses, courseProgress]
   )
   const trendingCourses = useMemo(
     () => [...courses].sort((a, b) => b.students - a.students).slice(0, 4),
@@ -214,7 +218,7 @@ export function HomePage() {
               <div className="relative">
                 <Avatar className="h-14 w-14 border-2 border-neon-cyan/40">
                   <AvatarFallback className="bg-neon-purple/20 text-neon-purple text-lg font-bold">
-                    أ
+                    {user.name ? user.name.charAt(user.name.indexOf('.') + 2) || user.name.charAt(0) : '?'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-1 -left-1 text-lg">{user.rankIcon}</div>
@@ -352,14 +356,14 @@ export function HomePage() {
                       <div className="absolute bottom-0 inset-x-0 h-1.5 bg-white/10">
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${course.progress}%` }}
+                          animate={{ width: `${courseProgress.find(p => p.courseId === course.id)?.progress || 0}%` }}
                           transition={{ duration: 1, delay: i * 0.15 }}
                           className="h-full bg-gradient-to-l from-neon-cyan to-neon-blue"
                         />
                       </div>
                       {/* Progress badge */}
                       <div className="absolute top-3 right-3 rounded-full bg-black/60 px-2.5 py-0.5 backdrop-blur-sm border border-white/10">
-                        <span className="text-xs font-bold text-neon-cyan">{course.progress}%</span>
+                        <span className="text-xs font-bold text-neon-cyan">{courseProgress.find(p => p.courseId === course.id)?.progress || 0}%</span>
                       </div>
                     </div>
                     <div className="p-4">
@@ -638,7 +642,7 @@ export function HomePage() {
                         onClick={() => openCourse(course.id)}
                         className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 h-7 text-xs px-3"
                       >
-                        {course.price === 0 ? 'مجاني' : `${course.price}$`}
+                        {course.price === 0 ? 'مجاني' : `${course.price.toLocaleString()} ر.ي`}
                       </Button>
                     </div>
                   </div>
