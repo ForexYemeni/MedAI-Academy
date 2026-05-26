@@ -124,7 +124,7 @@ const cardHover = { scale: 1.02, transition: { duration: 0.25, ease: 'easeOut' a
 // ─── Helper Functions ───────────────────────────────────────
 
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+  const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 }
 
