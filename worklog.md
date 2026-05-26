@@ -1,24 +1,39 @@
+# MedAI Academy - Work Log
+
 ---
 Task ID: 1
 Agent: Main Agent
-Task: إصلاح اتصال MongoDB Atlas وتسجيل الدخول في MedAI Academy
+Task: Fix MongoDB connection, admin dashboard, and deploy
 
 Work Log:
-- فحص الملفات الحالية للمشروع واكتشاف أن .env يستخدم MongoDB محلي بدلاً من Atlas
-- تحديث .env برابط MongoDB Atlas الصحيح
-- ضبط متغيرات بيئة Vercel (MONGODB_URI, MONGODB_DB, JWT_SECRET) عبر API
-- إصلاح ملف mongodb.ts لمعالجة الأخطاء بشكل أفضل وإضافة ping للتحقق من الاتصال
-- إصلاح API تسجيل الدخول مع fallback عند فشل MongoDB
-- إصلاح API التسجيل مع التحقق من صيغة رقم الهاتف
-- إصلاح API تغيير كلمة المرور
-- إصلاح API تهيئة قاعدة البيانات (حذف createIndexes المفقود)
-- إنشاء حساب المدير الافتراضي في MongoDB Atlas
-- اختبار جميع API endpoints بنجاح
+- Analyzed current project state and identified all critical issues
+- Fixed Vercel environment variables (MONGODB_URI updated with correct Atlas connection string, MONGODB_DB updated)
+- Rewrote `/src/lib/mongodb.ts` with better connection handling and error recovery
+- Created complete admin API routes:
+  - `/api/admin/stats` - Dashboard statistics
+  - `/api/admin/users` - User management (GET, DELETE)
+  - `/api/admin/courses` - Course management (GET, POST, PUT, DELETE)
+  - `/api/admin/payments` - Payment management (GET, PUT for approve/reject)
+  - `/api/admin/lessons` - Lesson management (POST, PUT, DELETE)
+  - `/api/payments` - User payment creation (POST) and viewing (GET)
+- Rebuilt admin page (`admin-page.tsx`) with real MongoDB data:
+  - Overview tab with stats cards (users, courses, revenue, pending payments)
+  - Users tab with search, pagination, and delete
+  - Courses tab with add/edit/delete courses and lessons management
+  - Payments tab with filter, approve/reject, and screenshot viewer
+- Rewrote `app-shell.tsx` to properly separate admin and user views:
+  - Admin users see dedicated admin dashboard with admin sidebar
+  - Regular users see standard user interface
+  - Admin mobile header with logout button
+  - Fixed logout functionality (clears localStorage properly)
+  - Added session persistence from localStorage on mount
+- Fixed build error in `/api/mongodb/init/route.ts` (removed createIndexes import)
+- Built project successfully and pushed to GitHub
+- Vercel deployment triggered and building
 
 Stage Summary:
-- تسجيل الدخول يعمل: POST /api/auth/login مع phone=770000000, password=admin123 ✅
-- إنشاء الحساب يعمل: POST /api/auth/register ✅
-- تغيير كلمة المرور يعمل: POST /api/auth/change-password ✅
-- تهيئة قاعدة البيانات تعمل: POST /api/mongodb/init ✅
-- متغيرات بيئة Vercel مضبوطة ✅
-- التطبيق منشور على med-ai-academy.vercel.app ✅
+- Admin dashboard now fully functional with real MongoDB data
+- All API routes created for admin operations
+- Admin and user views properly separated
+- Logout button working correctly
+- Deployment in progress on Vercel
