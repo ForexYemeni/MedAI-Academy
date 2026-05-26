@@ -1,15 +1,17 @@
 'use client'
 
-import React, { useState, useMemo, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Filter, Star, Clock, Users, BookOpen, Crown,
   ChevronLeft, ChevronRight, TrendingUp, Sparkles, Play,
-  SlidersHorizontal, GraduationCap, Zap, ArrowRight
+  SlidersHorizontal, GraduationCap, Zap, ArrowRight,
+  Lock, CreditCard, CheckCircle2, Loader2, X, Image as ImageIcon
 } from 'lucide-react'
 import { useAppStore, type Course } from '@/store/app-store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 
 // Category gradient map
@@ -92,7 +94,7 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
-function CourseCard({ course, index }: { course: Course; index: number }) {
+function CourseCard({ course, index, onPaymentClick }: { course: Course; index: number; onPaymentClick?: (course: Course) => void }) {
   const { openCourse, courseProgress } = useAppStore()
   const gradient = categoryGradients[course.category] || 'from-cyan-600/80 via-blue-500/60 to-indigo-400/40'
   const icon = categoryIcons[course.category] || '📚'
@@ -100,6 +102,15 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
   const progress = courseProgress.find(p => p.courseId === course.id)
   const isEnrolled = !!progress
   const hasProgress = isEnrolled && progress.progress > 0
+  const isLockedPremium = course.isPremium && course.price > 0 && !isEnrolled
+
+  const handleClick = useCallback(() => {
+    if (isLockedPremium && onPaymentClick) {
+      onPaymentClick(course)
+    } else {
+      openCourse(course.id)
+    }
+  }, [isLockedPremium, onPaymentClick, course, openCourse])
 
   return (
     <motion.div
@@ -107,7 +118,7 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4 }}
       whileHover={{ scale: 1.03, y: -4 }}
-      onClick={() => openCourse(course.id)}
+      onClick={handleClick}
       className="group relative flex-shrink-0 w-[260px] sm:w-[280px] cursor-pointer"
     >
       {/* Neon glow on hover */}
@@ -140,15 +151,29 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
             </div>
           )}
 
-          {/* Play overlay on hover */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/30">
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              className="w-12 h-12 rounded-full bg-neon-cyan/20 border border-neon-cyan/50 flex items-center justify-center backdrop-blur-sm"
-            >
-              <Play className="w-5 h-5 text-neon-cyan fill-neon-cyan mr-[-2px]" />
-            </motion.div>
-          </div>
+          {/* Lock overlay for paid courses */}
+          {isLockedPremium && (
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                  <Lock className="w-6 h-6 text-white/80" />
+                </div>
+                <span className="text-xs font-bold text-white/80">{course.price.toLocaleString()} ر.ي</span>
+              </div>
+            </div>
+          )}
+
+          {/* Play overlay on hover - only for non-locked courses */}
+          {!isLockedPremium && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/30">
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                className="w-12 h-12 rounded-full bg-neon-cyan/20 border border-neon-cyan/50 flex items-center justify-center backdrop-blur-sm"
+              >
+                <Play className="w-5 h-5 text-neon-cyan fill-neon-cyan mr-[-2px]" />
+              </motion.div>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -211,10 +236,17 @@ function CourseCard({ course, index }: { course: Course; index: number }) {
             <Button
               size="sm"
               variant="ghost"
-              onClick={(e) => { e.stopPropagation(); openCourse(course.id) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (isLockedPremium && onPaymentClick) {
+                  onPaymentClick(course)
+                } else {
+                  openCourse(course.id)
+                }
+              }}
               className="h-7 text-xs text-neon-cyan hover:text-neon-cyan hover:bg-neon-cyan/10"
             >
-              {hasProgress ? 'متابعة' : isEnrolled ? 'ابدأ الدورة' : (course.price === 0 ? 'ابدأ مجاناً' : `${course.price.toLocaleString()} ر.ي`)}
+              {isLockedPremium ? `${course.price.toLocaleString()} ر.ي` : hasProgress ? 'متابعة' : isEnrolled ? 'ابدأ الدورة' : (course.price === 0 ? 'ابدأ مجاناً' : `${course.price.toLocaleString()} ر.ي`)}
             </Button>
           </div>
         </div>
@@ -228,11 +260,13 @@ function HorizontalCourseRow({
   courses,
   icon,
   showProgress = false,
+  onPaymentClick,
 }: {
   title: string
   courses: Course[]
   icon?: React.ReactNode
   showProgress?: boolean
+  onPaymentClick?: (course: Course) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -282,10 +316,270 @@ function HorizontalCourseRow({
         dir="rtl"
       >
         {courses.map((course, i) => (
-          <CourseCard key={course.id} course={course} index={i} />
+          <CourseCard key={course.id} course={course} index={i} onPaymentClick={onPaymentClick} />
         ))}
       </div>
     </div>
+  )
+}
+
+// ─── Payment Method Type ────────────────────────────────────
+interface PaymentMethod {
+  _id: string
+  type: string
+  name: string
+  accountNumber: string
+  accountName: string
+  instructions?: string
+  active?: boolean
+}
+
+// ─── Payment Modal ──────────────────────────────────────────
+function PaymentModal({ course, onClose }: { course: Course; onClose: () => void }) {
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
+  const [screenshot, setScreenshot] = useState<string | null>(null)
+  const [walletName, setWalletName] = useState('')
+  const [walletPhone, setWalletPhone] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
+
+  // Fetch payment methods on mount
+  useEffect(() => {
+    fetch('/api/payment-methods')
+      .then(r => r.json())
+      .then(data => {
+        if (data.methods) setPaymentMethods(data.methods)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setError('حجم الملف يتجاوز 5MB')
+      return
+    }
+    setError('')
+    const reader = new FileReader()
+    reader.onload = () => setScreenshot(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleSubmit = async () => {
+    if (!selectedMethod || !screenshot || !walletName || !walletPhone) return
+    setSubmitting(true)
+    setError('')
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+      const res = await fetch('/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          courseId: course.id,
+          amount: course.price,
+          walletName,
+          walletPhone,
+          paymentMethodId: selectedMethod._id,
+          screenshotUrl: screenshot,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccess(true)
+      } else {
+        setError(data.error || 'حدث خطأ في إرسال الطلب')
+      }
+    } catch (err) {
+      setError('حدث خطأ في الاتصال بالخادم')
+    }
+    setSubmitting(false)
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      dir="rtl"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="glass-card w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-5 border-b border-white/10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Lock className="h-5 w-5 text-neon-cyan" />
+              شراء الدورة
+            </h2>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-3 p-3 rounded-xl bg-white/5">
+            <p className="font-bold text-white">{course.titleAr}</p>
+            <p className="text-sm text-muted-foreground mt-1">{course.instructor}</p>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-neon-cyan font-bold text-lg">{course.price.toLocaleString()} ر.ي</span>
+              <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/25 text-[10px]">مدفوع</Badge>
+            </div>
+          </div>
+        </div>
+
+        {!success ? (
+          <div className="p-5 space-y-5">
+            {/* Payment method selection */}
+            <div>
+              <label className="text-sm font-medium mb-2 block text-white">اختر طريقة الدفع</label>
+              {paymentMethods.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">لا توجد طرق دفع متاحة حالياً</p>
+              ) : (
+                <div className="space-y-2">
+                  {paymentMethods.filter(m => m.active !== false).map(method => (
+                    <button
+                      key={method._id}
+                      onClick={() => setSelectedMethod(method)}
+                      className={`w-full p-3 rounded-xl text-right transition-all ${
+                        selectedMethod?._id === method._id
+                          ? 'bg-neon-cyan/10 border border-neon-cyan/30'
+                          : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <p className="font-medium text-sm text-white">{method.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{method.type}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selected method details */}
+            {selectedMethod && (
+              <div className="p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15 space-y-2">
+                <p className="text-xs text-muted-foreground font-medium">تفاصيل التحويل:</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">رقم الحساب:</span>
+                  <span className="text-sm font-mono text-white" dir="ltr">{selectedMethod.accountNumber}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">اسم الحساب:</span>
+                  <span className="text-sm text-white">{selectedMethod.accountName}</span>
+                </div>
+                {selectedMethod.instructions && (
+                  <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-white/5">{selectedMethod.instructions}</p>
+                )}
+              </div>
+            )}
+
+            {/* Sender info */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">اسم المرسل *</label>
+                <Input
+                  value={walletName}
+                  onChange={e => setWalletName(e.target.value)}
+                  placeholder="اسمك على المحفظة"
+                  className="bg-white/5 border-white/10 h-10 text-sm text-white placeholder:text-muted-foreground/50"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">رقم هاتف المرسل *</label>
+                <Input
+                  value={walletPhone}
+                  onChange={e => setWalletPhone(e.target.value)}
+                  placeholder="رقم هاتفك"
+                  className="bg-white/5 border-white/10 h-10 text-sm text-white placeholder:text-muted-foreground/50"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+
+            {/* Screenshot upload */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-2 block">لقطة شاشة التحويل *</label>
+              <div className="relative">
+                {screenshot ? (
+                  <div className="relative rounded-xl overflow-hidden border border-neon-cyan/20">
+                    <img src={screenshot} alt="screenshot" className="w-full h-48 object-cover" />
+                    <button
+                      onClick={() => setScreenshot(null)}
+                      className="absolute top-2 left-2 h-7 w-7 rounded-full bg-red-500/80 flex items-center justify-center hover:bg-red-500 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-36 rounded-xl border-2 border-dashed border-white/15 hover:border-neon-cyan/30 cursor-pointer transition-colors bg-white/[0.02]">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                    <span className="text-xs text-muted-foreground">اضغط لرفع لقطة الشاشة</span>
+                    <span className="text-[10px] text-muted-foreground/50 mt-1">PNG, JPG حتى 5MB</span>
+                    <input type="file" accept="image/*" onChange={handleScreenshotUpload} className="hidden" />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Error message */}
+            {error && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+                {error}
+              </div>
+            )}
+
+            {/* Submit */}
+            <Button
+              onClick={handleSubmit}
+              disabled={!selectedMethod || !screenshot || !walletName || !walletPhone || submitting}
+              className="w-full h-12 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <CreditCard className="h-5 w-5 ml-2" />
+                  إرسال طلب الدفع
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          /* Success state */
+          <div className="p-8 text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring' }}
+              className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4"
+            >
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            </motion.div>
+            <h3 className="text-lg font-bold text-white mb-2">تم إرسال الطلب بنجاح!</h3>
+            <p className="text-sm text-muted-foreground mb-6">سيتم مراجعة الدفع وتفعيل الدورة خلال 24 ساعة</p>
+            <Button
+              onClick={onClose}
+              className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25"
+            >
+              حسناً
+            </Button>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
   )
 }
 
@@ -295,6 +589,11 @@ export function CoursesPage() {
   const [activeLevel, setActiveLevel] = useState<string>('all')
   const [sortBy, setSortBy] = useState('popular')
   const [showFilters, setShowFilters] = useState(false)
+  const [paymentCourse, setPaymentCourse] = useState<Course | null>(null)
+
+  const handlePaymentClick = useCallback((course: Course) => {
+    setPaymentCourse(course)
+  }, [])
 
   // Fetch courses from API on mount
   useEffect(() => {
@@ -590,7 +889,10 @@ export function CoursesPage() {
 
               <div className="flex items-center gap-3 pt-2">
                 <Button
-                  onClick={() => openCourse(featuredCourse.id)}
+                  onClick={() => {
+                    const isPremiumLocked = featuredCourse.isPremium && featuredCourse.price > 0 && !courseProgress.find(p => p.courseId === featuredCourse.id)
+                    if (isPremiumLocked) { setPaymentCourse(featuredCourse) } else { openCourse(featuredCourse.id) }
+                  }}
                   className="bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold hover:shadow-[0_0_30px_rgba(0,245,255,0.3)] transition-all"
                 >
                   <Play className="w-4 h-4 ml-2 fill-med-dark" />
@@ -633,6 +935,7 @@ export function CoursesPage() {
               </div>
             }
             showProgress
+            onPaymentClick={handlePaymentClick}
           />
         )}
 
@@ -651,7 +954,7 @@ export function CoursesPage() {
             {filteredCourses.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredCourses.map((course, i) => (
-                  <CourseCard key={course.id} course={course} index={i} />
+                  <CourseCard key={course.id} course={course} index={i} onPaymentClick={handlePaymentClick} />
                 ))}
               </div>
             ) : (
@@ -675,6 +978,7 @@ export function CoursesPage() {
                   <TrendingUp className="w-4 h-4 text-orange-400" />
                 </div>
               }
+              onPaymentClick={handlePaymentClick}
             />
 
             <HorizontalCourseRow
@@ -685,6 +989,7 @@ export function CoursesPage() {
                   <span className="text-base">🚑</span>
                 </div>
               }
+              onPaymentClick={handlePaymentClick}
             />
 
             <HorizontalCourseRow
@@ -695,6 +1000,7 @@ export function CoursesPage() {
                   <span className="text-base">❤️</span>
                 </div>
               }
+              onPaymentClick={handlePaymentClick}
             />
 
             <HorizontalCourseRow
@@ -705,10 +1011,21 @@ export function CoursesPage() {
                   <Sparkles className="w-4 h-4 text-neon-purple" />
                 </div>
               }
+              onPaymentClick={handlePaymentClick}
             />
           </div>
         )}
       </div>
+
+      {/* Payment Modal */}
+      <AnimatePresence>
+        {paymentCourse && (
+          <PaymentModal
+            course={paymentCourse}
+            onClose={() => setPaymentCourse(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

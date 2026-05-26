@@ -8,7 +8,7 @@ import {
   AlertCircle, CheckCircle2, Circle, Shield,
   CreditCard, UserPlus, Zap, BarChart3,
   Settings, ChevronDown, Edit3, Save, X, FileText, Video, HelpCircle, FlaskConical, Layers, Plus, Trash2, RefreshCw, Loader2, Wallet, ToggleLeft, ToggleRight, Image as ImageIcon,
-  Menu, LogOut, LayoutDashboard,
+  Menu, LogOut,
 } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -458,7 +458,7 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function AdminPage() {
-  const { user, setActivePage, logout } = useAppStore()
+  const { user, logout } = useAppStore()
 
   // ─── API Data State ─────────────────────────────────────
   const [courses, setCourses] = useState<ApiCourse[]>([])
@@ -969,63 +969,62 @@ export function AdminPage() {
                 transition={{ delay: courseIdx * 0.03 }} className="glass-card overflow-hidden">
 
                 {/* Course Header */}
-                <div className="p-3 sm:p-5">
-                  <div className="flex flex-col gap-2 sm:gap-3">
-                  <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
-                    className="flex items-center gap-2 sm:gap-4 hover:bg-white/5 transition-colors text-right min-w-0 w-full">
-                    <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-base sm:text-xl font-bold shrink-0`}>
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    {/* Course number */}
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-sm sm:text-base font-bold shrink-0`}>
                       {courseIdx + 1}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        <h3 className="font-bold text-sm sm:text-base truncate">{course.titleAr}</h3>
-                        <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[8px] sm:text-[9px]">
+                    {/* Course info - tappable to expand */}
+                    <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
+                      className="flex-1 min-w-0 text-right hover:bg-white/5 rounded-lg transition-colors">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="font-bold text-sm truncate">{course.titleAr}</h3>
+                        <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[8px] px-1">
                           {getCategoryLabel(course.category)}
                         </Badge>
                         {!course.published && (
-                          <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] sm:text-[9px]">مسودة</Badge>
+                          <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] px-1">مسودة</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 sm:gap-4 mt-1 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> {courseLessons.length} درس</span>
                         <span className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-400" /> {course.rating}</span>
-                        <span className="hidden sm:flex items-center gap-1"><Users className="h-3 w-3" /> {(course.studentCount || course.students || 0).toLocaleString()}</span>
                         <span className={`${getLevelColor(course.level)} font-medium`}>{getLevelLabel(course.level)}</span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 mr-auto sm:mr-0">
+                    </button>
+                    {/* Price + expand chevron */}
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {course.isPremium ? (
-                        <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[9px] sm:text-[10px]">
+                        <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[8px] sm:text-[9px] px-1">
                           {course.price.toLocaleString()} ر.ي
                         </Badge>
                       ) : (
-                        <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[9px] sm:text-[10px]">مجاني</Badge>
+                        <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[8px] sm:text-[9px] px-1">مجاني</Badge>
                       )}
                       <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                        <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       </motion.div>
                     </div>
-                  </button>
-
-                  {/* Course Actions */}
-                  <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 mr-12 sm:mr-0">
-                    <Button variant="ghost" size="icon" onClick={() => handleTogglePublish(course)}
-                      className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-white/10" title={course.published ? 'إلغاء النشر' : 'نشر'}>
-                      {course.published ? (
-                        <ToggleRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-neon-green" />
-                      ) : (
-                        <ToggleLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                      )}
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => { setEditingCourse(course); setShowAddCourse(false) }}
-                      className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-neon-cyan/10">
-                      <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-neon-cyan" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteCourse(course._id)}
-                      className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-red-500/10">
-                      <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-400" />
-                    </Button>
-                  </div>
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => handleTogglePublish(course)}
+                        className="h-7 w-7" title={course.published ? 'إلغاء النشر' : 'نشر'}>
+                        {course.published ? (
+                          <ToggleRight className="h-3.5 w-3.5 text-neon-green" />
+                        ) : (
+                          <ToggleLeft className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => { setEditingCourse(course); setShowAddCourse(false) }}
+                        className="h-7 w-7 hover:bg-neon-cyan/10">
+                        <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteCourse(course._id)}
+                        className="h-7 w-7 hover:bg-red-500/10">
+                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -1078,28 +1077,28 @@ export function AdminPage() {
                                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: lessonIdx * 0.02 }}
                                   className="p-2 sm:p-3 rounded-lg sm:rounded-xl hover:bg-white/5 transition-colors group">
                                   {/* Lesson info row */}
-                                  <div className="flex items-center gap-2 sm:gap-3">
-                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-white/5 flex items-center justify-center text-[10px] sm:text-xs font-bold text-muted-foreground shrink-0">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-white/5 flex items-center justify-center text-[10px] sm:text-xs font-bold text-muted-foreground shrink-0">
                                       {lesson.order}
                                     </div>
                                     <div className="shrink-0 hidden sm:block">{getLessonTypeIcon(lesson.type)}</div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs sm:text-sm font-medium truncate">{lesson.titleAr}</p>
-                                      <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[9px] sm:text-xs text-muted-foreground">
-                                        <span className="flex items-center gap-1">{getLessonTypeIcon(lesson.type)} <span className="sm:hidden">{getLessonTypeLabel(lesson.type)}</span></span>
+                                      <div className="flex items-center gap-1.5 mt-0.5 text-[9px] sm:text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-0.5">{getLessonTypeIcon(lesson.type)} <span className="sm:hidden text-[8px]">{getLessonTypeLabel(lesson.type)}</span></span>
                                         <span className="hidden sm:inline">{getLessonTypeLabel(lesson.type)}</span>
                                         <span>•</span>
                                         <span>{lesson.duration} د</span>
-                                        {lesson.summary && (<><span className="hidden sm:inline">•</span><span className="hidden sm:inline truncate max-w-[200px]">{lesson.summary}</span></>)}
+                                        {lesson.summary && (<><span className="hidden md:inline">•</span><span className="hidden md:inline truncate max-w-[200px]">{lesson.summary}</span></>)}
                                       </div>
                                     </div>
                                     {lesson.isFree ? (
-                                      <Badge className="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[8px] sm:text-[9px] shrink-0 px-1 sm:px-2">مجاني</Badge>
+                                      <Badge className="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[8px] px-1 shrink-0">مجاني</Badge>
                                     ) : (
-                                      <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] sm:text-[9px] shrink-0 px-1 sm:px-2">مدفوع</Badge>
+                                      <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] px-1 shrink-0">مدفوع</Badge>
                                     )}
-                                    {/* Action buttons - desktop inline */}
-                                    <div className="hidden sm:flex items-center gap-1 shrink-0">
+                                    {/* Action buttons - always inline */}
+                                    <div className="flex items-center gap-0.5 shrink-0">
                                       <Button variant="ghost" size="icon"
                                         onClick={() => setEditingLesson({ course, lesson })}
                                         className="h-7 w-7 hover:bg-neon-cyan/10">
@@ -1111,19 +1110,6 @@ export function AdminPage() {
                                         <Trash2 className="h-3.5 w-3.5 text-red-400" />
                                       </Button>
                                     </div>
-                                  </div>
-                                  {/* Action buttons - mobile row */}
-                                  <div className="flex sm:hidden items-center gap-1 mt-1.5 mr-9 justify-end">
-                                    <Button variant="ghost" size="icon"
-                                      onClick={() => setEditingLesson({ course, lesson })}
-                                      className="h-7 w-7 hover:bg-neon-cyan/10">
-                                      <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon"
-                                      onClick={() => handleDeleteLesson(course._id, lesson.id)}
-                                      className="h-7 w-7 hover:bg-red-500/10">
-                                      <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                                    </Button>
                                   </div>
                                 </motion.div>
                               )}
