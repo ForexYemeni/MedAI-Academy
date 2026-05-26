@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home, BookOpen, Brain, Activity, Play, HelpCircle, Users, User,
-  Menu, X, Search, Bell, Globe, ChevronRight, Sparkles, LogOut, Settings, Award, MessageSquare, Eye, EyeOff, Lock, Phone, UserPlus, Shield, Heart
+  Menu, X, Search, Bell, Globe, ChevronRight, Sparkles, LogOut, Settings, Award, MessageSquare, Eye, EyeOff, Lock, Phone, UserPlus, Shield, Heart, CreditCard
 } from 'lucide-react'
 import { useAppStore, type PageId } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
@@ -26,8 +26,9 @@ const ShortsPage = dynamic(() => import('@/components/med/pages/shorts-page').th
 const QuizzesPage = dynamic(() => import('@/components/med/pages/quizzes-page').then(m => ({ default: m.QuizzesPage })), { ssr: false })
 const CommunityPage = dynamic(() => import('@/components/med/pages/community-page').then(m => ({ default: m.CommunityPage })), { ssr: false })
 const ProfilePage = dynamic(() => import('@/components/med/pages/profile-page').then(m => ({ default: m.ProfilePage })), { ssr: false })
+const AdminPage = dynamic(() => import('@/components/med/pages/admin-page').then(m => ({ default: m.AdminPage })), { ssr: false })
 
-const NAV_ITEMS: Array<{
+const USER_NAV_ITEMS: Array<{
   id: PageId
   label: string
   icon: React.ElementType
@@ -44,7 +45,7 @@ const NAV_ITEMS: Array<{
   { id: 'profile', label: 'حسابي', icon: User, color: 'text-emerald-400' },
 ]
 
-const BOTTOM_NAV_ITEMS = NAV_ITEMS.slice(0, 5)
+const BOTTOM_NAV_ITEMS = USER_NAV_ITEMS.slice(0, 5)
 
 function Logo() {
   return (
@@ -65,14 +66,81 @@ function Logo() {
   )
 }
 
-function Sidebar() {
+// ─── Admin Sidebar ────────────────────────────────────────
+function AdminSidebar() {
+  const { user } = useAppStore()
+
+  return (
+    <div className="hidden lg:flex flex-col w-[260px] h-screen bg-[#060810] border-l border-med-border fixed right-0 top-0 z-40">
+      <Logo />
+
+      <div className="px-3 mt-2">
+        <div className="glass-card p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center text-sm font-bold">
+            👑
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{user.name}</p>
+            <p className="text-xs text-amber-400">مدير النظام</p>
+          </div>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1 mt-3 px-2">
+        <div className="glass-card p-3 mx-1">
+          <p className="text-xs text-muted-foreground mb-2">لوحة الإدارة</p>
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center gap-2 text-neon-cyan">
+              <Shield className="w-3.5 h-3.5" />
+              <span>إدارة كاملة للنظام</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Users className="w-3.5 h-3.5" />
+              <span>إدارة المستخدمين</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>إدارة الدورات والدروس</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>إدارة المدفوعات</span>
+            </div>
+          </div>
+        </div>
+      </ScrollArea>
+
+      <div className="p-3 border-t border-med-border">
+        <motion.button
+          onClick={() => {
+            useAppStore.getState().logout()
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('medai-user')
+              localStorage.removeItem('medai-auth')
+              localStorage.removeItem('medai-token')
+            }
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-all"
+          whileHover={{ x: -4 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <LogOut className="w-4.5 h-4.5" />
+          <span className="flex-1 text-right">تسجيل الخروج</span>
+        </motion.button>
+      </div>
+    </div>
+  )
+}
+
+// ─── User Sidebar ─────────────────────────────────────────
+function UserSidebar() {
   const { activePage, setActivePage, user, notifications } = useAppStore()
   const unreadCount = notifications.filter(n => !n.read).length
 
   return (
     <div className="hidden lg:flex flex-col w-[260px] h-screen bg-[#060810] border-l border-med-border fixed right-0 top-0 z-40">
       <Logo />
-      
+
       <div className="px-3 mt-2">
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-sm font-bold">
@@ -92,7 +160,7 @@ function Sidebar() {
           <span>المستوى {user.level + 1}</span>
         </div>
         <div className="h-1.5 rounded-full bg-[#1e293b] overflow-hidden">
-          <motion.div 
+          <motion.div
             className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-purple-500"
             initial={{ width: 0 }}
             animate={{ width: `${((user.xp % 1000) / 1000) * 100}%` }}
@@ -103,15 +171,15 @@ function Sidebar() {
 
       <ScrollArea className="flex-1 mt-3 px-2">
         <div className="space-y-0.5">
-          {NAV_ITEMS.map((item) => {
+          {USER_NAV_ITEMS.map((item) => {
             const isActive = activePage === item.id
             return (
               <motion.button
                 key={item.id}
                 onClick={() => setActivePage(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 relative group ${
-                  isActive 
-                    ? 'bg-cyan-500/10 text-cyan-400' 
+                  isActive
+                    ? 'bg-cyan-500/10 text-cyan-400'
                     : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                 }`}
                 whileHover={{ x: -4 }}
@@ -147,7 +215,14 @@ function Sidebar() {
           <div className="text-xs font-bold text-amber-400">{user.coins} 🪙</div>
         </div>
         <motion.button
-          onClick={() => useAppStore.getState().logout()}
+          onClick={() => {
+            useAppStore.getState().logout()
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('medai-user')
+              localStorage.removeItem('medai-auth')
+              localStorage.removeItem('medai-token')
+            }
+          }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-all"
           whileHover={{ x: -4 }}
           whileTap={{ scale: 0.98 }}
@@ -160,6 +235,45 @@ function Sidebar() {
   )
 }
 
+// ─── Admin Mobile Header ──────────────────────────────────
+function AdminMobileHeader() {
+  const { user } = useAppStore()
+
+  return (
+    <div className="lg:hidden sticky top-0 z-50 glass-strong">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center">
+              <Shield className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="text-sm font-bold text-amber-400">لوحة الإدارة</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge className="bg-neon-green/15 text-neon-green text-[10px]">مدير</Badge>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hover:bg-white/5 text-red-400"
+            onClick={() => {
+              useAppStore.getState().logout()
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('medai-user')
+                localStorage.removeItem('medai-auth')
+                localStorage.removeItem('medai-token')
+              }
+            }}
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── User Mobile Header ───────────────────────────────────
 function MobileHeader() {
   const { user, notifications, setActivePage } = useAppStore()
   const unreadCount = notifications.filter(n => !n.read).length
@@ -192,7 +306,7 @@ function MobileHeader() {
             </span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
@@ -217,9 +331,9 @@ function MobileHeader() {
               </div>
             </PopoverContent>
           </Popover>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="hover:bg-white/5"
             onClick={() => setActivePage('profile')}
           >
@@ -256,15 +370,15 @@ function MobileNavContent() {
       </div>
       <ScrollArea className="flex-1 px-3">
         <div className="space-y-0.5">
-          {NAV_ITEMS.map((item) => {
+          {USER_NAV_ITEMS.map((item) => {
             const isActive = activePage === item.id
             return (
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all ${
-                  isActive 
-                    ? 'bg-cyan-500/10 text-cyan-400' 
+                  isActive
+                    ? 'bg-cyan-500/10 text-cyan-400'
                     : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                 }`}
               >
@@ -283,7 +397,14 @@ function MobileNavContent() {
       </ScrollArea>
       <div className="p-3 border-t border-med-border">
         <motion.button
-          onClick={() => useAppStore.getState().logout()}
+          onClick={() => {
+            useAppStore.getState().logout()
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('medai-user')
+              localStorage.removeItem('medai-auth')
+              localStorage.removeItem('medai-token')
+            }
+          }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-all"
           whileHover={{ x: -4 }}
           whileTap={{ scale: 0.98 }}
@@ -334,7 +455,7 @@ function BottomNav() {
   )
 }
 
-function PageRenderer() {
+function UserPageRenderer() {
   const { activePage } = useAppStore()
 
   const pages: Record<PageId, React.ComponentType> = {
@@ -383,17 +504,17 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
 
   const handleChangePassword = async () => {
     setError('')
-    
+
     if (!currentPassword || !newPassword || !confirmPassword) {
       setError('جميع الحقول مطلوبة')
       return
     }
-    
+
     if (newPassword.length < 6) {
       setError('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل')
       return
     }
-    
+
     if (newPassword !== confirmPassword) {
       setError('كلمة المرور الجديدة غير متطابقة')
       return
@@ -405,7 +526,7 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
     }
 
     setLoading(true)
-    
+
     try {
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
@@ -416,9 +537,9 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
           newPassword,
         }),
       })
-      
+
       const data = await res.json()
-      
+
       if (data.success) {
         onComplete()
       } else {
@@ -444,7 +565,6 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
         transition={{ duration: 0.4, type: 'spring' }}
         className="relative glass-card p-8 w-full max-w-md"
       >
-        {/* Security Icon */}
         <div className="text-center mb-6">
           <motion.div
             initial={{ scale: 0 }}
@@ -469,7 +589,6 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
         )}
 
         <div className="space-y-4">
-          {/* Current Password */}
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">كلمة المرور الحالية</label>
             <div className="relative">
@@ -491,7 +610,6 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
             </div>
           </div>
 
-          {/* New Password */}
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">كلمة المرور الجديدة</label>
             <div className="relative">
@@ -513,7 +631,6 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
             </div>
           </div>
 
-          {/* Confirm Password */}
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">تأكيد كلمة المرور الجديدة</label>
             <input
@@ -565,21 +682,21 @@ function AuthScreen() {
       setAuthError('رقم الهاتف وكلمة المرور مطلوبان')
       return
     }
-    
+
     setAuthLoading(true)
-    
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: authPhone, password: authPassword }),
       })
-      
+
       const data = await res.json()
-      
+
       if (data.success) {
         const { user, token } = data
-        
+
         const newUser = {
           id: user.id,
           name: user.name,
@@ -600,15 +717,15 @@ function AuthScreen() {
           medicalSpecialty: '',
           role: user.role as 'admin' | 'user',
         }
-        
+
         updateUser(newUser)
         setAuthToken(token)
         setIsLoggedIn(true)
-        
+
         if (user.mustChangePassword) {
           setMustChangePassword(true)
         }
-        
+
         if (typeof window !== 'undefined') {
           localStorage.setItem('medai-user', JSON.stringify(newUser))
           localStorage.setItem('medai-auth', 'true')
@@ -630,26 +747,26 @@ function AuthScreen() {
       setAuthError('جميع الحقول مطلوبة')
       return
     }
-    
+
     if (authPassword.length < 6) {
       setAuthError('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
       return
     }
-    
+
     setAuthLoading(true)
-    
+
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: authName, phone: authPhone, password: authPassword }),
       })
-      
+
       const data = await res.json()
-      
+
       if (data.success) {
         const { user, token } = data
-        
+
         const newUser = {
           id: user.id,
           name: user.name,
@@ -670,11 +787,11 @@ function AuthScreen() {
           medicalSpecialty: '',
           role: 'user' as const,
         }
-        
+
         updateUser(newUser)
         setAuthToken(token)
         setIsLoggedIn(true)
-        
+
         if (typeof window !== 'undefined') {
           localStorage.setItem('medai-user', JSON.stringify(newUser))
           localStorage.setItem('medai-auth', 'true')
@@ -705,24 +822,22 @@ function AuthScreen() {
         <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-neon-cyan/5 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-neon-purple/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/3 rounded-full blur-3xl" />
-        {/* Grid pattern */}
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: 'linear-gradient(rgba(0,245,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,245,255,0.3) 1px, transparent 1px)',
           backgroundSize: '60px 60px'
         }} />
       </div>
-      
+
       <motion.div
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="relative glass-card p-8 w-full max-w-md"
       >
-        {/* Animated border glow */}
         <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-cyan-500/20 blur-sm -z-10" />
-        
+
         {/* Logo */}
-        <motion.div 
+        <motion.div
           className="text-center mb-8"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -748,7 +863,7 @@ function AuthScreen() {
         </motion.div>
 
         {/* Auth tabs */}
-        <motion.div 
+        <motion.div
           className="flex gap-2 mb-6"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -809,7 +924,7 @@ function AuthScreen() {
         </AnimatePresence>
 
         {/* Form */}
-        <motion.div 
+        <motion.div
           className="space-y-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -845,7 +960,7 @@ function AuthScreen() {
               </motion.div>
             )}
           </AnimatePresence>
-          
+
           {/* Phone */}
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block flex items-center gap-1.5">
@@ -874,7 +989,7 @@ function AuthScreen() {
               )}
             </div>
           </div>
-          
+
           {/* Password */}
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block flex items-center gap-1.5">
@@ -929,7 +1044,7 @@ function AuthScreen() {
           </motion.div>
         </motion.div>
 
-        <motion.p 
+        <motion.p
           className="text-center text-xs text-muted-foreground mt-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -946,7 +1061,29 @@ function AuthScreen() {
 // Main App Shell
 // =============================================
 export default function AppShell() {
-  const { isLoggedIn, mustChangePassword, setMustChangePassword } = useAppStore()
+  const { isLoggedIn, mustChangePassword, setMustChangePassword, user } = useAppStore()
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !isLoggedIn) {
+      const savedAuth = localStorage.getItem('medai-auth')
+      const savedUser = localStorage.getItem('medai-user')
+      const savedToken = localStorage.getItem('medai-token')
+
+      if (savedAuth === 'true' && savedUser && savedToken) {
+        try {
+          const userData = JSON.parse(savedUser)
+          useAppStore.getState().updateUser(userData)
+          useAppStore.getState().setAuthToken(savedToken)
+          useAppStore.getState().setIsLoggedIn(true)
+        } catch {
+          localStorage.removeItem('medai-user')
+          localStorage.removeItem('medai-auth')
+          localStorage.removeItem('medai-token')
+        }
+      }
+    }
+  }, [])
 
   // Show change password modal if admin must change password
   if (isLoggedIn && mustChangePassword) {
@@ -967,15 +1104,33 @@ export default function AppShell() {
     return <AuthScreen />
   }
 
+  // Admin view
+  if (user.role === 'admin') {
+    return (
+      <div className="min-h-screen bg-background text-foreground" dir="rtl">
+        <AdminSidebar />
+
+        <div className="lg:mr-[260px] flex flex-col min-h-screen">
+          <AdminMobileHeader />
+
+          <main className="flex-1 pb-4">
+            <AdminPage />
+          </main>
+        </div>
+      </div>
+    )
+  }
+
+  // User view
   return (
     <div className="min-h-screen bg-background text-foreground" dir="rtl">
-      <Sidebar />
-      
+      <UserSidebar />
+
       <div className="lg:mr-[260px] flex flex-col min-h-screen">
         <MobileHeader />
-        
+
         <main className="flex-1 pb-20 lg:pb-4">
-          <PageRenderer />
+          <UserPageRenderer />
         </main>
       </div>
 

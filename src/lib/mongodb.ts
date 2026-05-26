@@ -1,32 +1,30 @@
 import { Db, MongoClient } from 'mongodb'
 
-const MONGODB_URI = process.env.MONGODB_URI
+const MONGODB_URI = process.env.MONGODB_URI || ''
 const MONGODB_DB = process.env.MONGODB_DB || 'medai_academy'
-
-if (!MONGODB_URI) {
-  console.warn('⚠️ MONGODB_URI is not set. Database features will be unavailable.')
-}
 
 let cachedClient: MongoClient | null = null
 let cachedDb: Db | null = null
 
 export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
-  if (!MONGODB_URI) {
-    throw new Error('MONGODB_URI غير مضبوط. يرجى إضافة متغير البيئة في Vercel أو ملف .env')
-  }
-
-  // Check cached connection is still alive
+  // إذا كان الاتصال موجوداً مسبقاً، أعد استخدامه
   if (cachedClient && cachedDb) {
     try {
+      // تحقق من أن الاتصال لا يزال حياً
       await cachedClient.db('admin').command({ ping: 1 })
       return { client: cachedClient, db: cachedDb }
     } catch {
+      // الاتصال مكسور، أعد إنشاءه
       cachedClient = null
       cachedDb = null
     }
   }
 
-  // Create new connection
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI غير موجود في متغيرات البيئة')
+  }
+
+  // إنشاء اتصال جديد
   const client = new MongoClient(MONGODB_URI, {
     maxPoolSize: 10,
     minPoolSize: 2,
@@ -34,16 +32,14 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
     connectTimeoutMS: 15000,
     socketTimeoutMS: 45000,
     serverSelectionTimeoutMS: 15000,
-    retryWrites: true,
   })
 
   await client.connect()
   const db = client.db(MONGODB_DB)
 
+  // حفظ في الذاكرة المؤقتة
   cachedClient = client
   cachedDb = db
-
-  console.log('✅ Connected to MongoDB:', MONGODB_DB)
 
   return { client, db }
 }
