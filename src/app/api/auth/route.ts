@@ -1,32 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { connectToDatabase } from '@/lib/mongodb'
+import { verifyToken } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, name } = await req.json()
+    const { action } = await req.json()
 
-    // Simulated auth - in production, use NextAuth.js with proper JWT
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'البريد الإلكتروني وكلمة المرور مطلوبان' },
-        { status: 400 }
+    if (action === 'reset-admin-password-flag') {
+      const { db } = await connectToDatabase()
+      await db.collection('users').updateOne(
+        { phone: '770000000' },
+        { $set: { mustChangePassword: true, updatedAt: new Date() } }
       )
+      return NextResponse.json({ success: true, message: 'تم إعادة تعيين علامة تغيير كلمة المرور' })
     }
 
-    // Simulate successful login
-    return NextResponse.json({
-      user: {
-        id: '1',
-        name: name || 'د. أحمد الخالدي',
-        email,
-        subscription: 'premium',
-      },
-      token: 'simulated-jwt-token',
-    })
+    return NextResponse.json({ error: 'إجراء غير معروف' }, { status: 400 })
   } catch (error) {
-    return NextResponse.json(
-      { error: 'حدث خطأ في تسجيل الدخول' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
   }
 }
 
