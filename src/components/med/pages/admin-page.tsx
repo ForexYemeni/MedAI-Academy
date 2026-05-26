@@ -7,7 +7,7 @@ import {
   Activity, Clock, Star, Send, Bell,
   AlertCircle, CheckCircle2, Circle, Shield,
   CreditCard, UserPlus, Zap, BarChart3,
-  Settings, ChevronDown, Edit3, Save, X, FileText, Video, HelpCircle, FlaskConical, Layers, Eye, Plus, Trash2, RefreshCw, Loader2, Wallet, ToggleLeft, ToggleRight, Image as ImageIcon,
+  Settings, ChevronDown, Edit3, Save, X, FileText, Video, HelpCircle, FlaskConical, Layers, Plus, Trash2, RefreshCw, Loader2, Wallet, ToggleLeft, ToggleRight, Image as ImageIcon,
   Menu, LogOut, LayoutDashboard,
 } from 'lucide-react'
 import {
@@ -478,7 +478,7 @@ export function AdminPage() {
   const [editingCourse, setEditingCourse] = useState<ApiCourse | null>(null)
   const [addingLessonToCourse, setAddingLessonToCourse] = useState<string | null>(null)
   const [editingLesson, setEditingLesson] = useState<{ course: ApiCourse; lesson: ApiLesson } | null>(null)
-  const [previewLesson, setPreviewLesson] = useState<ApiLesson | null>(null)
+
   const [usersSearch, setUsersSearch] = useState('')
   const [usersPage, setUsersPage] = useState(1)
   const [usersTotal, setUsersTotal] = useState(0)
@@ -795,15 +795,6 @@ export function AdminPage() {
 
       {/* Bottom Actions */}
       <div className="p-3 space-y-2">
-        {/* View as User */}
-        <button
-          onClick={() => setActivePage('courses')}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-white/5 hover:text-white transition-all"
-        >
-          <Eye className="h-4 w-4 shrink-0" />
-          <span className="font-medium">عرض كمستخدم</span>
-        </button>
-
         {/* Refresh */}
         <button
           onClick={handleRefreshAll}
@@ -928,12 +919,12 @@ export function AdminPage() {
           { title: 'الدروس المدفوعة', value: String(paidLessons), icon: Star, color: 'text-neon-orange', bg: 'bg-neon-orange/10', border: 'border-neon-orange/20' },
         ].map((item, idx) => (
           <motion.div key={idx} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
-            whileHover={cardHover} className="glass-card p-4 sm:p-5">
-            <div className={`rounded-xl p-2 ${item.bg} ${item.border} border inline-block mb-2`}>
-              <item.icon className={`h-4 w-4 ${item.color}`} />
+            whileHover={cardHover} className="glass-card p-3 sm:p-5">
+            <div className={`rounded-lg sm:rounded-xl p-1.5 sm:p-2 ${item.bg} ${item.border} border inline-block mb-1 sm:mb-2`}>
+              <item.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${item.color}`} />
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">{item.title}</p>
-            <p className="text-xl sm:text-2xl font-black neon-text mt-1">{item.value}</p>
+            <p className="text-[11px] sm:text-sm text-muted-foreground">{item.title}</p>
+            <p className="text-lg sm:text-2xl font-black neon-text mt-0.5 sm:mt-1">{item.value}</p>
           </motion.div>
         ))}
       </div>
@@ -963,9 +954,9 @@ export function AdminPage() {
 
       {/* Courses List */}
       {courses.length === 0 ? (
-        <div className="glass-card p-12 text-center">
-          <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
-          <p className="text-muted-foreground mb-4">لا توجد دورات بعد. أضف أول دورة!</p>
+        <div className="glass-card p-8 sm:p-12 text-center">
+          <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
+          <p className="text-sm sm:text-base text-muted-foreground mb-4">لا توجد دورات بعد. أضف أول دورة!</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -978,61 +969,63 @@ export function AdminPage() {
                 transition={{ delay: courseIdx * 0.03 }} className="glass-card overflow-hidden">
 
                 {/* Course Header */}
-                <div className="p-4 sm:p-5 flex items-center gap-3 sm:gap-4">
+                <div className="p-3 sm:p-5">
+                  <div className="flex flex-col gap-2 sm:gap-3">
                   <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
-                    className="flex-1 flex items-center gap-3 sm:gap-4 hover:bg-white/5 transition-colors text-right min-w-0">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-lg sm:text-xl font-bold shrink-0`}>
+                    className="flex items-center gap-2 sm:gap-4 hover:bg-white/5 transition-colors text-right min-w-0 w-full">
+                    <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-base sm:text-xl font-bold shrink-0`}>
                       {courseIdx + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-sm sm:text-base">{course.titleAr}</h3>
-                        <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[9px]">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <h3 className="font-bold text-sm sm:text-base truncate">{course.titleAr}</h3>
+                        <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[8px] sm:text-[9px]">
                           {getCategoryLabel(course.category)}
                         </Badge>
                         {!course.published && (
-                          <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[9px]">مسودة</Badge>
+                          <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] sm:text-[9px]">مسودة</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 sm:gap-4 mt-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2 sm:gap-4 mt-1 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> {courseLessons.length} درس</span>
                         <span className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-400" /> {course.rating}</span>
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(course.studentCount || course.students || 0).toLocaleString()}</span>
+                        <span className="hidden sm:flex items-center gap-1"><Users className="h-3 w-3" /> {(course.studentCount || course.students || 0).toLocaleString()}</span>
                         <span className={`${getLevelColor(course.level)} font-medium`}>{getLevelLabel(course.level)}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 mr-auto sm:mr-0">
                       {course.isPremium ? (
-                        <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[10px]">
+                        <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[9px] sm:text-[10px]">
                           {course.price.toLocaleString()} ر.ي
                         </Badge>
                       ) : (
-                        <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[10px]">مجاني</Badge>
+                        <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[9px] sm:text-[10px]">مجاني</Badge>
                       )}
                       <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                       </motion.div>
                     </div>
                   </button>
 
                   {/* Course Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 mr-12 sm:mr-0">
                     <Button variant="ghost" size="icon" onClick={() => handleTogglePublish(course)}
-                      className="h-8 w-8 hover:bg-white/10" title={course.published ? 'إلغاء النشر' : 'نشر'}>
+                      className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-white/10" title={course.published ? 'إلغاء النشر' : 'نشر'}>
                       {course.published ? (
-                        <ToggleRight className="h-4 w-4 text-neon-green" />
+                        <ToggleRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-neon-green" />
                       ) : (
-                        <ToggleLeft className="h-4 w-4 text-muted-foreground" />
+                        <ToggleLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                       )}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => { setEditingCourse(course); setShowAddCourse(false) }}
-                      className="h-8 w-8 hover:bg-neon-cyan/10">
-                      <Edit3 className="h-4 w-4 text-neon-cyan" />
+                      className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-neon-cyan/10">
+                      <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-neon-cyan" />
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDeleteCourse(course._id)}
-                      className="h-8 w-8 hover:bg-red-500/10">
-                      <Trash2 className="h-4 w-4 text-red-400" />
+                      className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-red-500/10">
+                      <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-400" />
                     </Button>
+                  </div>
                   </div>
                 </div>
 
@@ -1043,9 +1036,9 @@ export function AdminPage() {
                       transition={{ duration: 0.3 }} className="overflow-hidden">
                       <div className="px-3 sm:px-5 pb-4 sm:pb-5 space-y-2 border-t border-white/5 pt-4">
                         {/* Lessons count + Add Lesson Button */}
-                        <div className="flex items-center justify-between px-2 py-2 rounded-lg bg-white/5 text-xs text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-2 rounded-lg bg-white/5 text-xs text-muted-foreground gap-2">
                           <span>دروس هذه الدورة ({courseLessons.length})</span>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                             <span className="flex items-center gap-1">
                               <div className="w-2 h-2 rounded-full bg-neon-green" /> مجاني: {courseLessons.filter(l => l.isFree).length}
                             </span>
@@ -1053,8 +1046,8 @@ export function AdminPage() {
                               <div className="w-2 h-2 rounded-full bg-neon-orange" /> مدفوع: {courseLessons.filter(l => !l.isFree).length}
                             </span>
                             <Button onClick={() => setAddingLessonToCourse(course._id)}
-                              className="h-7 text-[10px] bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 px-2">
-                              <Plus className="h-3 w-3 ml-1" /> درس
+                              className="h-7 text-[10px] sm:text-xs bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 px-2 sm:px-3">
+                              <Plus className="h-3 w-3 ml-1" /> إضافة درس
                             </Button>
                           </div>
                         </div>
@@ -1083,35 +1076,48 @@ export function AdminPage() {
                                   onCancel={() => setEditingLesson(null)} />
                               ) : (
                                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: lessonIdx * 0.02 }}
-                                  className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl hover:bg-white/5 transition-colors group">
-                                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
-                                    {lesson.order}
-                                  </div>
-                                  <div className="shrink-0">{getLessonTypeIcon(lesson.type)}</div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{lesson.titleAr}</p>
-                                    <div className="flex items-center gap-2 mt-0.5 text-[10px] sm:text-xs text-muted-foreground">
-                                      <span>{getLessonTypeLabel(lesson.type)}</span>
-                                      <span>•</span>
-                                      <span>{lesson.duration} دقيقة</span>
-                                      {lesson.summary && (<><span>•</span><span className="truncate max-w-[100px] sm:max-w-[200px]">{lesson.summary}</span></>)}
+                                  className="p-2 sm:p-3 rounded-lg sm:rounded-xl hover:bg-white/5 transition-colors group">
+                                  {/* Lesson info row */}
+                                  <div className="flex items-center gap-2 sm:gap-3">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-white/5 flex items-center justify-center text-[10px] sm:text-xs font-bold text-muted-foreground shrink-0">
+                                      {lesson.order}
+                                    </div>
+                                    <div className="shrink-0 hidden sm:block">{getLessonTypeIcon(lesson.type)}</div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs sm:text-sm font-medium truncate">{lesson.titleAr}</p>
+                                      <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[9px] sm:text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-1">{getLessonTypeIcon(lesson.type)} <span className="sm:hidden">{getLessonTypeLabel(lesson.type)}</span></span>
+                                        <span className="hidden sm:inline">{getLessonTypeLabel(lesson.type)}</span>
+                                        <span>•</span>
+                                        <span>{lesson.duration} د</span>
+                                        {lesson.summary && (<><span className="hidden sm:inline">•</span><span className="hidden sm:inline truncate max-w-[200px]">{lesson.summary}</span></>)}
+                                      </div>
+                                    </div>
+                                    {lesson.isFree ? (
+                                      <Badge className="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[8px] sm:text-[9px] shrink-0 px-1 sm:px-2">مجاني</Badge>
+                                    ) : (
+                                      <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] sm:text-[9px] shrink-0 px-1 sm:px-2">مدفوع</Badge>
+                                    )}
+                                    {/* Action buttons - desktop inline */}
+                                    <div className="hidden sm:flex items-center gap-1 shrink-0">
+                                      <Button variant="ghost" size="icon"
+                                        onClick={() => setEditingLesson({ course, lesson })}
+                                        className="h-7 w-7 hover:bg-neon-cyan/10">
+                                        <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon"
+                                        onClick={() => handleDeleteLesson(course._id, lesson.id)}
+                                        className="h-7 w-7 hover:bg-red-500/10">
+                                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                                      </Button>
                                     </div>
                                   </div>
-                                  {lesson.isFree ? (
-                                    <Badge className="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[9px] shrink-0">مجاني</Badge>
-                                  ) : (
-                                    <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[9px] shrink-0">مدفوع</Badge>
-                                  )}
-                                  <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                  {/* Action buttons - mobile row */}
+                                  <div className="flex sm:hidden items-center gap-1 mt-1.5 mr-9 justify-end">
                                     <Button variant="ghost" size="icon"
                                       onClick={() => setEditingLesson({ course, lesson })}
                                       className="h-7 w-7 hover:bg-neon-cyan/10">
                                       <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon"
-                                      onClick={() => setPreviewLesson(previewLesson?.id === lesson.id ? null : lesson)}
-                                      className="h-7 w-7 hover:bg-neon-purple/10">
-                                      <Eye className="h-3.5 w-3.5 text-neon-purple" />
                                     </Button>
                                     <Button variant="ghost" size="icon"
                                       onClick={() => handleDeleteLesson(course._id, lesson.id)}
@@ -1121,43 +1127,6 @@ export function AdminPage() {
                                   </div>
                                 </motion.div>
                               )}
-
-                              {/* Lesson Preview */}
-                              <AnimatePresence>
-                                {previewLesson?.id === lesson.id && editingLesson?.lesson.id !== lesson.id && (
-                                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                                    className="overflow-hidden">
-                                    <div className="mr-9 sm:mr-12 p-3 sm:p-4 rounded-xl bg-white/3 border border-white/5 space-y-3">
-                                      {lesson.content && (
-                                        <div>
-                                          <p className="text-xs text-muted-foreground mb-1">المحتوى:</p>
-                                          <div className="text-xs text-muted-foreground/80 max-h-40 overflow-y-auto whitespace-pre-wrap leading-5">
-                                            {lesson.content.substring(0, 500)}{lesson.content.length > 500 ? '...' : ''}
-                                          </div>
-                                        </div>
-                                      )}
-                                      {lesson.summary && (
-                                        <div>
-                                          <p className="text-xs text-muted-foreground mb-1">الملخص:</p>
-                                          <p className="text-xs text-muted-foreground/80">{lesson.summary}</p>
-                                        </div>
-                                      )}
-                                      {lesson.keyPoints && lesson.keyPoints.length > 0 && (
-                                        <div>
-                                          <p className="text-xs text-muted-foreground mb-1">النقاط الرئيسية:</p>
-                                          <ul className="space-y-1">
-                                            {lesson.keyPoints.map((point, i) => (
-                                              <li key={i} className="text-xs text-muted-foreground/80 flex items-start gap-1.5">
-                                                <div className="w-1 h-1 rounded-full bg-neon-cyan mt-1.5 shrink-0" />{point}
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
                             </div>
                           ))
                         )}

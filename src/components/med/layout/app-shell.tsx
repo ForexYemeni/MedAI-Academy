@@ -974,8 +974,8 @@ export default function AppShell() {
     return <AuthScreen />
   }
 
-  // Admin gets a completely separate layout - no user shell elements
-  if (user.role === 'admin' && activePage === 'admin') {
+  // Admin always sees the admin panel - no access to user interface
+  if (user.role === 'admin') {
     return (
       <div className="min-h-screen bg-background text-foreground" dir="rtl">
         <AdminPage />
