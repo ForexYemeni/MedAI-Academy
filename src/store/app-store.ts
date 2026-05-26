@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type PageId = 'home' | 'courses' | 'course-viewer' | 'ai-tutor' | 'simulation' | 'shorts' | 'quizzes' | 'community' | 'profile' | 'auth'
+export type PageId = 'home' | 'courses' | 'course-viewer' | 'ai-tutor' | 'simulation' | 'shorts' | 'quizzes' | 'community' | 'profile' | 'auth' | 'admin'
 
 export interface Message {
   id: string
