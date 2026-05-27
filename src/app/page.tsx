@@ -1,7 +1,6 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { ThemeProvider } from '@/components/med/layout/theme-provider'
 
 const AppShell = dynamic(() => import('@/components/med/layout/app-shell'), {
   ssr: false,
@@ -29,9 +28,5 @@ const AppShell = dynamic(() => import('@/components/med/layout/app-shell'), {
 })
 
 export default function Home() {
-  return (
-    <ThemeProvider>
-      <AppShell />
-    </ThemeProvider>
-  )
+  return <AppShell />
 }

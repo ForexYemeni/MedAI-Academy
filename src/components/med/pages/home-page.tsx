@@ -33,6 +33,7 @@ import {
   Lock,
   HeartPulse,
   Siren,
+  Award,
 } from 'lucide-react'
 
 // ─── Helpers ────────────────────────────────────────────────
