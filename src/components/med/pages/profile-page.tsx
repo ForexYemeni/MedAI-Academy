@@ -13,7 +13,7 @@ import {
   Lock, CheckCircle2, Circle, ChevronLeft, Settings,
   Bell, Shield, Globe, Info, Star, Award, Target,
   TrendingUp, Heart, Activity, Crown, Sparkles,
-  Languages, Volume2, Eye, ChevronDown, LogOut
+  Languages, Volume2, Eye, ChevronDown, LogOut, Sun, Moon
 } from 'lucide-react'
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -154,13 +154,11 @@ export function ProfilePage() {
   )
 
   const stats = useMemo(() => [
-    { label: 'نقاط الخبرة', value: user.xp.toLocaleString('ar-EG'), icon: <Zap className="w-5 h-5" />, color: 'text-neon-cyan', bg: 'bg-neon-cyan/10', border: 'border-neon-cyan/20' },
-    { label: 'العملات', value: user.coins.toLocaleString('ar-EG'), icon: <Coins className="w-5 h-5" />, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20' },
-    { label: 'التتابع', value: `${user.streak} يوم`, icon: <Flame className="w-5 h-5" />, color: 'text-neon-orange', bg: 'bg-neon-orange/10', border: 'border-neon-orange/20' },
-    { label: 'دورات مكتملة', value: user.completedCourses.toString(), icon: <BookOpen className="w-5 h-5" />, color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
+    { label: 'دورات مسجلة', value: String(enrolledCourses.length), icon: <BookOpen className="w-5 h-5" />, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+    { label: 'دروس مكتملة', value: courseProgress.reduce((sum, p) => sum + p.completedLessons.length, 0).toString(), icon: <CheckCircle2 className="w-5 h-5" />, color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
     { label: 'ساعات الدراسة', value: `${user.totalHours} ساعة`, icon: <Clock className="w-5 h-5" />, color: 'text-neon-purple', bg: 'bg-neon-purple/10', border: 'border-neon-purple/20' },
-    { label: 'الترتيب', value: '#5', icon: <Trophy className="w-5 h-5" />, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20' },
-  ], [user])
+    { label: 'شهادات', value: user.completedCourses.toString(), icon: <Award className="w-5 h-5" />, color: 'text-neon-orange', bg: 'bg-neon-orange/10', border: 'border-neon-orange/20' },
+  ], [user, enrolledCourses, courseProgress])
 
   const allBadges: BadgeType[] = useMemo(() => [
     ...user.badges,
@@ -171,11 +169,12 @@ export function ProfilePage() {
   ], [user.badges])
 
   const settingsItems = useMemo(() => [
+    { label: 'المظهر', labelEn: theme === 'dark' ? 'داكن' : 'فاتح', icon: theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />, color: 'text-primary', bg: 'bg-primary/10', action: toggleTheme },
     { label: 'اللغة', labelEn: 'العربية / English', icon: <Languages className="w-5 h-5" />, color: 'text-neon-cyan', bg: 'bg-neon-cyan/10' },
     { label: 'الإشعارات', labelEn: '', icon: <Bell className="w-5 h-5" />, color: 'text-neon-purple', bg: 'bg-neon-purple/10' },
     { label: 'الخصوصية', labelEn: '', icon: <Shield className="w-5 h-5" />, color: 'text-neon-green', bg: 'bg-neon-green/10' },
     { label: 'حول التطبيق', labelEn: '', icon: <Info className="w-5 h-5" />, color: 'text-muted-foreground', bg: 'bg-white/5' },
-  ], [])
+  ], [theme, toggleTheme])
 
   // ─── Render ────────────────────────────────────────────
 

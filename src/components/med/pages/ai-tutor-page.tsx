@@ -42,146 +42,16 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 
-// ─── Pre-built AI Responses ──────────────────────────────────────────────────
-
-const AI_RESPONSES = [
-  `🫀 **أمراض القلب - شرح شامل**
-
-القلب هو عضلة لا إرادية بحجم قبضة اليد، يضخ حوالي 5 لترات من الدم كل دقيقة.
-
-**الطبقات الثلاث للقلب:**
-• الشغاف (Endocardium) - الطبقة الداخلية
-• عضلة القلب (Myocardium) - الطبقة الوسطى
-• التامور (Pericardium) - الغلاف الخارجي
-
-**الدورة الدموية:**
-1. الدم غير المؤكسج يدخل الأذين الأيمن عبر الوريد الأجوف
-2. ينتقل إلى البطين الأيمن
-3. يُضخ للرئتين عبر الشريان الرئوي
-4. يعبر المؤكسج للأذين الأيسر عبر الأوردة الرئوية
-5. ينتقل إلى البطين الأيسر
-6. يُضخ لجميع أنحاء الجسم عبر الشريان الأبهر
-
-💡 **نقطة مهمة:** البطين الأيسر هو الأقوى لأنه يضخ الدم لكل الجسم!`,
-
-  `🚑 **خطوات الإنعاش القلبي الرئوي CPR**
-
-**الخطوة 1: التقييم**
-• تأكد من سلامة المكان
-• انادي المريض "هل أنت بخير؟"
-• اطلب المساعدة واتصل بالإسعاف
-
-**الخطوة 2: التحقق من التنفس**
-• افتح المجرى الهوائي (إمالة الرأس + رفع الذقن)
-• انظر - استمع - حس (لمدة 10 ثوانٍ)
-
-**الخطوة 3: الضغط الصدري**
-• مركز الصدر (أسفل عظمة القص مباشرة)
-• العمق: 5-6 سم للبالغين
-• المعدة: 100-120 ضغطة/دقيقة
-• النسبة: 30 ضغطة : 2 نفخة
-
-**الخطوة 4: النفخة التنفسية**
-• أغلق الأنف • نفخة 1 ثانية • شاهد ارتفاع الصدر
-
-⚡ **تذكر:** الضغط الصدري عالي الجودة هو أهم عامل في النجاة!`,
-
-  `💊 **التداخلات الدوائية الخطيرة**
-
-**1. الوارفارين + الأسبرين**
-⚠️ خطر النزيف مرتفع جداً
-→ يجب مراقبة INR بانتظام
-
-**2. مثبطات ACE + البوتاسيوم**
-⚠️ فرط بوتاسيوم الدم
-→ تجنب بدائل الملح المحتوية على البوتاسيوم
-
-**3. الميترونيدازول + الكحول**
-⚠️ تفاعل ديسلفيرام (غثيان، قيء، تسارع قلب)
-→ تجنب الكحول لمدة 72 ساعة بعد آخر جرعة
-
-**4. الليفودوبا + الحديد**
-⚠️ نقص فعالية الليفودوبا
-→ فاصل زمني 2 ساعة على الأقل
-
-**5. السيلدينافيل + النترات**
-🚫 موانع مطلقة! → انخفاض ضغط شديد مميت
-
-📌 **قاعدة ذهبية:** اسأل دائماً عن جميع الأدوية التي يتناولها المريض!`,
-
-  `🏥 **حالة سريرية - ألم صدري حاد**
-
-**المريض:** ذكر، 58 سنة
-**الشكوى:** ألم صدري شديد منذ 30 دقيقة
-
-**القصة المرضية:**
-• ألم ضاغط خلف عظمة القص
-• ينتشر للذراع الأيسر والفك
-• مترافق مع تعرق شديد وضيق تنفس
-• لم يُجِب على النترات تحت اللسان
-
-**السوابق:** سكري نمط 2، ارتفاع ضغط، تدخين
-
-**الفحص:**
-• الضغط: 90/60 mmHg
-• النبض: 110/دقيقة
-• SpO2: 92%
-• ECG: ارتفاع ST في الأطراف II, III, aVF
-
-**التشخيص:** احتشاء عضلة القلب الحاد STEMI (الجدار السفلي)
-
-**الخطة العلاجية:**
-1. أكسجين إذا SpO2 < 94%
-2. أسبرين 325mg مضغ
-3. نترات وريدية (إذا ضغط كافٍ)
-4. هيبارين وريدي
-5. تدخل قثرة أولية (Door-to-Balloon < 90 دقيقة)
-
-🎯 **الوقت = عضلة قلب!** كل دقيقة تمر = خسارة المزيد من الخلايا`,
-
-  `📅 **خطة تعلم مخصصة - طب الطوارئ**
-
-**الأسبوع 1-2: الأساسيات**
-✅ ABCDE للتقييم الأولي
-✅ القياسات الحيوية وتفسيرها
-✅ تخطيط القلب الكهربائي (ECG) الأساسي
-
-**الأسبوع 3-4: الطوارئ القلبية**
-🔄 الإنعاش القلبي الرئوي (CPR)
-🔄 احتشاء عضلة القلب الحاد
-🔄 اضطرابات النظم
-
-**الأسبوع 5-6: الطوارئ التنفسية**
-⬜ الربو الحاد
-⬜ الانصباب الجنبي
-⬜ الصمة الرئوية
-
-**الأسبوع 7-8: الصدمات**
-⬜ صدمة نقص الحجم
-⬜ صدمة التأق
-⬜ صدمة إنتانية
-
-**نصائح للنجاح:**
-📚 30 دقيقة دراسة يومياً أفضل من 3 ساعات مرة واحدة
-🧪 حل اختبارات بعد كل وحدة
-📝 دوّن الملاحظات بطريقتك
-🎯 ركز على نقاط ضعفك المكتشفة
-
-💡 تقدمك الحالي: **42%** - أنت في المسار الصحيح!`,
-]
-
-let responseIndex = 0
-
 // ─── Quick Action Chips ──────────────────────────────────────────────────────
 
 const QUICK_ACTIONS = [
-  { id: 'summarize', label: '📋 تلخيص درس', icon: BookOpen, prompt: 'لخص لي أهم النقاط في درس' },
-  { id: 'quiz', label: '🧪 اختبار سريع', icon: FlaskConical, prompt: 'أعطني اختبار سريع في' },
-  { id: 'case', label: '🏥 حالة سريرية', icon: Hospital, prompt: 'اعرض لي حالة سريرية في' },
-  { id: 'explain', label: '📖 شرح مبسط', icon: BookText, prompt: 'اشرح لي بطريقة مبسطة' },
-  { id: 'flashcards', label: '🗂️ بطاقات مراجعة', icon: Layers, prompt: 'أنشئ لي بطاقات مراجعة عن' },
-  { id: 'plan', label: '📅 خطة تعلم', icon: CalendarDays, prompt: 'ضع لي خطة تعلم في' },
-  { id: 'dialect', label: '💬 شرح باللهجة', icon: MessageCircle, prompt: 'اشرح لي باللهجة العامية' },
+  { id: 'summarize', label: '📋 تلخيص درس', icon: BookOpen, prompt: 'لخص لي أهم النقاط في درس طب الطوارئ' },
+  { id: 'quiz', label: '🧪 اختبار سريع', icon: FlaskConical, prompt: 'أعطني اختبار سريع من 5 أسئلة في أمراض القلب' },
+  { id: 'case', label: '🏥 حالة سريرية', icon: Hospital, prompt: 'اعرض لي حالة سريرية في طب الطوارئ مع التشخيص التفريقي' },
+  { id: 'explain', label: '📖 شرح مبسط', icon: BookText, prompt: 'اشرح لي نظام ABC في تقييم المريض بطريقة مبسطة' },
+  { id: 'flashcards', label: '🗂️ بطاقات مراجعة', icon: Layers, prompt: 'أنشئ لي 5 بطاقات مراجعة عن أدوية الطوارئ' },
+  { id: 'plan', label: '📅 خطة تعلم', icon: CalendarDays, prompt: 'ضع لي خطة تعلم لمدة شهر في أمراض القلب' },
+  { id: 'dialect', label: '💬 شرح باللهجة', icon: MessageCircle, prompt: 'اشرح لي آلية عمل القلب باللهجة العامية' },
 ]
 
 // ─── Formatting Helper ───────────────────────────────────────────────────────
@@ -405,6 +275,7 @@ export function AITutorPage() {
     user,
     language,
     setLanguage,
+    authToken,
   } = useAppStore()
 
   const [input, setInput] = useState('')
@@ -421,24 +292,57 @@ export function AITutorPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [aiMessages, aiLoading])
 
-  // Simulate AI response
-  const simulateAIResponse = useCallback(() => {
+  // Real AI response via API
+  const sendToAI = useCallback(async (userMessage: string) => {
     setAiLoading(true)
-    const delay = 1000 + Math.random() * 1000
+    try {
+      // Build history from existing messages (last 10)
+      const history = aiMessages.slice(-10).map(m => ({
+        role: m.role,
+        content: m.content,
+      }))
 
-    setTimeout(() => {
-      const response = AI_RESPONSES[responseIndex % AI_RESPONSES.length]
-      responseIndex++
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          history,
+        }),
+      })
 
+      const data = await res.json()
+
+      if (data.response) {
+        addAiMessage({
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: data.response,
+          timestamp: Date.now(),
+        })
+      } else {
+        // Error fallback
+        addAiMessage({
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: '⚠️ عذراً، حدث خطأ في الاتصال بالمساعد الذكي. يرجى المحاولة مرة أخرى.',
+          timestamp: Date.now(),
+        })
+      }
+    } catch (error) {
+      console.error('AI fetch error:', error)
       addAiMessage({
         id: Date.now().toString(),
         role: 'assistant',
-        content: response,
+        content: '⚠️ عذراً، لم أتمكن من الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.',
         timestamp: Date.now(),
       })
-      setAiLoading(false)
-    }, delay)
-  }, [addAiMessage, setAiLoading])
+    }
+    setAiLoading(false)
+  }, [aiMessages, addAiMessage, setAiLoading, authToken])
 
   // Send message
   const handleSend = useCallback(() => {
@@ -453,8 +357,8 @@ export function AITutorPage() {
     })
 
     setInput('')
-    simulateAIResponse()
-  }, [input, aiLoading, addAiMessage, simulateAIResponse])
+    sendToAI(trimmed)
+  }, [input, aiLoading, addAiMessage, sendToAI])
 
   // Quick action click
   const handleQuickAction = useCallback((prompt: string) => {
@@ -465,14 +369,12 @@ export function AITutorPage() {
       content: prompt,
       timestamp: Date.now(),
     })
-    setInput('')
-    simulateAIResponse()
-  }, [aiLoading, addAiMessage, simulateAIResponse])
+    sendToAI(prompt)
+  }, [aiLoading, addAiMessage, sendToAI])
 
   // Toggle voice input
   const toggleVoice = useCallback(() => {
     setIsListening((prev) => !prev)
-    // Simulate voice recognition
     if (!isListening) {
       setTimeout(() => {
         setInput('ما هي خطوات الإنعاش القلبي الرئوي CPR؟')
@@ -484,7 +386,6 @@ export function AITutorPage() {
   // Clear chat
   const handleClearChat = useCallback(() => {
     clearAiMessages()
-    // Re-add welcome message
     addAiMessage({
       id: Date.now().toString(),
       role: 'assistant',
@@ -538,7 +439,7 @@ export function AITutorPage() {
               </h1>
               <p className="text-[10px] text-neon-green flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-neon-green inline-block" />
-                متصل الآن
+                متصل الآن • مدعوم بالذكاء الاصطناعي
               </p>
             </div>
           </div>
@@ -609,7 +510,7 @@ export function AITutorPage() {
         >
           <div className="max-w-3xl mx-auto space-y-1">
             <AnimatePresence mode="popLayout">
-              {aiMessages.map((msg, idx) => (
+              {aiMessages.map((msg) => (
                 <motion.div
                   key={msg.id}
                   initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -654,9 +555,7 @@ export function AITutorPage() {
                     </div>
 
                     {/* Timestamp */}
-                    <div className={`flex items-center gap-1 mt-2 ${
-                      msg.role === 'user' ? 'justify-start' : 'justify-start'
-                    }`}>
+                    <div className="flex items-center gap-1 mt-2">
                       <Clock className="w-2.5 h-2.5 text-slate-500" />
                       <span className="text-[10px] text-slate-500">
                         {formatTime(msg.timestamp)}

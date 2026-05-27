@@ -142,7 +142,7 @@ const LIVE_EVENTS = [
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function HomePage() {
-  const { user, courses, dailyMissions, leaderboard, quizQuestions, simulationCases, openCourse, courseProgress } = useAppStore()
+  const { user, courses, quizQuestions, simulationCases, openCourse, courseProgress } = useAppStore()
 
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
@@ -155,9 +155,10 @@ export function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Derived data
+  // Derived data - professional stats instead of XP/Coins
   const greeting = useMemo(() => getGreeting(), [])
-  const xpInfo = useMemo(() => xpToNextLevel(user.xp), [user.xp])
+  const enrolledCourses = courseProgress.length
+  const completedLessons = courseProgress.reduce((sum, p) => sum + p.completedLessons.length, 0)
   const inProgressCourses = useMemo(
     () => {
       const enrolledIds = courseProgress.map(p => p.courseId)
@@ -174,12 +175,7 @@ export function HomePage() {
     () => courses.filter((c) => c.category === user.medicalSpecialty || c.category === 'emergency').slice(0, 3),
     [courses, user.medicalSpecialty]
   )
-  const topLeaderboard = useMemo(() => leaderboard.slice(0, 5), [leaderboard])
   const currentQuiz = useMemo(() => quizQuestions[0], [quizQuestions])
-  const emergencyCases = useMemo(
-    () => simulationCases.filter((s) => s.specialty === 'emergency' || s.difficulty === 'hard').slice(0, 3),
-    [simulationCases]
-  )
 
   // Quick Challenge handler
   const handleAnswer = (idx: number) => {
@@ -216,109 +212,65 @@ export function HomePage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <Avatar className="h-14 w-14 border-2 border-neon-cyan/40">
-                  <AvatarFallback className="bg-neon-purple/20 text-neon-purple text-lg font-bold">
+                <Avatar className="h-14 w-14 border-2 border-primary/40">
+                  <AvatarFallback className="bg-primary/20 text-primary text-lg font-bold">
                     {user.name ? user.name.replace(/^(د\.|دكتور|Dr\.?)\s*/i, '').charAt(0) : '?'}
                   </AvatarFallback>
                 </Avatar>
-                <div className="absolute -bottom-1 -left-1 text-lg">{user.rankIcon}</div>
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold neon-text">
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">
                   {greeting}، {user.name}! 👋
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {user.rankTitle} · المستوى {user.level} · {user.medicalSpecialty}
+                  {user.medicalSpecialty || user.rankTitle}
                 </p>
               </div>
             </div>
 
-            {/* User Stats Pills */}
+            {/* Professional Stats Pills */}
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5 rounded-full bg-neon-cyan/10 px-3 py-1.5 border border-neon-cyan/20">
-                <Zap className="h-4 w-4 text-neon-cyan" />
-                <span className="text-sm font-semibold text-neon-cyan">{user.xp.toLocaleString('ar-EG')} XP</span>
+              <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 border border-primary/20">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-primary">{enrolledCourses} دورة</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-full bg-neon-orange/10 px-3 py-1.5 border border-neon-orange/20">
-                <Flame className="h-4 w-4 text-neon-orange animate-heartbeat" />
-                <span className="text-sm font-semibold text-neon-orange">{user.streak} يوم</span>
+              <div className="flex items-center gap-1.5 rounded-full bg-neon-green/10 px-3 py-1.5 border border-neon-green/20">
+                <CheckCircle2 className="h-4 w-4 text-neon-green" />
+                <span className="text-sm font-semibold text-neon-green">{completedLessons} درس</span>
               </div>
               <div className="flex items-center gap-1.5 rounded-full bg-neon-purple/10 px-3 py-1.5 border border-neon-purple/20">
-                <Trophy className="h-4 w-4 text-neon-purple" />
-                <span className="text-sm font-semibold text-neon-purple">#{leaderboard.find(e => e.name === user.name)?.rank ?? 5}</span>
+                <Clock className="h-4 w-4 text-neon-purple" />
+                <span className="text-sm font-semibold text-neon-purple">{user.totalHours} ساعة</span>
               </div>
             </div>
           </div>
         </motion.section>
 
         {/* ═══════════════════════════════════════════════════
-            2. STREAK & XP PROGRESS
+            2. PROFESSIONAL STATS
         ═══════════════════════════════════════════════════ */}
-        <motion.section variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Streak Card */}
-          <motion.div
-            whileHover={cardHover}
-            className="glass-card p-5 relative overflow-hidden"
-          >
-            <div className="absolute top-3 left-3 opacity-10">
-              <Flame className="h-24 w-24 text-neon-orange" />
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">تتابع يومي</span>
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ repeat: Infinity, duration: 1.5 }}
-                >
-                  <Flame className="h-6 w-6 text-neon-orange" />
-                </motion.div>
+        <motion.section variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'دورات مسجلة', value: enrolledCourses, icon: BookOpen, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+            { label: 'دروس مكتملة', value: completedLessons, icon: CheckCircle2, color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
+            { label: 'ساعات الدراسة', value: user.totalHours, icon: Clock, color: 'text-neon-purple', bg: 'bg-neon-purple/10', border: 'border-neon-purple/20' },
+            { label: 'شهادات', value: user.completedCourses, icon: Award, color: 'text-neon-orange', bg: 'bg-neon-orange/10', border: 'border-neon-orange/20' },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              whileHover={cardHover}
+              className="glass-card p-4 relative overflow-hidden"
+            >
+              <div className={`rounded-xl ${stat.bg} ${stat.border} border w-10 h-10 flex items-center justify-center mb-3`}>
+                <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
-              <div className="flex items-end gap-2 mb-1">
-                <span className="text-4xl font-black text-neon-orange neon-text">{user.streak}</span>
-                <span className="text-lg text-muted-foreground mb-1">/ {user.maxStreak} يوم</span>
-              </div>
-              <div className="mt-3 h-2 rounded-full bg-white/5 overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(user.streak / user.maxStreak) * 100}%` }}
-                  transition={{ duration: 1.2, ease: 'easeOut' }}
-                  className="h-full rounded-full bg-gradient-to-l from-neon-orange to-amber-400"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">أعلى تتابع: {user.maxStreak} يوم 🔥</p>
-            </div>
-          </motion.div>
-
-          {/* XP Progress Card */}
-          <motion.div
-            whileHover={cardHover}
-            className="glass-card p-5 relative overflow-hidden"
-          >
-            <div className="absolute top-3 left-3 opacity-10">
-              <Zap className="h-24 w-24 text-neon-cyan" />
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">تقدم المستوى</span>
-                <span className="text-sm font-bold text-neon-cyan">المستوى {user.level}</span>
-              </div>
-              <div className="flex items-end gap-2 mb-1">
-                <span className="text-4xl font-black neon-text">{xpInfo.current.toLocaleString('ar-EG')}</span>
-                <span className="text-lg text-muted-foreground mb-1">/ {xpInfo.needed.toLocaleString('ar-EG')} XP</span>
-              </div>
-              <div className="mt-3 h-2 rounded-full bg-white/5 overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${xpInfo.percent}%` }}
-                  transition={{ duration: 1.2, ease: 'easeOut' }}
-                  className="h-full rounded-full bg-gradient-to-l from-neon-cyan to-neon-blue"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                متبقي {(xpInfo.needed - xpInfo.current).toLocaleString('ar-EG')} XP للمستوى التالي ⚡
-              </p>
-            </div>
-          </motion.div>
+              <p className="text-2xl font-black text-foreground">{stat.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
+            </motion.div>
+          ))}
         </motion.section>
 
         {/* ═══════════════════════════════════════════════════
@@ -394,76 +346,42 @@ export function HomePage() {
         )}
 
         {/* ═══════════════════════════════════════════════════
-            4. DAILY MISSIONS
+            4. STUDY PROGRESS
         ═══════════════════════════════════════════════════ */}
         <motion.section variants={itemVariants}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Target className="h-5 w-5 text-neon-green" />
-              المهام اليومية
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              {dailyMissions.filter((m) => m.completed).length}/{dailyMissions.length} مكتمل
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {dailyMissions.map((mission, i) => {
-              const progressPercent = Math.round((mission.progress / mission.target) * 100)
-              const missionColors = [
-                { bar: 'from-neon-cyan to-neon-blue', icon: <BookOpen className="h-4 w-4 text-neon-cyan" />, bg: 'bg-neon-cyan/10', border: 'border-neon-cyan/20' },
-                { bar: 'from-neon-purple to-neon-pink', icon: <Brain className="h-4 w-4 text-neon-purple" />, bg: 'bg-neon-purple/10', border: 'border-neon-purple/20' },
-                { bar: 'from-neon-green to-emerald-400', icon: <Activity className="h-4 w-4 text-neon-green" />, bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
-                { bar: 'from-neon-orange to-amber-400', icon: <Flame className="h-4 w-4 text-neon-orange" />, bg: 'bg-neon-orange/10', border: 'border-neon-orange/20' },
-              ]
-              const style = missionColors[i % missionColors.length]
-
-              return (
-                <motion.div
-                  key={mission.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.08 }}
-                  whileHover={cardHover}
-                  className={`glass-card p-4 relative overflow-hidden ${mission.completed ? 'opacity-70' : ''}`}
-                >
-                  {mission.completed && (
-                    <div className="absolute top-2 left-2">
-                      <CheckCircle2 className="h-5 w-5 text-neon-green" />
-                    </div>
-                  )}
-                  <div className="flex items-start gap-3">
-                    <div className={`rounded-xl ${style.bg} ${style.border} border p-2.5 shrink-0`}>
-                      {style.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-sm">{mission.titleAr}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{mission.description}</p>
-                      <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
+          <h2 className="text-lg font-bold flex items-center gap-2 mb-3">
+            <Target className="h-5 w-5 text-neon-green" />
+            تقدم الدراسة
+          </h2>
+          <div className="glass-card p-5">
+            <div className="space-y-4">
+              {inProgressCourses.length > 0 ? (
+                inProgressCourses.slice(0, 3).map((course, i) => {
+                  const courseProgress_val = courseProgress.find(p => p.courseId === course.id)
+                  return (
+                    <div key={course.id} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{course.titleAr}</span>
+                        <span className="text-xs font-bold text-primary">{courseProgress_val?.progress || 0}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${progressPercent}%` }}
-                          transition={{ duration: 1, delay: i * 0.1 }}
-                          className={`h-full rounded-full bg-gradient-to-l ${style.bar}`}
+                          animate={{ width: `${courseProgress_val?.progress || 0}%` }}
+                          transition={{ duration: 1, delay: i * 0.15 }}
+                          className="h-full rounded-full bg-gradient-to-l from-primary to-neon-purple"
                         />
                       </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground">
-                          {mission.progress}/{mission.target}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-neon-cyan flex items-center gap-0.5">
-                            <Zap className="h-3 w-3" /> {mission.xpReward}
-                          </span>
-                          <span className="text-xs font-semibold text-amber-400 flex items-center gap-0.5">
-                            🪙 {mission.coinReward}
-                          </span>
-                        </div>
-                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              )
-            })}
+                  )
+                })
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">ابدأ بتصفح الدورات للتتبع تقدمك</p>
+                </div>
+              )}
+            </div>
           </div>
         </motion.section>
 
@@ -734,88 +652,33 @@ export function HomePage() {
         </motion.section>
 
         {/* ═══════════════════════════════════════════════════
-            9. LEADERBOARD PREVIEW
+            9. RECENT COURSES
         ═══════════════════════════════════════════════════ */}
         <motion.section variants={itemVariants}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Crown className="h-5 w-5 text-amber-400" />
-              لوحة المتصدرين
-            </h2>
-            <button className="text-sm text-neon-cyan hover:underline flex items-center gap-1">
-              الكل <ChevronLeft className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="glass-card p-4 neon-glow">
+          <h2 className="text-lg font-bold flex items-center gap-2 mb-3">
+            <BookOpen className="h-5 w-5 text-primary" />
+            دورات قد تعجبك
+          </h2>
+          <div className="glass-card p-4">
             <div className="space-y-2">
-              {topLeaderboard.map((entry, i) => {
-                const isCurrentUser = entry.name === user.name
-                const rankColors = [
-                  'from-amber-400 to-yellow-600',
-                  'from-gray-300 to-gray-500',
-                  'from-amber-600 to-amber-800',
-                ]
-                const rankGlow = [
-                  'shadow-amber-400/30',
-                  'shadow-gray-400/20',
-                  'shadow-amber-700/20',
-                ]
-
-                return (
-                  <motion.div
-                    key={entry.rank}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.08 }}
-                    className={`
-                      flex items-center gap-3 rounded-xl p-3 transition-all
-                      ${isCurrentUser ? 'bg-neon-cyan/10 border border-neon-cyan/20' : 'hover:bg-white/5'}
-                    `}
-                  >
-                    {/* Rank badge */}
-                    <div className={`
-                      flex h-8 w-8 items-center justify-center rounded-full shrink-0
-                      ${i < 3
-                        ? `bg-gradient-to-bl ${rankColors[i]} shadow-lg ${rankGlow[i]}`
-                        : 'bg-white/10'
-                      }
-                    `}>
-                      <span className={`text-xs font-black ${i < 3 ? 'text-white' : 'text-muted-foreground'}`}>
-                        {entry.rank}
-                      </span>
-                    </div>
-
-                    {/* Avatar */}
-                    <Avatar className="h-9 w-9 border border-white/10">
-                      <AvatarFallback className="bg-neon-purple/20 text-neon-purple text-xs font-bold">
-                        {entry.name.replace(/^(د\.|دكتور|Dr\.?)\s*/i, '').charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold truncate">{entry.name}</span>
-                        {isCurrentUser && (
-                          <Badge className="text-[10px] bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30">
-                            أنت
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">{entry.rankTitle}</span>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="text-left flex items-center gap-3 shrink-0">
-                      <div className="flex items-center gap-1">
-                        <Flame className="h-3 w-3 text-neon-orange" />
-                        <span className="text-xs text-neon-orange">{entry.streak}</span>
-                      </div>
-                      <span className="text-sm font-bold neon-text">{entry.xp.toLocaleString('ar-EG')}</span>
-                    </div>
-                  </motion.div>
-                )
-              })}
+              {courses.slice(0, 3).map((course) => (
+                <button
+                  key={course.id}
+                  onClick={() => openCourse(course.id)}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 transition-colors text-right"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{course.titleAr}</p>
+                    <p className="text-xs text-muted-foreground">{course.instructor} · {course.duration}</p>
+                  </div>
+                  <Badge className={`text-[10px] ${course.price === 0 ? 'bg-neon-green/10 text-neon-green border-neon-green/20' : 'bg-primary/10 text-primary border-primary/20'} border`}>
+                    {course.price === 0 ? 'مجاني' : `${course.price.toLocaleString()} ر.ي`}
+                  </Badge>
+                </button>
+              ))}
             </div>
           </div>
         </motion.section>

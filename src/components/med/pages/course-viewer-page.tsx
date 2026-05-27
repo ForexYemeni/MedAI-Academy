@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight, BookOpen, Clock, CheckCircle2, Circle, Lock,
@@ -426,12 +426,106 @@ export function CourseViewerPage() {
   const {
     activeCourseId, activeLessonId, setActiveLessonId,
     courses, lessons, courseProgress, completeLesson, openCourse,
-    setActivePage, showEnrollModal, setShowEnrollModal, enrollInCourse
+    setActivePage, showEnrollModal, setShowEnrollModal, enrollInCourse,
+    authToken
   } = useAppStore()
 
   const [showSidebar, setShowSidebar] = useState(true)
   const [lessonCompleted, setLessonCompleted] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
+  
+  // Server-side enrollment state
+  const [serverEnrolled, setServerEnrolled] = useState<boolean | null>(null)
+  const [serverCompletedLessons, setServerCompletedLessons] = useState<string[]>([])
+  const [serverProgress, setServerProgress] = useState(0)
+  const [apiLessons, setApiLessons] = useState<any[]>([])
+  const [apiLoading, setApiLoading] = useState(false)
+
+  // Fetch enrollment data from API when course changes
+  useEffect(() => {
+    if (!activeCourseId) return
+    
+    const fetchEnrollment = async () => {
+      setApiLoading(true)
+      try {
+        const token = authToken || (typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null)
+        const res = await fetch(`/api/lessons?courseId=${activeCourseId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const data = await res.json()
+        if (data.success) {
+          setServerEnrolled(data.course?.isEnrolled ?? false)
+          setServerCompletedLessons(data.enrollment?.completedLessons || [])
+          setServerProgress(data.enrollment?.progress || 0)
+          setApiLessons(data.lessons || [])
+          
+          // Sync local courseProgress with server data
+          if (data.course?.isEnrolled && data.enrollment) {
+            const currentProgress = useAppStore.getState().courseProgress
+            const existingProgress = currentProgress.find(p => p.courseId === activeCourseId)
+            if (!existingProgress) {
+              // Create local progress entry from server data
+              const newProgress = {
+                courseId: activeCourseId,
+                completedLessons: data.enrollment.completedLessons || [],
+                lastAccessedLessonId: data.enrollment.lastAccessedLesson || null,
+                progress: data.enrollment.progress || 0,
+                lastAccessedAt: Date.now(),
+              }
+              const updatedProgress = [...currentProgress, newProgress]
+              useAppStore.setState({ courseProgress: updatedProgress })
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('medai-progress', JSON.stringify(updatedProgress))
+              }
+            } else if (data.enrollment.completedLessons?.length > existingProgress.completedLessons.length) {
+              // Update local progress with more recent server data
+              const updatedProgress = currentProgress.map(p =>
+                p.courseId === activeCourseId
+                  ? { ...p, completedLessons: data.enrollment.completedLessons, progress: data.enrollment.progress }
+                  : p
+              )
+              useAppStore.setState({ courseProgress: updatedProgress })
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('medai-progress', JSON.stringify(updatedProgress))
+              }
+            }
+          }
+          
+          // Also update store lessons with API data if they have content
+          if (data.lessons?.length > 0) {
+            const currentLessons = useAppStore.getState().lessons
+            const existingForCourse = currentLessons.filter(l => l.courseId === activeCourseId)
+            // If API returned lessons with content, update store
+            const lessonsWithContent = data.lessons.filter((l: any) => l.content && !l.isLocked)
+            if (lessonsWithContent.length > existingForCourse.filter(l => l.content).length) {
+              const mappedLessons = data.lessons.map((l: any) => ({
+                id: l.id,
+                courseId: activeCourseId,
+                title: l.title || '',
+                titleAr: l.titleAr || '',
+                type: l.type || 'article',
+                duration: l.duration || 15,
+                order: l.order || 1,
+                isFree: l.isFree || false,
+                content: l.content,
+                videoUrl: l.videoUrl,
+                summary: l.summary,
+                keyPoints: l.keyPoints,
+              }))
+              // Replace lessons for this course in the store
+              const otherLessons = currentLessons.filter(l => l.courseId !== activeCourseId)
+              useAppStore.setState({ lessons: [...otherLessons, ...mappedLessons] })
+            }
+          }
+        }
+      } catch (err) {
+        console.log('Failed to fetch enrollment data, using local data')
+      }
+      setApiLoading(false)
+    }
+    
+    fetchEnrollment()
+  }, [activeCourseId, authToken])
 
   // Get course data
   const course = useMemo(
@@ -463,9 +557,15 @@ export function CourseViewerPage() {
     [courseLessons, activeLessonId]
   )
 
+  // Merge server and local completed lessons
   const completedLessons = useMemo(
-    () => progress?.completedLessons || [],
-    [progress]
+    () => {
+      const local = progress?.completedLessons || []
+      const server = serverCompletedLessons
+      // Use whichever has more data
+      return server.length > local.length ? server : local
+    },
+    [progress, serverCompletedLessons]
   )
 
   const isLessonCompleted = useCallback(
@@ -473,17 +573,21 @@ export function CourseViewerPage() {
     [completedLessons]
   )
 
+  // Use server-side enrollment for access control
   const isLessonLocked = useCallback(
     (lesson: Lesson) => {
       if (lesson.isFree) return false
       // If course is free (price === 0), all lessons are unlocked
       if (course?.price === 0) return false
-      // If enrolled, all lessons unlocked
+      // Check server enrollment status first
+      if (serverEnrolled === true) return false
+      if (serverEnrolled === false) return !lesson.isFree
+      // Fallback to local progress check
       if (progress) return false
       // If no enrollment and lesson is not free, it's locked
       return !lesson.isFree
     },
-    [course, progress]
+    [course, progress, serverEnrolled]
   )
 
   // Find next incomplete lesson

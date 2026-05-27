@@ -186,7 +186,7 @@ function getLevelColor(level: string) {
 
 // ─── Sidebar Config ─────────────────────────────────────────
 
-type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods'
+type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database'
 
 const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'نظرة عامة', icon: Activity },
@@ -194,6 +194,9 @@ const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[]
   { id: 'users', label: 'المستخدمين', icon: Users },
   { id: 'payments', label: 'المدفوعات', icon: CreditCard },
   { id: 'payment-methods', label: 'طرق الدفع', icon: Wallet },
+  { id: 'notifications', label: 'الإشعارات', icon: Bell },
+  { id: 'activity-logs', label: 'سجل العمليات', icon: FileText },
+  { id: 'database', label: 'قاعدة البيانات', icon: Shield },
 ]
 
 // ─── Course Form Component ──────────────────────────────────
@@ -488,6 +491,13 @@ export function AdminPage() {
   const [notifMessage, setNotifMessage] = useState('')
   const [sendingNotif, setSendingNotif] = useState(false)
   const [screenshotView, setScreenshotView] = useState<string | null>(null)
+  const [activityLogs, setActivityLogs] = useState<any[]>([])
+  const [dbStats, setDbStats] = useState<any>(null)
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+  const [dbConfirmOpen, setDbConfirmOpen] = useState(false)
+  const [dbOperation, setDbOperation] = useState('')
+  const [dbConfirmPassword, setDbConfirmPassword] = useState('')
+  const [dbProcessing, setDbProcessing] = useState(false)
 
   // ─── API Fetch Functions ────────────────────────────────
 
@@ -534,6 +544,22 @@ export function AdminPage() {
     } catch (err) { console.error('Fetch stats error:', err) }
   }, [])
 
+  const fetchActivityLogs = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/activity-logs', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.success) setActivityLogs(data.logs || [])
+    } catch (err) { console.error('Fetch activity logs error:', err) }
+  }, [])
+
+  const fetchDbStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/database', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.success) setDbStats(data.stats)
+    } catch (err) { console.error('Fetch db stats error:', err) }
+  }, [])
+
   // ─── Initial Data Load (Lazy - only load data for the active section) ───
 
   const [loadedSections, setLoadedSections] = useState<Set<AdminSection>>(new Set())
@@ -576,6 +602,12 @@ export function AdminPage() {
           break
         case 'payment-methods':
           await fetchPaymentMethods()
+          break
+        case 'activity-logs':
+          await fetchActivityLogs()
+          break
+        case 'database':
+          await fetchDbStats()
           break
       }
       setLoadedSections(prev => new Set(prev).add(section))
@@ -718,7 +750,40 @@ export function AdminPage() {
         body: JSON.stringify({ paymentId, status, adminNote: note || '' }),
       })
       const data = await res.json()
-      if (data.success) { await fetchPayments(); await fetchStats() }
+      if (data.success) {
+        await fetchPayments()
+        await fetchStats()
+        // Log activity
+        const payment = payments.find(p => p._id === paymentId)
+        try {
+          await fetch('/api/admin/activity-logs', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              action: status === 'approved' ? 'payment_approved' : 'payment_rejected',
+              adminName: user?.name || 'المدير',
+              details: { paymentId, userName: payment?.userName, amount: payment?.amount, courseName: payment?.courseName },
+            }),
+          })
+        } catch (e) { /* ignore logging error */ }
+        // Send notification to user
+        if (payment?.userId) {
+          try {
+            await fetch('/api/notifications', {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({
+                userId: payment.userId,
+                title: status === 'approved' ? 'تم تفعيل الدورة ✅' : 'تم رفض الدفع ❌',
+                message: status === 'approved'
+                  ? `تمت الموافقة على دفعتك لدورة "${payment.courseName || 'الدورة'}". يمكنك الآن الوصول للمحتوى!`
+                  : `تم رفض دفعتك لدورة "${payment.courseName || 'الدورة'}". يرجى التواصل مع الإدارة.`,
+                type: status === 'approved' ? 'success' : 'warning',
+              }),
+            })
+          } catch (e) { /* ignore notification error */ }
+        }
+      }
       else setError(data.error || 'فشل تحديث الدفع')
     } catch { setError('خطأ في الاتصال') }
     setSaving(false)
@@ -752,10 +817,45 @@ export function AdminPage() {
     setSaving(false)
   }
 
-  const handleSendNotif = () => {
+  const handleSendNotif = async () => {
     if (!notifTitle.trim() || !notifMessage.trim()) return
     setSendingNotif(true)
-    setTimeout(() => { setSendingNotif(false); setNotifTitle(''); setNotifMessage('') }, 1500)
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ title: notifTitle, message: notifMessage, type: 'info', broadcast: true }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setNotifTitle('')
+        setNotifMessage('')
+      } else {
+        setError(data.error || 'فشل إرسال الإشعار')
+      }
+    } catch { setError('خطأ في الاتصال') }
+    setSendingNotif(false)
+  }
+
+  const handleDbOperation = async () => {
+    setDbProcessing(true)
+    try {
+      const res = await fetch('/api/admin/database', {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ operation: dbOperation, confirmed: true }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setDbConfirmOpen(false)
+        setDbOperation('')
+        setDbConfirmPassword('')
+        await fetchDbStats()
+      } else {
+        setError(data.error || 'فشل تنفيذ العملية')
+      }
+    } catch { setError('خطأ في الاتصال') }
+    setDbProcessing(false)
   }
 
   const handleRefreshAll = () => {
@@ -1350,19 +1450,41 @@ export function AdminPage() {
         </motion.div>
       </div>
 
-      {/* Payments List - Mobile + Desktop */}
-      {payments.length === 0 ? (
+      {/* Filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {(['all', 'pending', 'approved', 'rejected'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setPaymentFilter(f)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              paymentFilter === f
+                ? 'bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30'
+                : 'text-muted-foreground hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            {f === 'all' ? 'الكل' : f === 'pending' ? 'معلقة' : f === 'approved' ? 'مقبولة' : 'مرفوضة'}
+          </button>
+        ))}
+      </div>
+
+      {/* Payments List */}
+      {payments.filter(p => paymentFilter === 'all' || p.status === paymentFilter).length === 0 ? (
         <div className="glass-card p-12 text-center">
           <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
-          <p className="text-muted-foreground">لا توجد مدفوعات بعد</p>
+          <p className="text-muted-foreground">لا توجد مدفوعات {paymentFilter !== 'all' ? 'بهذه الحالة' : 'بعد'}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {payments.map((payment) => (
-            <div key={payment._id} className="glass-card p-4 space-y-3">
+          {payments.filter(p => paymentFilter === 'all' || p.status === paymentFilter).map((payment) => (
+            <motion.div key={payment._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className={`glass-card p-4 space-y-3 transition-all ${
+                payment.status === 'pending' ? 'border-l-4 border-neon-orange' :
+                payment.status === 'approved' ? 'border-l-4 border-neon-green' :
+                'border-l-4 border-red-500/50'
+              }`}>
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 flex items-center justify-center text-xs shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 flex items-center justify-center text-sm font-bold shrink-0">
                     {(payment.userName || '?').charAt(0)}
                   </div>
                   <div>
@@ -1371,7 +1493,7 @@ export function AdminPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-neon-cyan">{payment.amount?.toLocaleString() || 0} ر.ي</span>
+                  <span className="text-base font-bold text-neon-cyan">{payment.amount?.toLocaleString() || 0} ر.ي</span>
                   {payment.status === 'pending' && (
                     <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[9px]">معلق</Badge>
                   )}
@@ -1383,33 +1505,44 @@ export function AdminPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                <span>المحفظة: {payment.walletName}</span>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap bg-white/5 p-2.5 rounded-lg">
+                <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> {payment.walletName}</span>
                 <span dir="ltr">{payment.walletPhone}</span>
-                <span>{new Date(payment.createdAt).toLocaleDateString('ar')}</span>
+                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(payment.createdAt).toLocaleDateString('ar')}</span>
               </div>
-              {payment.screenshotUrl && (
-                <button onClick={() => setScreenshotView(payment.screenshotUrl!)}
-                  className="text-xs text-neon-cyan hover:underline flex items-center gap-1">
-                  <ImageIcon className="h-3 w-3" /> عرض لقطة الشاشة
-                </button>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {payment.courseName && (
+                  <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[9px]">
+                    <BookOpen className="h-2.5 w-2.5 ml-0.5" /> {payment.courseName}
+                  </Badge>
+                )}
+                {payment.screenshotUrl && (
+                  <button onClick={() => setScreenshotView(payment.screenshotUrl!)}
+                    className="text-xs text-neon-cyan hover:underline flex items-center gap-1 px-2 py-0.5 rounded bg-neon-cyan/5 hover:bg-neon-cyan/10 transition-colors">
+                    <ImageIcon className="h-3 w-3" /> عرض لقطة الشاشة
+                  </button>
+                )}
+              </div>
               {payment.status === 'pending' && (
-                <div className="flex gap-2 pt-1">
-                  <Button onClick={() => handleApprovePayment(payment._id, 'approved')}
-                    className="bg-neon-green/15 text-neon-green border border-neon-green/30 hover:bg-neon-green/25 h-8 text-xs">
-                    <CheckCircle2 className="h-3.5 w-3.5 ml-1" /> قبول
-                  </Button>
-                  <Button onClick={() => handleApprovePayment(payment._id, 'rejected')}
-                    className="bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 h-8 text-xs">
-                    <X className="h-3.5 w-3.5 ml-1" /> رفض
-                  </Button>
-                </div>
+                <motion.div className="flex gap-2 pt-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button onClick={() => handleApprovePayment(payment._id, 'approved')}
+                      className="bg-neon-green/15 text-neon-green border border-neon-green/30 hover:bg-neon-green/25 h-9 text-xs gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> قبول
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button onClick={() => handleApprovePayment(payment._id, 'rejected')}
+                      className="bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 h-9 text-xs gap-1">
+                      <X className="h-3.5 w-3.5" /> رفض
+                    </Button>
+                  </motion.div>
+                </motion.div>
               )}
               {payment.adminNote && (
                 <p className="text-xs text-muted-foreground bg-white/5 p-2 rounded-lg">ملاحظة: {payment.adminNote}</p>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
@@ -1429,6 +1562,250 @@ export function AdminPage() {
       </div>
 
       <PaymentMethodsManager methods={paymentMethods} onRefresh={fetchPaymentMethods} />
+    </motion.div>
+  )
+
+  const renderNotifications = () => (
+    <motion.div key="notifications" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }} className="space-y-6">
+
+      <div>
+        <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
+          <Bell className="h-6 w-6 text-neon-cyan" /> الإشعارات
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">إرسال إشعارات للمستخدمين</p>
+      </div>
+
+      <motion.div className="glass-card p-5 gradient-border">
+        <h2 className="text-base font-bold flex items-center gap-2 mb-4">
+          <Send className="h-5 w-5 text-neon-cyan" /> إرسال إشعار عام
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">العنوان</label>
+            <Input value={notifTitle} onChange={(e) => setNotifTitle(e.target.value)} placeholder="عنوان الإشعار..."
+              className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">الرسالة</label>
+            <Textarea value={notifMessage} onChange={(e) => setNotifMessage(e.target.value)} placeholder="نص الإشعار..." rows={4}
+              className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none" />
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-neon-orange/5 border border-neon-orange/20">
+            <AlertCircle className="h-4 w-4 text-neon-orange shrink-0" />
+            <span className="text-xs text-neon-orange">سيتم إرسال هذا الإشعار لجميع المستخدمين</span>
+          </div>
+          <Button onClick={handleSendNotif} disabled={sendingNotif || !notifTitle.trim() || !notifMessage.trim()}
+            className="w-full bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 transition-all h-10">
+            {sendingNotif ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (<><Send className="h-4 w-4 ml-2" /> إرسال الإشعار لجميع المستخدمين</>)}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+
+  const renderActivityLogs = () => (
+    <motion.div key="activity-logs" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }} className="space-y-6">
+
+      <div>
+        <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
+          <FileText className="h-6 w-6 text-neon-cyan" /> سجل العمليات
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">سجل جميع العمليات الإدارية</p>
+      </div>
+
+      {activityLogs.length === 0 ? (
+        <div className="glass-card p-12 text-center">
+          <FileText className="h-12 w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
+          <p className="text-muted-foreground">لا توجد عمليات مسجلة بعد</p>
+          <p className="text-xs text-muted-foreground mt-2">ستظهر هنا عمليات الموافقة والرفض وإنشاء الدورات</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {activityLogs.map((log, idx) => {
+            const actionLabels: Record<string, { label: string; color: string; icon: typeof Activity }> = {
+              'destructive_operation': { label: 'عملية مدمرة', color: 'text-red-400 bg-red-500/10 border-red-500/20', icon: Trash2 },
+              'broadcast_notification': { label: 'بث إشعار', color: 'text-neon-cyan bg-neon-cyan/10 border-neon-cyan/20', icon: Bell },
+              'payment_approved': { label: 'موافقة دفع', color: 'text-neon-green bg-neon-green/10 border-neon-green/20', icon: CheckCircle2 },
+              'payment_rejected': { label: 'رفض دفع', color: 'text-red-400 bg-red-500/10 border-red-500/20', icon: X },
+              'course_created': { label: 'إنشاء دورة', color: 'text-neon-purple bg-neon-purple/10 border-neon-purple/20', icon: Plus },
+            }
+            const actionInfo = actionLabels[log.action] || { label: log.action, color: 'text-slate-400 bg-white/5 border-white/10', icon: Activity }
+
+            return (
+              <motion.div key={log._id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.03 }}
+                className="glass-card p-4 flex items-start gap-3">
+                {/* Timeline dot */}
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <div className={`w-8 h-8 rounded-lg border flex items-center justify-center ${actionInfo.color}`}>
+                    <actionInfo.icon className="h-4 w-4" />
+                  </div>
+                  {idx < activityLogs.length - 1 && (
+                    <div className="w-[2px] h-6 bg-white/10" />
+                  )}
+                </div>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className={`${actionInfo.color} text-[9px] border`}>{actionInfo.label}</Badge>
+                    {log.adminName && (
+                      <span className="text-xs text-muted-foreground">بواسطة {log.adminName}</span>
+                    )}
+                  </div>
+                  <div className="mt-1.5">
+                    {log.details && (
+                      <p className="text-xs text-slate-300">
+                        {typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
+                      </p>
+                    )}
+                    {log.operation && (
+                      <p className="text-xs text-slate-300">
+                        العملية: {log.operation}
+                        {log.deletedCount > 0 && <span className="text-red-400 mr-1">({log.deletedCount} سجل محذوف)</span>}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <Clock className="w-3 h-3 text-slate-500" />
+                    <span className="text-[10px] text-slate-500">
+                      {new Date(log.createdAt).toLocaleString('ar', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      )}
+    </motion.div>
+  )
+
+  const renderDatabase = () => (
+    <motion.div key="database" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }} className="space-y-6">
+
+      <div>
+        <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
+          <Shield className="h-6 w-6 text-red-400" /> قاعدة البيانات
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">مركز التحكم بقاعدة البيانات - محمي</p>
+      </div>
+
+      {/* Security Warning */}
+      <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertCircle className="h-5 w-5 text-red-400" />
+          <h3 className="text-sm font-bold text-red-400">تحذير أمني</h3>
+        </div>
+        <p className="text-xs text-red-300/70">هذا القسم مخصص للمدير الرئيسي فقط. العمليات هنا لا يمكن التراجع عنها. سيتم تسجيل كل عملية في سجل العمليات.</p>
+      </div>
+
+      {/* Database Stats */}
+      {dbStats && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {dbStats.collections.map((col: any) => (
+            <div key={col.name} className="glass-card p-4">
+              <div className="text-2xl mb-1">{col.icon}</div>
+              <p className="text-xs text-muted-foreground">{col.label}</p>
+              <p className="text-xl font-black neon-text">{col.count.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Destructive Operations */}
+      <div className="glass-card p-5 border border-red-500/20">
+        <h2 className="text-base font-bold text-red-400 flex items-center gap-2 mb-4">
+          <Trash2 className="h-5 w-5" /> عمليات خطيرة
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { op: 'delete_all_users', label: 'حذف جميع المستخدمين', desc: 'ما عدا حساب المدير', icon: Users },
+            { op: 'delete_all_courses', label: 'حذف جميع الدورات', desc: 'جميع الدورات والدروس', icon: BookOpen },
+            { op: 'delete_all_payments', label: 'حذف جميع المدفوعات', desc: 'جميع سجلات الدفع', icon: CreditCard },
+            { op: 'reset_enrollments', label: 'إعادة التسجيلات', desc: 'حذف جميع التسجيلات في الدورات', icon: RefreshCw },
+          ].map((item) => (
+            <button
+              key={item.op}
+              onClick={() => { setDbOperation(item.op); setDbConfirmOpen(true) }}
+              className="w-full p-3 rounded-xl bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 transition-all text-right group"
+            >
+              <div className="flex items-center gap-2">
+                <item.icon className="h-4 w-4 text-red-400 shrink-0" />
+                <span className="text-sm font-medium text-red-300 group-hover:text-red-200">{item.label}</span>
+              </div>
+              <p className="text-[10px] text-red-400/50 mt-0.5 mr-6">{item.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {dbConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card p-6 max-w-md w-full border-2 border-red-500/30"
+            >
+              <div className="text-center mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-red-500/20 flex items-center justify-center mx-auto mb-3">
+                  <AlertCircle className="h-7 w-7 text-red-400" />
+                </div>
+                <h3 className="text-lg font-bold text-red-400">تأكيد العملية الخطيرة</h3>
+                <p className="text-sm text-muted-foreground mt-1">هذه العملية لا يمكن التراجع عنها!</p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 mb-4">
+                <p className="text-sm text-red-300">
+                  {dbOperation === 'delete_all_users' && 'سيتم حذف جميع المستخدمين نهائياً ما عدا حساب المدير'}
+                  {dbOperation === 'delete_all_courses' && 'سيتم حذف جميع الدورات والدروس نهائياً'}
+                  {dbOperation === 'delete_all_payments' && 'سيتم حذف جميع سجلات المدفوعات نهائياً'}
+                  {dbOperation === 'reset_enrollments' && 'سيتم حذف جميع تسجيلات المستخدمين في الدورات'}
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs text-muted-foreground mb-1.5 block">اكتب "تأكيد" للمتابعة</label>
+                <Input
+                  value={dbConfirmPassword}
+                  onChange={(e) => setDbConfirmPassword(e.target.value)}
+                  placeholder='اكتب "تأكيد" هنا...'
+                  className="bg-white/5 border-red-500/20 focus:border-red-500/40 text-sm h-10"
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleDbOperation}
+                  disabled={dbConfirmPassword !== 'تأكيد' || dbProcessing}
+                  className="flex-1 bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 h-10"
+                >
+                  {dbProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'تنفيذ العملية'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => { setDbConfirmOpen(false); setDbOperation(''); setDbConfirmPassword('') }}
+                  className="flex-1 h-10"
+                >
+                  إلغاء
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 
@@ -1545,6 +1922,9 @@ export function AdminPage() {
               {activeSection === 'users' && renderUsers()}
               {activeSection === 'payments' && renderPayments()}
               {activeSection === 'payment-methods' && renderPaymentMethods()}
+              {activeSection === 'notifications' && renderNotifications()}
+              {activeSection === 'activity-logs' && renderActivityLogs()}
+              {activeSection === 'database' && renderDatabase()}
             </AnimatePresence>
           </motion.div>
         </div>

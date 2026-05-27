@@ -213,7 +213,11 @@ interface AppState {
   setSearchQuery: (query: string) => void
   
   // Notifications
-  notifications: Array<{id: string; title: string; message: string; type: 'info' | 'success' | 'warning'; read: boolean; timestamp: number}>
+  notifications: Array<{id: string; title: string; message: string; type: 'info' | 'success' | 'warning'; read: boolean; timestamp: number; link?: string}>
+  setNotifications: (notifications: Array<{id: string; title: string; message: string; type: 'info' | 'success' | 'warning'; read: boolean; timestamp: number; link?: string}>) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: () => void
+  unreadNotificationCount: number
   
   // Auth
   isLoggedIn: boolean
@@ -443,6 +447,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     { id: '2', title: 'ترقية جديدة! 🎉', message: 'لقد ترقيت إلى رتبة "طبيب مقيم"!', type: 'success', read: false, timestamp: Date.now() - 7200000 },
     { id: '3', title: 'دورة جديدة متاحة', message: 'دورة "تقنيات الجراحة" متاحة الآن!', type: 'info', read: true, timestamp: Date.now() - 86400000 },
   ],
+  setNotifications: (notifications) => set({ notifications }),
+  markNotificationRead: (id) => set((state) => ({
+    notifications: state.notifications.map(n => n.id === id ? { ...n, read: true } : n)
+  })),
+  markAllNotificationsRead: () => set((state) => ({
+    notifications: state.notifications.map(n => ({ ...n, read: true }))
+  })),
+  unreadNotificationCount: 0,
   
   // Course progress - initialize empty
   courseProgress: [],
