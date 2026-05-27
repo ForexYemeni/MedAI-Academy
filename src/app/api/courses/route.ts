@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
         const token = authHeader.replace('Bearer ', '')
         const { verifyToken } = await import('@/lib/auth')
         const authUser = verifyToken(token)
-        if (authUser && authUser.role === 'user') {
+        if (authUser) {
           const enrollments = await db.collection('enrollments').find({ userId: authUser.id }).toArray()
           enrolledCourseIds = new Set(enrollments.map((e: any) => e.courseId.toString()))
         }
@@ -36,8 +36,44 @@ export async function GET(req: NextRequest) {
     const coursesWithStats = await Promise.all(
       courses.map(async (course) => {
         const studentCount = await db.collection('enrollments').countDocuments({ courseId: course._id })
-        const isEnrolled = enrolledCourseIds.has(course._id.toString())
+        let isEnrolled = enrolledCourseIds.has(course._id.toString())
         const isCourseFree = course.price === 0
+        
+        // Also check approved payments for enrollment
+        if (!isEnrolled && !isCourseFree && authHeader) {
+          try {
+            const token = authHeader.replace('Bearer ', '')
+            const { verifyToken } = await import('@/lib/auth')
+            const authUser = verifyToken(token)
+            if (authUser) {
+              const approvedPayment = await db.collection('payments').findOne({
+                userId: authUser.id,
+                courseId: { $in: [course._id.toString()] },
+                status: 'approved',
+              })
+              if (approvedPayment) {
+                isEnrolled = true
+                // Auto-create enrollment from approved payment
+                const existingEnrollment = await db.collection('enrollments').findOne({
+                  userId: authUser.id,
+                  courseId: course._id.toString(),
+                })
+                if (!existingEnrollment) {
+                  await db.collection('enrollments').insertOne({
+                    userId: authUser.id,
+                    courseId: course._id.toString(),
+                    progress: 0,
+                    completedLessons: [],
+                    completed: false,
+                    enrolledAt: new Date(),
+                    updatedAt: new Date(),
+                  }).catch(() => {})
+                }
+              }
+            }
+          } catch { /* ignore */ }
+        }
+        
         // Filter lessonsData: include all content for free courses or enrolled courses
         const filteredLessonsData = (course.lessonsData || []).map((lesson: any) => {
           if (isCourseFree || isEnrolled || lesson.isFree) {

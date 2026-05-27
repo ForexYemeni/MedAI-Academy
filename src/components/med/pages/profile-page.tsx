@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore, type Badge as BadgeType } from '@/store/app-store'
+import { useTheme } from '@/components/med/layout/theme-provider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -130,6 +131,7 @@ const cardHover = {
 
 export function ProfilePage() {
   const { user, courses, updateUser, openCourse, courseProgress, logout } = useAppStore()
+  const { theme, toggleTheme } = useTheme()
   const [selectedBadge, setSelectedBadge] = useState<BadgeType | null>(null)
   const [heatmapData] = useState(() => generateHeatmapData())
   const [editingProfile, setEditingProfile] = useState(false)

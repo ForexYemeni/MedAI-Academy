@@ -495,9 +495,37 @@ export const useAppStore = create<AppState>((set, get) => ({
       return
     }
 
-    // Paid courses need enrollment check
+    // Paid courses - check server enrollment before showing pay modal
     if (course.price > 0 && !isEnrolled) {
-      set({ showEnrollModal: true, activeCourseId: courseId })
+      // Try to verify enrollment from server asynchronously
+      const token = state.authToken || (typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null)
+      if (token) {
+        // Set loading state and navigate to course viewer
+        // The course-viewer page will check server enrollment and show content if enrolled
+        const courseLessons = state.lessons.filter(l => l.courseId === courseId)
+        const firstLesson = courseLessons.sort((a, b) => a.order - b.order)[0]
+        // Create a temporary progress entry - the viewer will verify with API
+        const newProgress: CourseProgress = {
+          courseId,
+          completedLessons: [],
+          lastAccessedLessonId: firstLesson?.id || null,
+          progress: 0,
+          lastAccessedAt: Date.now(),
+        }
+        const newProgressArr = [...state.courseProgress, newProgress]
+        set({
+          activeCourseId: courseId,
+          activeLessonId: lessonId || firstLesson?.id || null,
+          activePage: 'course-viewer' as PageId,
+          courseProgress: newProgressArr,
+        })
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('medai-progress', JSON.stringify(newProgressArr))
+        }
+      } else {
+        // No auth token - show enroll modal
+        set({ showEnrollModal: true, activeCourseId: courseId })
+      }
       return
     }
 

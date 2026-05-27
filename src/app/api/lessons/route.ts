@@ -16,18 +16,29 @@ export async function GET(req: NextRequest) {
     const { db } = await connectToDatabase()
     const { ObjectId } = await import('mongodb')
 
-    // Find the course
+    // Find the course - try ObjectId first, then string ID fallback
     let course: any = null
     try {
-      course = await db.collection('courses').findOne({ _id: new ObjectId(courseId) })
-    } catch {
-      // Not a valid ObjectId
+      if (ObjectId.isValid(courseId)) {
+        course = await db.collection('courses').findOne({ _id: new ObjectId(courseId) })
+      }
+    } catch { /* Not a valid ObjectId */ }
+    
+    // Fallback: try string-based ID match
+    if (!course) {
+      course = await db.collection('courses').findOne({ _id: courseId as any })
+    }
+    
+    // Last resort: try matching by custom id field
+    if (!course) {
+      course = await db.collection('courses').findOne({ id: courseId })
     }
 
     if (!course) {
       return NextResponse.json({ error: 'الدورة غير موجودة' }, { status: 404 })
     }
 
+    const courseStrId = course._id.toString()
     const isCourseFree = course.price === 0 || !course.isPremium
     let isEnrolled = isCourseFree // Free courses = auto enrolled
 
@@ -46,14 +57,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (userId && !isCourseFree) {
-      // Check if user has an enrollment record
-      const courseStrId = course._id.toString()
+      // Check if user has an enrollment record - search with all possible courseId formats
       const enrollment = await db.collection('enrollments').findOne({
-        $or: [
-          { userId, courseId: courseStrId },
-          { userId: new ObjectId(userId), courseId: course._id },
-          { userId, courseId: course._id },
-        ]
+        userId,
+        courseId: { $in: [courseId, courseStrId] },
       })
       if (enrollment) {
         isEnrolled = true
@@ -85,12 +92,9 @@ export async function GET(req: NextRequest) {
 
     // Auto-enroll for free courses when user is authenticated
     if (userId && isCourseFree) {
-      const courseStrId = course._id.toString()
       const existing = await db.collection('enrollments').findOne({
-        $or: [
-          { userId, courseId: courseStrId },
-          { userId: new ObjectId(userId), courseId: course._id },
-        ]
+        userId,
+        courseId: { $in: [courseId, courseStrId] },
       })
       if (!existing) {
         await db.collection('enrollments').insertOne({
@@ -109,12 +113,9 @@ export async function GET(req: NextRequest) {
     // Get enrollment details for progress info
     let enrollmentProgress: any = null
     if (userId) {
-      const courseStrId = course._id.toString()
       enrollmentProgress = await db.collection('enrollments').findOne({
-        $or: [
-          { userId, courseId: { $in: [courseId, courseStrId] } },
-          { userId: new ObjectId(userId), courseId: course._id },
-        ]
+        userId,
+        courseId: { $in: [courseId, courseStrId] },
       })
     }
 
