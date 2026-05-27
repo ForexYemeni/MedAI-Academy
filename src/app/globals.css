@@ -384,15 +384,6 @@
   scrollbar-width: none;
 }
 
-/* Light mode specific overrides for elements that use hardcoded dark colors */
-.light .text-white {
-  color: #0F172A;
-}
-
-.light [class*="bg-black/"] {
-  background-color: rgba(0, 0, 0, 0.04) !important;
-}
-
 /* Safe area bottom for mobile */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);

@@ -994,7 +994,7 @@ export function CourseViewerPage() {
                           🎉
                         </motion.div>
                         <h3 className="text-lg font-bold text-neon-green mb-1">أحسنت! تم إكمال الدرس</h3>
-                        <p className="text-sm text-gray-400">+50 XP +10 عملة</p>
+                        <p className="text-sm text-muted-foreground">استمر في التقدم 💪</p>
                       </motion.div>
                     )}
                   </AnimatePresence>

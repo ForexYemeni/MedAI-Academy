@@ -10,9 +10,6 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
-  Flame,
-  Zap,
-  Trophy,
   BookOpen,
   Brain,
   Clock,
@@ -22,7 +19,6 @@ import {
   Play,
   ChevronLeft,
   Heart,
-  Activity,
   AlertTriangle,
   Stethoscope,
   Baby,
@@ -31,15 +27,10 @@ import {
   ScanLine,
   Radio,
   Timer,
-  Crown,
-  Medal,
   Target,
   Sparkles,
   CheckCircle2,
-  Circle,
   Lock,
-  ArrowUpRight,
-  ChevronRight,
   HeartPulse,
   Siren,
 } from 'lucide-react'
@@ -56,19 +47,6 @@ function getGreeting(): string {
 function formatCount(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
   return n.toString()
-}
-
-function getLevelForXP(xp: number): number {
-  return Math.floor(Math.sqrt(xp / 100)) + 1
-}
-
-function xpToNextLevel(xp: number): { current: number; needed: number; percent: number } {
-  const level = getLevelForXP(xp)
-  const currentLevelXP = (level - 1) * (level - 1) * 100
-  const nextLevelXP = level * level * 100
-  const inLevel = xp - currentLevelXP
-  const needed = nextLevelXP - currentLevelXP
-  return { current: inLevel, needed, percent: Math.min(100, (inLevel / needed) * 100) }
 }
 
 // ─── Animation Variants ─────────────────────────────────────
@@ -776,7 +754,7 @@ export function HomePage() {
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {emergencyCases.map((caseItem, i) => {
+            {simulationCases.map((caseItem, i) => {
               const diffMap = {
                 easy: { label: 'سهل', color: 'text-neon-green border-neon-green/30 bg-neon-green/10' },
                 medium: { label: 'متوسط', color: 'text-neon-orange border-neon-orange/30 bg-neon-orange/10' },

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 
 type Theme = 'dark' | 'light'
 
@@ -22,42 +22,33 @@ export function useTheme() {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark')
-  const [mounted, setMounted] = useState(false)
+  const mountedRef = useRef(false)
 
+  // Initialize theme from localStorage on mount
   useEffect(() => {
-    setMounted(true)
-    // Read theme from localStorage
+    mountedRef.current = true
     const saved = localStorage.getItem('medai-theme') as Theme | null
     if (saved === 'light' || saved === 'dark') {
       setThemeState(saved)
-    } else {
-      // Default to dark
-      setThemeState('dark')
     }
   }, [])
 
+  // Apply theme class whenever theme changes
   useEffect(() => {
-    if (!mounted) return
-    // Apply theme class to html element
+    if (!mountedRef.current) return
     const root = document.documentElement
     root.classList.remove('light', 'dark')
     root.classList.add(theme)
-    // Save to localStorage
     localStorage.setItem('medai-theme', theme)
-  }, [theme, mounted])
+  }, [theme])
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setThemeState(prev => prev === 'dark' ? 'light' : 'dark')
-  }
+  }, [])
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme)
-  }
-
-  // Prevent flash by not rendering until mounted
-  if (!mounted) {
-    return <>{children}</>
-  }
+  }, [])
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
