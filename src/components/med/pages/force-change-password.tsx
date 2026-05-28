@@ -48,7 +48,7 @@ export default function ForceChangePassword() {
     setLoading(true)
 
     try {
-      const token = localStorage.getItem('medai_token')
+      const token = localStorage.getItem('medai-token')
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 
@@ -73,9 +73,12 @@ export default function ForceChangePassword() {
       
       // مسح جميع بيانات الجلسة بما فيها flag تغيير كلمة المرور
       setTimeout(() => {
-        localStorage.removeItem('medai_token')
-        localStorage.removeItem('medai_user')
-        localStorage.removeItem('medai_must_change_password')
+        localStorage.removeItem('medai-token')
+        localStorage.removeItem('medai-user')
+        localStorage.removeItem('medai-auth')
+        localStorage.removeItem('medai-must-change-password')
+        localStorage.removeItem('medai-progress')
+        useAppStore.getState().logout()
         setIsLoggedIn(false)
       }, 3000)
 

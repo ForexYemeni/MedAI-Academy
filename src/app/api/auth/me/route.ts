@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
     const { db } = await connectToDatabase()
     const user = await db.collection('users').findOne(
-      { _id: new ObjectId(payload.userId) },
+      { _id: new ObjectId(payload.id) },
       { projection: { password: 0 } }
     )
 

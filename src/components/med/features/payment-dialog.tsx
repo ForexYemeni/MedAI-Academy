@@ -58,7 +58,7 @@ export function PaymentDialog({ open, onOpenChange, courseId, courseName, amount
   const fetchPaymentMethods = async () => {
     setMethodsLoading(true)
     try {
-      const token = localStorage.getItem('medai_token')
+      const token = localStorage.getItem('medai-token')
       const res = await fetch('/api/admin/payment-methods', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -120,7 +120,7 @@ export function PaymentDialog({ open, onOpenChange, courseId, courseName, amount
     setError('')
 
     try {
-      const token = localStorage.getItem('medai_token')
+      const token = localStorage.getItem('medai-token')
       const res = await fetch('/api/payments', {
         method: 'POST',
         headers: {

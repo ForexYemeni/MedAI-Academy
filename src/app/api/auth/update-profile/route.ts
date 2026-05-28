@@ -36,7 +36,7 @@ export async function PATCH(req: NextRequest) {
 
     const { db } = await connectToDatabase()
     const result = await db.collection('users').findOneAndUpdate(
-      { _id: new ObjectId(payload.userId) },
+      { _id: new ObjectId(payload.id) },
       { $set: updateFields },
       { returnDocument: 'after', projection: { password: 0 } }
     )

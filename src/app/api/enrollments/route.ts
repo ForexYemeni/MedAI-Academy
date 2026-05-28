@@ -12,11 +12,15 @@ export async function GET(req: NextRequest) {
     if (!payload) return NextResponse.json({ error: 'رمز غير صالح' }, { status: 401 })
 
     const { db } = await connectToDatabase()
-    const userId = new ObjectId(payload.userId)
+    const userId = payload.id
+
+    // Search for enrollments with both string and ObjectId userId (backward compatibility)
+    const userIdQueries: (string | ObjectId)[] = [userId]
+    try { if (ObjectId.isValid(userId)) userIdQueries.push(new ObjectId(userId)) } catch {}
 
     // Get user's confirmed enrollments
     const enrollments = await db.collection('enrollments')
-      .find({ userId })
+      .find({ userId: { $in: userIdQueries } })
       .toArray()
 
     const enrolledCourseIds = enrollments.map(e => e.courseId?.toString()).filter(Boolean)
@@ -24,7 +28,7 @@ export async function GET(req: NextRequest) {
     // Also check for pending payments for specific courses
     const pendingPayments = await db.collection('payments')
       .find({
-        userId,
+        userId: { $in: userIdQueries },
         status: 'pending',
         plan: 'course',
         courseId: { $exists: true, $ne: null },
@@ -60,20 +64,27 @@ export async function POST(req: NextRequest) {
     }
 
     const { db } = await connectToDatabase()
-    const userId = new ObjectId(payload.userId)
+    const userId = payload.id
+
+    // Search with both string and ObjectId for backward compatibility
+    const userIdQueries: (string | ObjectId)[] = [userId]
+    try { if (ObjectId.isValid(userId)) userIdQueries.push(new ObjectId(userId)) } catch {}
+
+    const courseIdQueries: (string | ObjectId)[] = [courseId]
+    try { if (ObjectId.isValid(courseId)) courseIdQueries.push(new ObjectId(courseId)) } catch {}
 
     // Check enrollment
     const enrollment = await db.collection('enrollments').findOne({
-      userId,
-      courseId: new ObjectId(courseId),
+      userId: { $in: userIdQueries },
+      courseId: { $in: courseIdQueries },
     })
 
     // Check pending payment
     const pendingPayment = await db.collection('payments').findOne({
-      userId,
+      userId: { $in: userIdQueries },
       status: 'pending',
       plan: 'course',
-      courseId: new ObjectId(courseId),
+      courseId: { $in: courseIdQueries },
     })
 
     return NextResponse.json({
@@ -103,25 +114,38 @@ export async function PUT(req: NextRequest) {
     }
 
     const { db } = await connectToDatabase()
-    const userId = new ObjectId(payload.userId)
-    const courseObjId = new ObjectId(courseId)
+    const userId = payload.id
+
+    // Search with both types for backward compatibility
+    const userIdQueries: (string | ObjectId)[] = [userId]
+    try { if (ObjectId.isValid(userId)) userIdQueries.push(new ObjectId(userId)) } catch {}
+
+    const courseIdQueries: (string | ObjectId)[] = [courseId]
+    try { if (ObjectId.isValid(courseId)) courseIdQueries.push(new ObjectId(courseId)) } catch {}
 
     // Check if already enrolled
-    const existing = await db.collection('enrollments').findOne({ userId, courseId: courseObjId })
+    const existing = await db.collection('enrollments').findOne({
+      userId: { $in: userIdQueries },
+      courseId: { $in: courseIdQueries },
+    })
     if (existing) {
       return NextResponse.json({ message: 'مسجل بالفعل', enrollment: existing })
     }
 
-    // Check if the course is free
-    const course = await db.collection('courses').findOne({ _id: courseObjId })
+    // Check if the course exists
+    let courseObjId: ObjectId | null = null
+    try { if (ObjectId.isValid(courseId)) courseObjId = new ObjectId(courseId) } catch {}
+    const course = courseObjId
+      ? await db.collection('courses').findOne({ _id: courseObjId })
+      : await db.collection('courses').findOne({ id: courseId })
     if (!course) {
       return NextResponse.json({ error: 'الدورة غير موجودة' }, { status: 404 })
     }
 
-    // Create enrollment (for free courses or auto-enroll)
+    // Create enrollment with string userId/courseId for consistency
     const enrollment = {
       userId,
-      courseId: courseObjId,
+      courseId,
       progress: 0,
       completedLessons: [],
       completed: false,
@@ -132,10 +156,12 @@ export async function PUT(req: NextRequest) {
     const result = await db.collection('enrollments').insertOne(enrollment)
 
     // Increment student count
-    await db.collection('courses').updateOne(
-      { _id: courseObjId },
-      { $inc: { students: 1 } }
-    )
+    if (courseObjId) {
+      await db.collection('courses').updateOne(
+        { _id: courseObjId },
+        { $inc: { students: 1 } }
+      )
+    }
 
     return NextResponse.json({
       message: 'تم التسجيل بنجاح',

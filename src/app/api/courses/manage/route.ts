@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
     // If not admin, only show own courses
     if (payload.role !== 'admin') {
-      filter.instructorId = new ObjectId(payload.userId)
+      filter.instructorId = new ObjectId(payload.id)
     }
 
     const courses = await db.collection('courses')
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const { db } = await connectToDatabase()
 
     // Get instructor name
-    const instructor = await db.collection('users').findOne({ _id: new ObjectId(payload.userId) })
+    const instructor = await db.collection('users').findOne({ _id: new ObjectId(payload.id) })
 
     const newCourse: DBCourse = {
       title: title || titleAr,
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       description: description || descriptionAr,
       descriptionAr,
       category,
-      instructorId: new ObjectId(payload.userId),
+      instructorId: new ObjectId(payload.id),
       instructorName: instructor?.name || 'مدرب',
       thumbnail: '',
       rating: 0,

@@ -76,8 +76,7 @@ function getYouTubeId(url: string): string | null {
 export function CourseDetailPage() {
   const {
     activeCourseId, courses, setActivePage, user,
-    enrolledCourseIds, setEnrolledCourses,
-    isCourseUnlocked, isCoursePending,
+    courseProgress,
   } = useAppStore()
   const { toast } = useToast()
 
@@ -93,8 +92,8 @@ export function CourseDetailPage() {
   // Find the current course
   const course = courses.find(c => c.id === activeCourseId)
 
-  const isUnlocked = course ? isCourseUnlocked(course.id, course.isPremium) : true
-  const isPending = course ? isCoursePending(course.id) : false
+  const isUnlocked = course ? (course.price === 0 || !course.isPremium || !!courseProgress.find(p => p.courseId === course.id)) : true
+  const isPending = false // Pending is checked via API when needed
 
   // Fetch lessons
   useEffect(() => {
@@ -103,7 +102,7 @@ export function CourseDetailPage() {
     const fetchLessons = async () => {
       setLessonsLoading(true)
       try {
-        const token = localStorage.getItem('medai_token')
+        const token = localStorage.getItem('medai-token')
         const res = await fetch(`/api/courses/manage/lessons?courseId=${activeCourseId}`, {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         })
@@ -131,7 +130,7 @@ export function CourseDetailPage() {
 
     const fetchEnrollment = async () => {
       try {
-        const token = localStorage.getItem('medai_token')
+        const token = localStorage.getItem('medai-token')
         if (!token) return
 
         const res = await fetch('/api/enrollments', {
@@ -163,7 +162,7 @@ export function CourseDetailPage() {
     setEnrolling(true)
 
     try {
-      const token = localStorage.getItem('medai_token')
+      const token = localStorage.getItem('medai-token')
       const res = await fetch('/api/enrollments', {
         method: 'PUT',
         headers: {
@@ -180,7 +179,18 @@ export function CourseDetailPage() {
         })
         if (enrollRes.ok) {
           const data = await enrollRes.json()
-          setEnrolledCourses(data.enrolledCourseIds || [], data.pendingCourseIds || [])
+          // Sync enrollment to store
+          const existing = courseProgress.find(p => p.courseId === activeCourseId)
+          if (!existing) {
+            const newProgress = [...courseProgress, {
+              courseId: activeCourseId,
+              completedLessons: [],
+              lastAccessedLessonId: null,
+              progress: 0,
+              lastAccessedAt: Date.now(),
+            }]
+            useAppStore.setState({ courseProgress: newProgress })
+          }
         }
         toast({
           title: 'تم التسجيل بنجاح 🎉',
@@ -197,14 +207,14 @@ export function CourseDetailPage() {
     } finally {
       setEnrolling(false)
     }
-  }, [activeCourseId, enrolling, setEnrolledCourses, toast])
+  }, [activeCourseId, enrolling, courseProgress, toast])
 
   // Mark lesson as completed
   const markLessonComplete = useCallback(async (lessonId: string) => {
     if (completedLessons.includes(lessonId)) return
 
     try {
-      const token = localStorage.getItem('medai_token')
+      const token = localStorage.getItem('medai-token')
       await fetch('/api/enrollments', {
         method: 'POST', // reuse POST to update progress
         headers: {
@@ -421,7 +431,7 @@ export function CourseDetailPage() {
         )}
 
         {/* Free Course - Enroll Button */}
-        {!course.isPremium && !isUnlocked && enrolledCourseIds.indexOf(course.id) === -1 && (
+        {!course.isPremium && !isUnlocked && !courseProgress.find(p => p.courseId === course.id) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -735,14 +745,25 @@ export function CourseDetailPage() {
             setPaymentDialogOpen(open)
             if (!open) {
               // Refresh enrollments after dialog closes
-              const token = localStorage.getItem('medai_token')
+              const token = localStorage.getItem('medai-token')
               if (token) {
                 fetch('/api/enrollments', {
                   headers: { 'Authorization': `Bearer ${token}` }
                 })
                   .then(res => res.json())
                   .then(data => {
-                    setEnrolledCourses(data.enrolledCourseIds || [], data.pendingCourseIds || [])
+                    // Sync enrollment to store
+                    const existing = courseProgress.find(p => p.courseId === activeCourseId)
+                    if (!existing) {
+                      const newProgress = [...courseProgress, {
+                        courseId: activeCourseId,
+                        completedLessons: [],
+                        lastAccessedLessonId: null,
+                        progress: 0,
+                        lastAccessedAt: Date.now(),
+                      }]
+                      useAppStore.setState({ courseProgress: newProgress })
+                    }
                   })
                   .catch(() => {})
               }

@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Phone, Lock, User, Stethoscope, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useAppStore } from '@/store/app-store'
+import { useAppStore, type Course } from '@/store/app-store'
 
 type AuthMode = 'login' | 'register'
 
 export default function AuthPage() {
-  const { setIsLoggedIn, setUserFromDB, setCourses } = useAppStore()
+  const { setIsLoggedIn, updateUser, setAuthToken } = useAppStore()
   const [mode, setMode] = useState<AuthMode>('login')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -29,25 +29,24 @@ export default function AuthPage() {
       if (coursesRes.ok) {
         const coursesData = await coursesRes.json()
         if (coursesData.courses?.length > 0) {
-          setCourses(coursesData.courses.map((c: Record<string, unknown>) => ({
+          const apiCourses: Course[] = coursesData.courses.map((c: Record<string, unknown>) => ({
             id: (c._id as string)?.toString() || (c.id as string),
             title: (c.title as string) || '',
             titleAr: (c.titleAr as string) || (c.title as string) || '',
             description: (c.description as string) || '',
-            descriptionAr: (c.descriptionAr as string) || '',
-            category: (c.category as string) || '',
+            category: (c.category as string) || 'general',
             thumbnail: (c.thumbnail as string) || '',
-            instructor: (c.instructorName as string) || '',
+            instructor: (c.instructorName as string) || (c.instructor as string) || '',
             rating: (c.rating as number) || 0,
             students: (c.students as number) || 0,
-            duration: (c.duration as string) || '',
+            duration: (c.duration as string) || '0 ساعة',
             level: (c.level as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
             price: (c.price as number) || 0,
             isPremium: (c.isPremium as boolean) || false,
             lessons: (c.lessonsCount as number) || 0,
             tags: (c.tags as string[]) || [],
-            type: (c.type as 'article' | 'video' | 'mixed') || 'mixed',
-          })))
+          }))
+          useAppStore.setState({ courses: apiCourses })
         }
       }
     } catch {
@@ -76,11 +75,22 @@ export default function AuthPage() {
         }
 
         // Save token
-        localStorage.setItem('medai_token', data.token)
-        localStorage.setItem('medai_user', JSON.stringify(data.user))
+        localStorage.setItem('medai-token', data.token)
+        localStorage.setItem('medai-user', JSON.stringify(data.user))
+        localStorage.setItem('medai-auth', 'true')
         
         // Update store with real data
-        setUserFromDB(data.user)
+        const apiUser = data.user
+        updateUser({
+          id: apiUser.id,
+          name: apiUser.name,
+          phone: apiUser.phone,
+          rankTitle: apiUser.role === 'admin' ? 'مدير النظام' : 'طالب طب',
+          rankIcon: apiUser.role === 'admin' ? '👑' : '🩺',
+          subscription: apiUser.role === 'admin' ? 'premium' as const : 'free' as const,
+          role: apiUser.role as 'admin' | 'user',
+        })
+        setAuthToken(data.token)
         setIsLoggedIn(true)
         
         // Load app data
@@ -100,17 +110,28 @@ export default function AuthPage() {
           return
         }
 
-        localStorage.setItem('medai_token', data.token)
-        localStorage.setItem('medai_user', JSON.stringify(data.user))
+        localStorage.setItem('medai-token', data.token)
+        localStorage.setItem('medai-user', JSON.stringify(data.user))
+        localStorage.setItem('medai-auth', 'true')
         
         // Update store with real data from API
-        setUserFromDB(data.user)
+        const apiUser = data.user
+        updateUser({
+          id: apiUser.id,
+          name: apiUser.name,
+          phone: apiUser.phone,
+          rankTitle: apiUser.role === 'admin' ? 'مدير النظام' : 'طالب طب',
+          rankIcon: apiUser.role === 'admin' ? '👑' : '🩺',
+          subscription: apiUser.role === 'admin' ? 'premium' as const : 'free' as const,
+          role: apiUser.role as 'admin' | 'user',
+        })
+        setAuthToken(data.token)
         
         // Check if admin must change password - ONLY from API response
         if (data.mustChangePassword === true) {
-          localStorage.setItem('medai_must_change_password', 'true')
+          localStorage.setItem('medai-must-change-password', 'true')
         } else {
-          localStorage.removeItem('medai_must_change_password')
+          localStorage.removeItem('medai-must-change-password')
         }
         
         setIsLoggedIn(true)

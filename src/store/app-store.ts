@@ -798,4 +798,9 @@ if (typeof window !== 'undefined') {
   if (savedToken) {
     useAppStore.setState({ authToken: savedToken })
   }
+
+  const savedMustChange = localStorage.getItem('medai-must-change-password')
+  if (savedMustChange === 'true') {
+    useAppStore.setState({ mustChangePassword: true })
+  }
 }

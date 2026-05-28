@@ -1043,7 +1043,7 @@ export function CoursesPage() {
     [courses, courseProgress]
   )
   const featuredCourse = useMemo(
-    () => courses.find((c) => c.id === '1') || courses[0],
+    () => courses.find((c) => c.id === '1') || courses[0] || null,
     [courses]
   )
 
@@ -1170,6 +1170,7 @@ export function CoursesPage() {
         </motion.div>
 
         {/* Featured Course Banner */}
+        {featuredCourse && (
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -1177,14 +1178,14 @@ export function CoursesPage() {
           className="relative overflow-hidden rounded-2xl"
         >
           <div className="absolute inset-0">
-            <div className={`absolute inset-0 bg-gradient-to-br ${categoryGradients[featuredCourse.category]}`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${categoryGradients[featuredCourse?.category || 'general'] || 'from-cyan-600/80 via-blue-500/60 to-indigo-400/40'}`} />
             <div className="absolute inset-0 bg-gradient-to-t from-med-dark via-med-dark/60 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-l from-transparent to-med-dark/80" />
             {/* Animated background elements */}
             <div className="absolute top-6 left-10 w-24 h-24 rounded-full border border-border animate-float" />
             <div className="absolute bottom-10 right-20 w-16 h-16 rounded-full border border-border animate-float" style={{ animationDelay: '1s' }} />
             <div className="absolute top-1/2 left-1/3 text-6xl opacity-10 animate-float" style={{ animationDelay: '2s' }}>
-              {categoryIcons[featuredCourse.category]}
+              {categoryIcons[featuredCourse?.category || 'general'] || '📚'}
             </div>
           </div>
 
@@ -1268,7 +1269,7 @@ export function CoursesPage() {
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
               className="hidden sm:flex flex-col items-center justify-center w-48 h-36 glass rounded-2xl p-4"
             >
-              <div className="text-5xl mb-2">{categoryIcons[featuredCourse.category]}</div>
+              <div className="text-5xl mb-2">{categoryIcons[featuredCourse?.category || 'general'] || '📚'}</div>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-xs text-emerald-400">متاح الآن</span>
@@ -1276,6 +1277,7 @@ export function CoursesPage() {
             </motion.div>
           </div>
         </motion.div>
+        )}
 
         {/* Continue Learning Section */}
         {continueLearning.length > 0 && (
