@@ -8,7 +8,7 @@ import {
   AlertCircle, CheckCircle2, Circle, Shield,
   CreditCard, UserPlus, Zap, BarChart3,
   Settings, ChevronDown, Edit3, Save, X, FileText, Video, HelpCircle, FlaskConical, Layers, Plus, Trash2, RefreshCw, Loader2, Wallet, ToggleLeft, ToggleRight, Image as ImageIcon,
-  Menu, LogOut, Gift, MessageSquare, Sun, Moon, Lock, Info, Copy,
+  Menu, LogOut, Gift, MessageSquare, Sun, Moon, Lock, Info, Copy, EyeOff, Crown,
 } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -42,7 +42,6 @@ interface ApiLesson {
   isFree: boolean
   content?: string
   videoUrl?: string
-  summary?: string
   keyPoints?: string[]
 }
 
@@ -228,115 +227,157 @@ function CourseForm({ course, onSave, onCancel }: {
 
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-      className="glass-card p-4 sm:p-5 space-y-4 border border-neon-cyan/20">
-      <div className="flex items-center justify-between">
+      className="glass-card overflow-hidden border border-neon-cyan/20">
+      {/* Header */}
+      <div className="px-5 py-4 bg-gradient-to-l from-neon-cyan/10 to-neon-purple/5 border-b border-border flex items-center justify-between">
         <h4 className="text-sm font-bold flex items-center gap-2">
-          <Edit3 className="h-4 w-4 text-neon-cyan" />
+          <div className="w-8 h-8 rounded-lg bg-neon-cyan/15 flex items-center justify-center">
+            <BookOpen className="h-4 w-4 text-neon-cyan" />
+          </div>
           {course ? 'تعديل الدورة' : 'إضافة دورة جديدة'}
         </h4>
-        <Button variant="ghost" size="icon" onClick={onCancel} className="h-7 w-7 hover:bg-red-500/10">
+        <Button variant="ghost" size="icon" onClick={onCancel} className="h-8 w-8 hover:bg-red-500/10 rounded-lg">
           <X className="h-4 w-4 text-red-400" />
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="p-5 space-y-5">
+        {/* Section 1: Title */}
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">العنوان بالعربي *</label>
-          <Input value={form.titleAr} onChange={(e) => setForm({ ...form, titleAr: e.target.value })}
-            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-neon-cyan" />
+            <span className="text-xs font-bold text-neon-cyan">عنوان الدورة</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">العنوان بالعربي *</label>
+              <Input value={form.titleAr} onChange={(e) => setForm({ ...form, titleAr: e.target.value })}
+                placeholder="مثال: أساسيات طب الطوارئ"
+                className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">العنوان بالإنجليزي *</label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g. Emergency Medicine Basics"
+                className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" dir="ltr" />
+            </div>
+          </div>
         </div>
+
+        {/* Section 2: Description */}
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">العنوان بالإنجليزي *</label>
-          <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-neon-purple" />
+            <span className="text-xs font-bold text-neon-purple">وصف الدورة</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الوصف بالعربي</label>
+              <Textarea value={form.descriptionAr} onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
+                rows={3} className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm resize-none" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الوصف بالإنجليزي</label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows={3} className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm resize-none" dir="ltr" />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Details */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-amber-400" />
+            <span className="text-xs font-bold text-amber-400">تفاصيل الدورة</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">التصنيف *</label>
+              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <SelectTrigger className="bg-muted/30 border-border h-10 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-med-card">
+                  <SelectItem value="emergency">🚑 طوارئ</SelectItem>
+                  <SelectItem value="cardiology">❤️ قلب</SelectItem>
+                  <SelectItem value="neurology">🧠 أعصاب</SelectItem>
+                  <SelectItem value="pediatrics">👶 أطفال</SelectItem>
+                  <SelectItem value="surgery">🔪 جراحة</SelectItem>
+                  <SelectItem value="internal">🩺 باطني</SelectItem>
+                  <SelectItem value="radiology">🔬 أشعة</SelectItem>
+                  <SelectItem value="pharmacology">💊 أدوية</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">المستوى</label>
+              <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v as any })}>
+                <SelectTrigger className="bg-muted/30 border-border h-10 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-med-card">
+                  <SelectItem value="beginner">🟢 مبتدئ</SelectItem>
+                  <SelectItem value="intermediate">🟡 متوسط</SelectItem>
+                  <SelectItem value="advanced">🔴 متقدم</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">السعر (ر.ي)</label>
+              <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: parseInt(e.target.value) || 0 })}
+                className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">المدة</label>
+              <Input value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })}
+                placeholder="42 ساعة" className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">اسم المدرب</label>
+              <Input value={form.instructorName} onChange={(e) => setForm({ ...form, instructorName: e.target.value })}
+                placeholder="د. أحمد محمد"
+                className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+            </div>
+            <div className="flex items-end gap-3 pb-0.5">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, isPremium: !form.isPremium })}
+                className={`flex-1 h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                  form.isPremium
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                    : 'bg-muted/30 border-border text-muted-foreground'
+                }`}
+              >
+                <Crown className="h-4 w-4" />
+                {form.isPremium ? 'دورة مميزة (مدفوعة)' : 'دورة عادية'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, published: !form.published })}
+                className={`flex-1 h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                  form.published
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                    : 'bg-muted/30 border-border text-muted-foreground'
+                }`}
+              >
+                {form.published ? <><CheckCircle2 className="h-4 w-4" /> منشورة</> : <><EyeOff className="h-4 w-4" /> مسودة</>}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">الوصف بالعربي</label>
-          <Textarea value={form.descriptionAr} onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
-            rows={3} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">الوصف بالإنجليزي</label>
-          <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-            rows={3} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" dir="ltr" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">التصنيف *</label>
-          <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-            <SelectTrigger className="bg-muted/50 border-border h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-med-card">
-              <SelectItem value="emergency">طب الطوارئ</SelectItem>
-              <SelectItem value="cardiology">أمراض القلب</SelectItem>
-              <SelectItem value="neurology">الأعصاب</SelectItem>
-              <SelectItem value="pediatrics">طب الأطفال</SelectItem>
-              <SelectItem value="surgery">الجراحة</SelectItem>
-              <SelectItem value="internal">الطب الباطني</SelectItem>
-              <SelectItem value="radiology">الأشعة</SelectItem>
-              <SelectItem value="pharmacology">الأدوية</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">المستوى</label>
-          <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v as any })}>
-            <SelectTrigger className="bg-muted/50 border-border h-9 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-med-card">
-              <SelectItem value="beginner">مبتدئ</SelectItem>
-              <SelectItem value="intermediate">متوسط</SelectItem>
-              <SelectItem value="advanced">متقدم</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">المدة</label>
-          <Input value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })}
-            placeholder="مثال: 42 ساعة" className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">السعر (ر.ي)</label>
-          <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: parseInt(e.target.value) || 0 })}
-            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">اسم المدرب</label>
-          <Input value={form.instructorName} onChange={(e) => setForm({ ...form, instructorName: e.target.value })}
-            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4 flex-wrap">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.isPremium} onChange={(e) => setForm({ ...form, isPremium: e.target.checked })}
-            className="rounded border-border bg-muted/50 text-neon-cyan focus:ring-neon-cyan/30" />
-          <span className="text-xs text-muted-foreground">دورة مميزة (مدفوعة)</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })}
-            className="rounded border-border bg-muted/50 text-neon-cyan focus:ring-neon-cyan/30" />
-          <span className="text-xs text-muted-foreground">منشورة</span>
-        </label>
-      </div>
-
-      <div className="flex gap-2 pt-2">
+      {/* Footer Actions */}
+      <div className="px-5 py-4 border-t border-border flex gap-3 bg-muted/10">
         <Button onClick={() => onSave(form)} disabled={!form.titleAr || !form.title || !form.category}
-          className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 transition-all h-9">
-          <Save className="h-4 w-4 ml-1" />
+          className="bg-gradient-to-l from-neon-cyan to-neon-purple text-white font-bold hover:shadow-[0_0_20px_rgba(0,245,255,0.3)] transition-all h-10 px-6">
+          <Save className="h-4 w-4 ml-1.5" />
           {course ? 'حفظ التعديلات' : 'إضافة الدورة'}
         </Button>
-        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground hover:text-foreground h-9">إلغاء</Button>
+        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground hover:text-foreground h-10">إلغاء</Button>
       </div>
     </motion.div>
   )
@@ -344,11 +385,12 @@ function CourseForm({ course, onSave, onCancel }: {
 
 // ─── Lesson Form Component ──────────────────────────────────
 
-function LessonForm({ lesson, courseId, onSave, onCancel }: {
+function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
   lesson?: ApiLesson | null
   courseId: string
   onSave: (data: any) => void
   onCancel: () => void
+  nextOrder?: number
 }) {
   const [form, setForm] = useState<ApiLesson>({
     id: lesson?.id || `lesson-${Date.now()}`,
@@ -356,109 +398,166 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
     titleAr: lesson?.titleAr || '',
     type: lesson?.type || 'article',
     duration: lesson?.duration || 15,
-    order: lesson?.order || 1,
+    order: lesson?.order || nextOrder || 1,
     isFree: lesson?.isFree || false,
     content: lesson?.content || '',
     videoUrl: lesson?.videoUrl || '',
-    summary: lesson?.summary || '',
     keyPoints: lesson?.keyPoints || [],
   })
 
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-      className="glass-card p-4 sm:p-5 space-y-4 border border-neon-purple/20">
-      <div className="flex items-center justify-between">
+      className="glass-card overflow-hidden border border-neon-purple/20">
+      {/* Header */}
+      <div className="px-5 py-4 bg-gradient-to-l from-neon-purple/10 to-neon-cyan/5 border-b border-border flex items-center justify-between">
         <h4 className="text-sm font-bold flex items-center gap-2">
-          <Edit3 className="h-4 w-4 text-neon-purple" />
+          <div className="w-8 h-8 rounded-lg bg-neon-purple/15 flex items-center justify-center">
+            <Edit3 className="h-4 w-4 text-neon-purple" />
+          </div>
           {lesson ? 'تعديل الدرس' : 'إضافة درس جديد'}
         </h4>
-        <Button variant="ghost" size="icon" onClick={onCancel} className="h-7 w-7 hover:bg-red-500/10">
+        <Button variant="ghost" size="icon" onClick={onCancel} className="h-8 w-8 hover:bg-red-500/10 rounded-lg">
           <X className="h-4 w-4 text-red-400" />
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="p-5 space-y-5">
+        {/* Section 1: Basic Info */}
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">العنوان بالعربي *</label>
-          <Input value={form.titleAr} onChange={(e) => setForm({ ...form, titleAr: e.target.value })}
-            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-neon-cyan" />
+            <span className="text-xs font-bold text-neon-cyan">معلومات الدرس الأساسية</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">العنوان بالعربي *</label>
+              <Input value={form.titleAr} onChange={(e) => setForm({ ...form, titleAr: e.target.value })}
+                placeholder="مثال: مقدمة في تشخيص أمراض القلب"
+                className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">العنوان بالإنجليزي *</label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g. Introduction to Cardiac Diagnosis"
+                className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" dir="ltr" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">نوع الدرس</label>
+              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as ApiLesson['type'] })}>
+                <SelectTrigger className="bg-muted/30 border-border h-10 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-med-card">
+                  <SelectItem value="article">📝 مقال</SelectItem>
+                  <SelectItem value="video">🎬 فيديو</SelectItem>
+                  <SelectItem value="quiz">❓ اختبار</SelectItem>
+                  <SelectItem value="simulation">🧪 محاكاة</SelectItem>
+                  <SelectItem value="flashcard">🃏 بطاقات</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">المدة (دقيقة)</label>
+              <Input type="number" value={form.duration} onChange={(e) => setForm({ ...form, duration: parseInt(e.target.value) || 0 })}
+                className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الترتيب</label>
+              <Input type="number" value={form.order} onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) || 0 })}
+                className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الوصول</label>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, isFree: !form.isFree })}
+                className={`w-full h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                  form.isFree
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                    : 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                }`}
+              >
+                {form.isFree ? (
+                  <><CheckCircle2 className="h-4 w-4" /> مجاني</>
+                ) : (
+                  <><Lock className="h-4 w-4" /> مدفوع</>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Section 2: Content */}
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">العنوان بالإنجليزي *</label>
-          <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-neon-purple" />
+            <span className="text-xs font-bold text-neon-purple">محتوى الدرس</span>
+          </div>
+
+          {form.type === 'article' && (
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">محتوى المقال (Markdown)</label>
+              <Textarea value={form.content || ''} onChange={(e) => setForm({ ...form, content: e.target.value })}
+                rows={10} className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm resize-none font-mono leading-relaxed" dir="rtl"
+                placeholder="اكتب محتوى الدرس هنا...&#10;&#10;## العنوان الفرعي&#10;المحتوى...&#10;&#10;- نقطة أولى&#10;- نقطة ثانية" />
+              <p className="text-[10px] text-muted-foreground/50 mt-1">يدعم تنسيق Markdown: ## عناوين، **عريض**، - قوائم، &gt; اقتباسات</p>
+            </div>
+          )}
+
+          {form.type === 'video' && (
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">رابط الفيديو</label>
+              <Input value={form.videoUrl || ''} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..." className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" dir="ltr" />
+              <p className="text-[10px] text-muted-foreground/50 mt-1">يدعم روابط YouTube والروابط المباشرة</p>
+            </div>
+          )}
+
+          {form.type === 'quiz' && (
+            <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/15 text-center">
+              <HelpCircle className="h-8 w-8 text-amber-400/40 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">أسئلة الاختبار تُضاف من خلال محرر الاختبارات</p>
+            </div>
+          )}
+
+          {form.type === 'simulation' && (
+            <div className="p-4 rounded-lg bg-purple-500/5 border border-purple-500/15 text-center">
+              <FlaskConical className="h-8 w-8 text-purple-400/40 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">حالات المحاكاة تُضاف من خلال قسم المحاكاة</p>
+            </div>
+          )}
+
+          {form.type === 'flashcard' && (
+            <div className="p-4 rounded-lg bg-cyan-500/5 border border-cyan-500/15 text-center">
+              <Layers className="h-8 w-8 text-cyan-400/40 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">البطاقات التعليمية تُضاف من خلال محرر البطاقات</p>
+            </div>
+          )}
+        </div>
+
+        {/* Section 3: Key Points */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-amber-400" />
+            <span className="text-xs font-bold text-amber-400">النقاط الرئيسية</span>
+            <span className="text-[10px] text-muted-foreground/50">(اختياري)</span>
+          </div>
+          <Textarea value={(form.keyPoints || []).join('\n')} onChange={(e) => setForm({ ...form, keyPoints: e.target.value.split('\n').filter(Boolean) })}
+            rows={4} className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm resize-none"
+            placeholder="اكتب كل نقطة في سطر مستقل&#10;مثال:&#10;أهمية التشخيص المبكر&#10;أعراض الأمراض القلبية&#10;طرق الفحص السريري" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">النوع</label>
-          <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as ApiLesson['type'] })}>
-            <SelectTrigger className="bg-muted/50 border-border h-9 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-med-card">
-              <SelectItem value="article">مقال</SelectItem>
-              <SelectItem value="video">فيديو</SelectItem>
-              <SelectItem value="quiz">اختبار</SelectItem>
-              <SelectItem value="simulation">محاكاة</SelectItem>
-              <SelectItem value="flashcard">بطاقات</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">المدة (دقيقة)</label>
-          <Input type="number" value={form.duration} onChange={(e) => setForm({ ...form, duration: parseInt(e.target.value) || 0 })}
-            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">الترتيب</label>
-          <Input type="number" value={form.order} onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) || 0 })}
-            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.isFree} onChange={(e) => setForm({ ...form, isFree: e.target.checked })}
-            className="rounded border-border bg-muted/50 text-neon-cyan focus:ring-neon-cyan/30" />
-          <span className="text-xs text-muted-foreground">درس مجاني</span>
-        </label>
-      </div>
-
-      {form.type === 'article' && (
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">المحتوى (Markdown)</label>
-          <Textarea value={form.content || ''} onChange={(e) => setForm({ ...form, content: e.target.value })}
-            rows={8} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none font-mono" dir="rtl" />
-        </div>
-      )}
-
-      {form.type === 'video' && (
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">رابط الفيديو</label>
-          <Input value={form.videoUrl || ''} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-            placeholder="https://..." className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
-        </div>
-      )}
-
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">الملخص</label>
-        <Textarea value={form.summary || ''} onChange={(e) => setForm({ ...form, summary: e.target.value })}
-          rows={2} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
-      </div>
-
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">النقاط الرئيسية (كل نقطة في سطر)</label>
-        <Textarea value={(form.keyPoints || []).join('\n')} onChange={(e) => setForm({ ...form, keyPoints: e.target.value.split('\n').filter(Boolean) })}
-          rows={4} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
-      </div>
-
-      <div className="flex gap-2 pt-2">
+      {/* Footer Actions */}
+      <div className="px-5 py-4 border-t border-border flex gap-3 bg-muted/10">
         <Button onClick={() => onSave(form)} disabled={!form.titleAr || !form.title}
-          className="bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 transition-all h-9">
-          <Save className="h-4 w-4 ml-1" />
+          className="bg-gradient-to-l from-neon-purple to-neon-cyan text-white font-bold hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all h-10 px-6">
+          <Save className="h-4 w-4 ml-1.5" />
           {lesson ? 'حفظ التعديلات' : 'إضافة الدرس'}
         </Button>
-        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground hover:text-foreground h-9">إلغاء</Button>
+        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground hover:text-foreground h-10">إلغاء</Button>
       </div>
     </motion.div>
   )
@@ -1405,6 +1504,7 @@ export function AdminPage() {
                         <AnimatePresence>
                           {addingLessonToCourse === course._id && (
                             <LessonForm courseId={course._id}
+                              nextOrder={courseLessons.length + 1}
                               onSave={(data) => handleAddLesson(data, course._id)}
                               onCancel={() => setAddingLessonToCourse(null)} />
                           )}
@@ -1421,43 +1521,48 @@ export function AdminPage() {
                               {/* Edit Lesson Form */}
                               {editingLesson?.lesson.id === lesson.id ? (
                                 <LessonForm lesson={lesson} courseId={course._id}
+                                  nextOrder={courseLessons.length + 1}
                                   onSave={handleUpdateLesson}
                                   onCancel={() => setEditingLesson(null)} />
                               ) : (
                                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: lessonIdx * 0.02 }}
-                                  className="p-1.5 sm:p-3 rounded-lg sm:rounded-xl hover:bg-muted transition-colors group">
-                                  {/* Lesson info row */}
-                                  <div className="flex items-center gap-1 sm:gap-2">
-                                    <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-md bg-muted/50 flex items-center justify-center text-[9px] sm:text-xs font-bold text-muted-foreground shrink-0">
-                                      {lesson.order}
+                                  className={`p-2 sm:p-3 rounded-xl hover:bg-muted/50 transition-all group border border-transparent hover:border-border/50 ${
+                                    lesson.isFree ? '' : 'border-l-2 border-l-amber-500/30'
+                                  }`}>
+                                  <div className="flex items-center gap-2 sm:gap-3">
+                                    {/* Order + Type */}
+                                    <div className="flex flex-col items-center gap-1 shrink-0">
+                                      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0 ${
+                                        lesson.isFree ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                      }`}>
+                                        {lesson.order}
+                                      </div>
+                                      <span className="text-[8px] sm:text-[10px] text-muted-foreground">{lesson.duration}د</span>
                                     </div>
-                                    <div className="shrink-0 hidden sm:block">{getLessonTypeIcon(lesson.type)}</div>
+                                    {/* Title + meta */}
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-[10px] sm:text-sm font-medium truncate">{lesson.titleAr}</p>
-                                      <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 text-[8px] sm:text-xs text-muted-foreground">
-                                        <span className="flex items-center gap-0.5">{getLessonTypeIcon(lesson.type)} <span className="sm:hidden text-[7px]">{getLessonTypeLabel(lesson.type)}</span></span>
-                                        <span className="hidden sm:inline">{getLessonTypeLabel(lesson.type)}</span>
-                                        <span>•</span>
-                                        <span>{lesson.duration} د</span>
-                                        {lesson.summary && (<><span className="hidden md:inline">•</span><span className="hidden md:inline truncate max-w-[200px]">{lesson.summary}</span></>)}
+                                      <p className="text-xs sm:text-sm font-semibold truncate">{lesson.titleAr}</p>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        <span className="shrink-0">{getLessonTypeIcon(lesson.type)}</span>
+                                        <span className="text-[9px] sm:text-xs text-muted-foreground">{getLessonTypeLabel(lesson.type)}</span>
+                                        {lesson.isFree ? (
+                                          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7px] sm:text-[9px] px-1.5 shrink-0">مجاني</Badge>
+                                        ) : (
+                                          <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[7px] sm:text-[9px] px-1.5 shrink-0">مدفوع</Badge>
+                                        )}
                                       </div>
                                     </div>
-                                    {lesson.isFree ? (
-                                      <Badge className="bg-neon-green/10 text-neon-green border border-neon-green/20 text-[7px] sm:text-[8px] px-1 shrink-0">مجاني</Badge>
-                                    ) : (
-                                      <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[7px] sm:text-[8px] px-1 shrink-0">مدفوع</Badge>
-                                    )}
-                                    {/* Action buttons - compact on mobile */}
-                                    <div className="flex items-center gap-0 shrink-0">
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-0.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
                                       <Button variant="ghost" size="icon"
                                         onClick={() => setEditingLesson({ course, lesson })}
-                                        className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-neon-cyan/10">
-                                        <Edit3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-cyan" />
+                                        className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-neon-cyan/10 rounded-lg">
+                                        <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
                                       </Button>
                                       <Button variant="ghost" size="icon"
                                         onClick={() => handleDeleteLesson(course._id, lesson.id)}
-                                        className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-red-500/10">
-                                        <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-400" />
+                                        className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-red-500/10 rounded-lg">
+                                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
                                       </Button>
                                     </div>
                                   </div>
