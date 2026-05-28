@@ -42,18 +42,30 @@ export async function GET(req: NextRequest) {
 
     const total = await db.collection('users').countDocuments(query)
 
-    // عدد الدورات المسجل بها كل مستخدم
-    const usersWithEnrollments = await Promise.all(
-      users.map(async (user) => {
-        const enrollmentCount = await db.collection('enrollments').countDocuments({ userId: user._id })
-        const paymentCount = await db.collection('payments').countDocuments({ userId: user._id.toString() })
-        return {
-          ...user,
-          enrollmentCount,
-          paymentCount,
-        }
-      })
-    )
+    // Batch aggregation: get enrollment and payment counts for ALL users in 2 queries instead of N+1
+    const userIds = users.map(u => u._id)
+    const userIdsStr = users.map(u => u._id.toString())
+
+    const [enrollmentCounts, paymentCounts] = await Promise.all([
+      db.collection('enrollments').aggregate([
+        { $match: { userId: { $in: userIds } } },
+        { $group: { _id: '$userId', count: { $sum: 1 } } }
+      ]).toArray(),
+      db.collection('payments').aggregate([
+        { $match: { userId: { $in: userIdsStr } } },
+        { $group: { _id: '$userId', count: { $sum: 1 } } }
+      ]).toArray()
+    ])
+
+    // Build lookup maps for O(1) access
+    const enrollmentMap = new Map(enrollmentCounts.map(e => [e._id.toString(), e.count]))
+    const paymentMap = new Map(paymentCounts.map(p => [p._id, p.count]))
+
+    const usersWithEnrollments = users.map(user => ({
+      ...user,
+      enrollmentCount: enrollmentMap.get(user._id.toString()) || 0,
+      paymentCount: paymentMap.get(user._id.toString()) || 0,
+    }))
 
     return NextResponse.json({
       success: true,

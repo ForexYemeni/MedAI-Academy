@@ -32,22 +32,29 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .toArray()
 
-    // إضافة اسم الدورة للمدفوعات التي لا تحتوي عليه
+    // Batch: Get course names for payments that don't have courseName
     const { ObjectId } = await import('mongodb')
-    const paymentsWithCourse = await Promise.all(
-      payments.map(async (payment) => {
-        if (payment.courseName) return payment
-        try {
-          const course = await db.collection('courses').findOne(
-            { _id: new ObjectId(payment.courseId) },
-            { projection: { titleAr: 1, title: 1 } }
-          )
-          return { ...payment, courseName: course?.titleAr || course?.title || '' }
-        } catch {
-          return payment
-        }
+    const paymentsWithoutCourseName = payments.filter(p => !p.courseName && p.courseId)
+    const courseIdsToFetch = [...new Set(paymentsWithoutCourseName.map(p => p.courseId))]
+
+    let courseNameMap = new Map<string, string>()
+    if (courseIdsToFetch.length > 0) {
+      const courseObjectIds = courseIdsToFetch.map(id => {
+        try { return new ObjectId(id) } catch { return id }
       })
-    )
+      const courses = await db.collection('courses')
+        .find({ _id: { $in: courseObjectIds } }, { projection: { titleAr: 1, title: 1 } })
+        .toArray()
+      for (const c of courses) {
+        courseNameMap.set(c._id.toString(), c.titleAr || c.title || '')
+      }
+    }
+
+    const paymentsWithCourse = payments.map(payment => {
+      if (payment.courseName) return payment
+      const name = courseNameMap.get(payment.courseId)
+      return name ? { ...payment, courseName: name } : payment
+    })
 
     const total = await db.collection('payments').countDocuments(query)
 

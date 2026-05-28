@@ -28,21 +28,30 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .toArray()
 
-    // إضافة عدد المسجلين لكل دورة
-    const coursesWithStats = await Promise.all(
-      courses.map(async (course) => {
-        const studentCount = await db.collection('enrollments').countDocuments({ courseId: course._id })
-        const revenue = await db.collection('payments').aggregate([
-          { $match: { courseId: course._id.toString(), status: 'approved' } },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]).toArray()
-        return {
-          ...course,
-          studentCount,
-          revenue: revenue[0]?.total || 0,
-        }
-      })
-    )
+    // Batch aggregation: get student counts and revenues for ALL courses in 2 queries instead of N+1
+    const courseIds = courses.map(c => c._id)
+    const courseIdsStr = courseIds.map(id => id.toString())
+
+    const [enrollmentCounts, revenueResults] = await Promise.all([
+      db.collection('enrollments').aggregate([
+        { $match: { courseId: { $in: courseIds } } },
+        { $group: { _id: '$courseId', count: { $sum: 1 } } }
+      ]).toArray(),
+      db.collection('payments').aggregate([
+        { $match: { courseId: { $in: courseIdsStr }, status: 'approved' } },
+        { $group: { _id: '$courseId', total: { $sum: '$amount' } } }
+      ]).toArray()
+    ])
+
+    // Build lookup maps for O(1) access
+    const enrollmentMap = new Map(enrollmentCounts.map(e => [e._id.toString(), e.count]))
+    const revenueMap = new Map(revenueResults.map(r => [r._id, r.total]))
+
+    const coursesWithStats = courses.map(course => ({
+      ...course,
+      studentCount: enrollmentMap.get(course._id.toString()) || 0,
+      revenue: revenueMap.get(course._id.toString()) || 0,
+    }))
 
     return NextResponse.json({
       success: true,

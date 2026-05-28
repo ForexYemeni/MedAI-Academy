@@ -741,7 +741,7 @@ export function AdminPage() {
     setSettingsSaving(false)
   }, [])
 
-  // ─── Initial Data Load (Lazy - only load data for the active section) ───
+  // ─── Initial Data Load (Pre-load ALL data immediately) ───
 
   const [loadedSections, setLoadedSections] = useState<Set<AdminSection>>(new Set())
   const [sectionLoading, setSectionLoading] = useState<Set<AdminSection>>(new Set())
@@ -799,23 +799,26 @@ export function AdminPage() {
     setSectionLoading(prev => { const next = new Set(prev); next.delete(section); return next })
   }, [loadedSections, sectionLoading, fetchStats, fetchPayments, fetchCourses, fetchUsers, fetchPaymentMethods])
 
-  // Initial load: fetch data in background, no loading screen
+  // Initial load: fetch ALL data immediately in parallel - no delay
   useEffect(() => {
-    const loadInitial = async () => {
+    const loadAll = async () => {
+      const headers = getAuthHeaders()
       try {
+        // Fire all requests in parallel for maximum speed
         await Promise.all([
           fetchStats().catch(e => console.error('Stats fetch failed:', e)),
+          fetchCourses().catch(e => console.error('Courses fetch failed:', e)),
+          fetchUsers().catch(e => console.error('Users fetch failed:', e)),
           fetchPayments().catch(e => console.error('Payments fetch failed:', e)),
+          fetchPaymentMethods().catch(e => console.error('PaymentMethods fetch failed:', e)),
         ])
-        setLoadedSections(new Set(['overview']))
+        setLoadedSections(new Set(['overview', 'courses', 'users', 'payments', 'payment-methods']))
       } catch (err) { console.error('Initial load error:', err) }
     }
-    // Small delay to ensure token is saved to localStorage before fetching
-    const timer = setTimeout(loadInitial, 300)
-    return () => clearTimeout(timer)
+    loadAll()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load data when section changes
+  // Load data when section changes (for sections not pre-loaded)
   useEffect(() => {
     if (!loadedSections.has(activeSection)) {
       loadSectionData(activeSection)

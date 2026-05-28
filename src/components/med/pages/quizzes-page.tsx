@@ -570,8 +570,10 @@ export function QuizzesPage() {
       const questions = await generateQuestionsFromSet(quizSet)
       if (questions.length === 0) return
 
+      const isFlashcard = quizSet.icon === '🃏'
+
       setActiveQuizSet(quizSet)
-      setSelectedMode(quizSet.timeLimit > 0 ? 'timed' : 'quick')
+      setSelectedMode(isFlashcard ? 'flashcards' : (quizSet.timeLimit > 0 ? 'timed' : 'quick'))
       setActiveQuestions(questions)
       setCurrentQuizIndex(0)
       setQuizScore(0)
@@ -582,7 +584,15 @@ export function QuizzesPage() {
       setQuizActive(true)
       setTimeLeft(quizSet.timeLimit > 0 ? quizSet.timeLimit : 30)
 
-      setPhase('active')
+      if (isFlashcard) {
+        setPhase('flashcards')
+        setFlashcardFlipped(false)
+        setFlashcardIndex(0)
+        setFlashcardKnown(0)
+        setFlashcardUnknown(0)
+      } else {
+        setPhase('active')
+      }
     },
     [generateQuestionsFromSet, setCurrentQuizIndex, setQuizScore, setQuizActive]
   )
@@ -915,11 +925,7 @@ export function QuizzesPage() {
                         whileHover={!isLocked ? { scale: 1.03, y: -4 } : {}}
                         whileTap={!isLocked ? { scale: 0.97 } : {}}
                         onClick={!isLocked ? () => {
-                          if (isFlashcard) {
-                            startQuiz('flashcards')
-                          } else {
-                            startQuizFromSet(quizSet)
-                          }
+                          startQuizFromSet(quizSet)
                         } : undefined}
                         className={`glass-card gradient-border p-5 text-right relative overflow-hidden ${style.borderColor} ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer group'}`}
                         style={{ boxShadow: isLocked ? 'none' : style.glow }}
