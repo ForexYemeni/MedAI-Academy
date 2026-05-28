@@ -141,3 +141,24 @@ Stage Summary:
 - Users will need to re-subscribe to push notifications (auto-handled by new code on next login)
 - Service Worker v11 will automatically update on all clients
 - GitHub repo could NOT be updated (token expired) - needs valid token to push
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix lesson navigation - when user completes a lesson and clicks Next, the next lesson should open from the beginning directly and professionally
+
+Work Log:
+- Read course-viewer-page.tsx to understand current lesson navigation behavior
+- Identified the issue: when navigating to next lesson, the ScrollArea doesn't scroll to top, so user sees the middle/end of the new lesson instead of the beginning
+- Added useRef import and contentScrollRef ref for the ScrollArea component
+- Created scrollToTop callback function that finds the Radix ScrollArea viewport and scrolls to top smoothly
+- Added scrollToTop() call in handleLessonClick when navigating to any lesson (free or locked)
+- Added scrollToTop() call in handleNextLesson when navigating to next lesson
+- The existing framer-motion animation (initial={{ opacity: 0, x: 20 }}) already provides a smooth professional transition when switching lessons
+- Build succeeded, deployed to Vercel production
+
+Stage Summary:
+- Lesson navigation now scrolls to top smoothly when switching between lessons
+- Both "Next Lesson" button and sidebar lesson clicks trigger scroll-to-top
+- Professional smooth transition animation already in place
+- Deployed to: https://nabd-academy.vercel.app/

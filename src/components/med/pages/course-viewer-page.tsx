@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight, BookOpen, Clock, CheckCircle2, Circle, Lock,
@@ -1061,6 +1061,19 @@ export function CourseViewerPage() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentWallVisible, setPaymentWallVisible] = useState(false)
+
+  // Ref for scrolling content area to top when navigating between lessons
+  const contentScrollRef = useRef<HTMLDivElement>(null)
+
+  // Smooth scroll content area to top
+  const scrollToTop = useCallback(() => {
+    if (contentScrollRef.current) {
+      const viewport = contentScrollRef.current.querySelector('[data-slot="scroll-area-viewport"]')
+      if (viewport) {
+        viewport.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }
+  }, [])
   
   // Offline support - disabled for now to fix crash
   // const offline = useOffline()
@@ -1315,6 +1328,7 @@ export function CourseViewerPage() {
       // Show payment wall in content area instead of just the modal
       setPaymentWallVisible(true)
       setActiveLessonId(lesson.id)
+      scrollToTop()
       return
     }
     // Hide payment wall when navigating to a free/unlocked lesson
@@ -1322,6 +1336,8 @@ export function CourseViewerPage() {
     setActiveLessonId(lesson.id)
     setLessonCompleted(false)
     setShowCelebration(false)
+    // Scroll to top of the new lesson content
+    scrollToTop()
     // Update last accessed lesson in localStorage
     if (progress && activeCourseId && typeof window !== 'undefined') {
       const updatedProgress = { ...progress, lastAccessedLessonId: lesson.id, lastAccessedAt: Date.now() }
@@ -1357,12 +1373,15 @@ export function CourseViewerPage() {
       if (isLessonLocked(nextLesson)) {
         // Show payment wall in content area instead of just the modal
         setPaymentWallVisible(true)
+        scrollToTop()
         return
       }
       setPaymentWallVisible(false)
       setActiveLessonId(nextLesson.id)
       setLessonCompleted(false)
       setShowCelebration(false)
+      // Scroll to top of the new lesson content smoothly
+      scrollToTop()
     }
   }
 
@@ -1561,7 +1580,7 @@ export function CourseViewerPage() {
             MAIN CONTENT - Lesson Display
         ═══════════════════════════════════════════════════ */}
         <div className="flex-1 min-w-0">
-          <ScrollArea className="h-screen">
+          <ScrollArea className="h-screen" ref={contentScrollRef}>
             <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
               
               {/* Course banner */}
