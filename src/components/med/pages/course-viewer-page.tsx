@@ -1206,7 +1206,15 @@ export function CourseViewerPage() {
   )
 
   const currentLesson = useMemo(
-    () => courseLessons.find(l => l.id === activeLessonId) || courseLessons[0],
+    () => {
+      // If user selected a specific lesson, use it
+      const selected = courseLessons.find(l => l.id === activeLessonId)
+      if (selected) return selected
+      // Default: pick the first FREE lesson (not the first lesson overall)
+      // This ensures users always land on accessible content first
+      const firstFreeLesson = courseLessons.find(l => l.isFree)
+      return firstFreeLesson || courseLessons[0]
+    },
     [courseLessons, activeLessonId]
   )
 
@@ -1304,8 +1312,9 @@ export function CourseViewerPage() {
 
   const handleLessonClick = (lesson: Lesson) => {
     if (isLessonLocked(lesson)) {
-      // Show payment modal instead of doing nothing
-      setShowPaymentModal(true)
+      // Show payment wall in content area instead of just the modal
+      setPaymentWallVisible(true)
+      setActiveLessonId(lesson.id)
       return
     }
     // Hide payment wall when navigating to a free/unlocked lesson
