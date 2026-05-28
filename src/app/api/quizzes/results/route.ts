@@ -22,6 +22,18 @@ export async function POST(req: NextRequest) {
 
     const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
 
+    // Check if user already has a result for this quiz set (prevent double XP/coins)
+    let isDuplicate = false
+    if (quizSetId) {
+      const existingResult = await db.collection('quiz_results').findOne({
+        userId: payload.id,
+        quizSetId: quizSetId,
+      })
+      if (existingResult) {
+        isDuplicate = true
+      }
+    }
+
     const result = {
       userId: payload.id,
       userName: payload.name,
@@ -30,16 +42,17 @@ export async function POST(req: NextRequest) {
       correct: correct || 0,
       total: total || 0,
       percentage,
-      xpEarned: xpEarned || 0,
-      coinsEarned: coinsEarned || 0,
+      xpEarned: isDuplicate ? 0 : (xpEarned || 0),
+      coinsEarned: isDuplicate ? 0 : (coinsEarned || 0),
       answers: answers || [],
+      isDuplicate,
       createdAt: new Date(),
     }
 
     await db.collection('quiz_results').insertOne(result)
 
-    // Update user XP and coins
-    if (xpEarned > 0 || coinsEarned > 0) {
+    // Update user XP and coins only if not a duplicate attempt
+    if (!isDuplicate && (xpEarned > 0 || coinsEarned > 0)) {
       await db.collection('users').updateOne(
         { _id: payload.id },
         {
@@ -51,7 +64,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, isDuplicate })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'حدث خطأ'
     return NextResponse.json({ error: message }, { status: 500 })

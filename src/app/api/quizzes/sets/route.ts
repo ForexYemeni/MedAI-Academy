@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category')
 
     const filter: Record<string, unknown> = {}
-    if (activeOnly || !isAdmin) filter.active = { $ne: false }
+    if (activeOnly) filter.active = { $ne: false }
+    // Note: We return ALL sets (including inactive) to users so they can see locked state
     if (category) filter.category = category
 
     const sets = await db.collection('quiz_sets')

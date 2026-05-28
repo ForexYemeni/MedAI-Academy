@@ -34,6 +34,7 @@ import {
   ThumbsDown,
   Eye,
   Loader2,
+  Lock,
 } from 'lucide-react'
 
 // ─── Types ──────────────────────────────────────────────────
@@ -367,6 +368,8 @@ export function QuizzesPage() {
   const [quizSets, setQuizSets] = useState<ApiQuizSet[]>([])
   const [quizSetsLoading, setQuizSetsLoading] = useState(true)
   const [activeQuizSet, setActiveQuizSet] = useState<ApiQuizSet | null>(null)
+  const [completedSetIds, setCompletedSetIds] = useState<string[]>([])
+  const [isRepeatAttempt, setIsRepeatAttempt] = useState(false)
 
   // ─── Fetch quiz sets from API ──────────────────────────
   useEffect(() => {
@@ -379,7 +382,7 @@ export function QuizzesPage() {
         const res = await fetch('/api/quizzes/sets', { headers })
         const data = await res.json()
         if (data.sets && data.sets.length > 0) {
-          setQuizSets(data.sets.filter((s: ApiQuizSet) => s.active))
+          setQuizSets(data.sets)
         }
       } catch (err) {
         console.log('No quiz sets available, using default modes')
@@ -388,6 +391,22 @@ export function QuizzesPage() {
       }
     }
     fetchQuizSets()
+  }, [])
+
+  // ─── Fetch completed quiz set IDs ─────────────────────
+  useEffect(() => {
+    const fetchCompleted = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        if (!token) return
+        const res = await fetch('/api/quizzes/completed', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        const data = await res.json()
+        if (data.completedSetIds) setCompletedSetIds(data.completedSetIds)
+      } catch {}
+    }
+    fetchCompleted()
   }, [])
 
   // ─── Fetch quiz questions from API ────────────────────
@@ -632,22 +651,28 @@ export function QuizzesPage() {
         ? activeQuizSet.coinReward
         : coinRewardTotal * finalScore
 
+      // Check if this is a repeat attempt (quiz set already completed)
+      const isRepeat = activeQuizSet ? completedSetIds.includes(activeQuizSet.id) : false
+      setIsRepeatAttempt(isRepeat)
+
       setQuizResult({
         correct: finalScore,
         incorrect: activeQuestions.length - finalScore,
         total: activeQuestions.length,
-        xpEarned,
-        coinsEarned,
+        xpEarned: isRepeat ? 0 : xpEarned,
+        coinsEarned: isRepeat ? 0 : coinsEarned,
         answers: activeQuestions.map((q, i) => {
           return { questionIndex: i, selectedIndex: -1, isCorrect: false }
         }),
       })
 
-      // Update user XP and coins
-      updateUser({
-        xp: user.xp + xpEarned,
-        coins: user.coins + coinsEarned,
-      })
+      // Update user XP and coins only if not a repeat attempt
+      if (!isRepeat) {
+        updateUser({
+          xp: user.xp + xpEarned,
+          coins: user.coins + coinsEarned,
+        })
+      }
 
       // Save quiz result to API
       try {
@@ -660,10 +685,29 @@ export function QuizzesPage() {
               quizMode: selectedMode,
               correct: finalScore,
               total: activeQuestions.length,
-              xpEarned,
-              coinsEarned,
+              xpEarned: isRepeat ? 0 : xpEarned,
+              coinsEarned: isRepeat ? 0 : coinsEarned,
               quizSetId: activeQuizSet?.id || undefined,
             }),
+          }).then(async (res) => {
+            const data = await res.json().catch(() => ({}))
+            // If API says it's a duplicate, update state
+            if (data.isDuplicate && !isRepeat) {
+              setIsRepeatAttempt(true)
+              // Revert XP/coins since server won't add them
+              updateUser({
+                xp: user.xp,
+                coins: user.coins,
+              })
+            }
+            // Refresh completed sets after saving result
+            if (activeQuizSet?.id) {
+              const completedRes = await fetch('/api/quizzes/completed', {
+                headers: { Authorization: `Bearer ${token}` }
+              })
+              const completedData = await completedRes.json().catch(() => ({}))
+              if (completedData.completedSetIds) setCompletedSetIds(completedData.completedSetIds)
+            }
           }).catch(() => {})
         }
       } catch {}
@@ -675,7 +719,7 @@ export function QuizzesPage() {
       setSelectedAnswer(null)
       setShowExplanation(false)
     }
-  }, [currentQuizIndex, activeQuestions, quizScore, xpAnimation, selectedMode, setQuizActive, setCurrentQuizIndex, updateUser, user.xp, user.coins, activeQuizSet, coinRewardTotal])
+  }, [currentQuizIndex, activeQuestions, quizScore, xpAnimation, selectedMode, setQuizActive, setCurrentQuizIndex, updateUser, user.xp, user.coins, activeQuizSet, coinRewardTotal, completedSetIds])
 
   // ─── Flashcard Handlers ────────────────────────────────
   const handleFlashcardSwipe = useCallback(
@@ -729,6 +773,7 @@ export function QuizzesPage() {
     setQuizScore(0)
     setQuizActive(false)
     setActiveQuizSet(null)
+    setIsRepeatAttempt(false)
     // Re-fetch quiz sets to update best results
     const refetchSets = async () => {
       try {
@@ -738,7 +783,7 @@ export function QuizzesPage() {
         const res = await fetch('/api/quizzes/sets', { headers })
         const data = await res.json()
         if (data.sets && data.sets.length > 0) {
-          setQuizSets(data.sets.filter((s: ApiQuizSet) => s.active))
+          setQuizSets(data.sets)
         }
       } catch {}
     }
@@ -845,28 +890,55 @@ export function QuizzesPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {quizSets
                     .sort((a, b) => a.order - b.order)
-                    .map((quizSet, i) => {
+                    .map((quizSet, i, sortedSets) => {
                     const style = getGradientStyle(quizSet.gradient || '')
                     const diffInfo = DIFFICULTY_MAP[quizSet.difficulty] ?? DIFFICULTY_MAP.medium
                     const catInfo = CATEGORY_MAP[quizSet.category] ?? CATEGORY_MAP.general
 
+                    // Determine lock state
+                    const isInactive = quizSet.active === false
+                    const isSequentialLocked = !isInactive && i > 0 && !completedSetIds.includes(sortedSets[i - 1].id)
+                    const isLocked = isInactive || isSequentialLocked
+                    const isCompleted = completedSetIds.includes(quizSet.id)
+                    const isFlashcard = quizSet.icon === '🃏'
+
+                    const lockedMessage = isInactive
+                      ? 'هذا القسم مغلق حالياً'
+                      : isSequentialLocked
+                      ? 'أكمل المجموعة السابقة أولاً'
+                      : ''
+
                     return (
-                      <motion.button
+                      <motion.div
                         key={quizSet.id}
                         variants={itemVariants}
-                        whileHover={{ scale: 1.03, y: -4 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => startQuizFromSet(quizSet)}
-                        className={`glass-card gradient-border p-5 text-right group relative overflow-hidden ${style.borderColor}`}
-                        style={{ boxShadow: style.glow }}
+                        whileHover={!isLocked ? { scale: 1.03, y: -4 } : {}}
+                        whileTap={!isLocked ? { scale: 0.97 } : {}}
+                        onClick={!isLocked ? () => {
+                          if (isFlashcard) {
+                            startQuiz('flashcards')
+                          } else {
+                            startQuizFromSet(quizSet)
+                          }
+                        } : undefined}
+                        className={`glass-card gradient-border p-5 text-right relative overflow-hidden ${style.borderColor} ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer group'}`}
+                        style={{ boxShadow: isLocked ? 'none' : style.glow }}
                       >
                         {/* Background gradient */}
-                        <div className={`absolute inset-0 bg-gradient-to-bl ${style.gradient} opacity-50 group-hover:opacity-80 transition-opacity`} />
+                        <div className={`absolute inset-0 bg-gradient-to-bl ${style.gradient} opacity-50 ${!isLocked ? 'group-hover:opacity-80' : ''} transition-opacity`} />
+
+                        {/* Locked overlay */}
+                        {isLocked && (
+                          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
+                            <Lock className="h-8 w-8 text-muted-foreground/80 mb-2" />
+                            <p className="text-sm font-bold text-muted-foreground text-center px-3">{lockedMessage}</p>
+                          </div>
+                        )}
 
                         <div className="relative z-10">
                           {/* Top row: icon + badges */}
                           <div className="flex items-center gap-3 mb-3">
-                            <div className={`rounded-xl bg-muted/50 p-2.5 border ${style.borderColor} group-hover:bg-muted transition-colors`}>
+                            <div className={`rounded-xl bg-muted/50 p-2.5 border ${style.borderColor} ${!isLocked ? 'group-hover:bg-muted' : ''} transition-colors`}>
                               <span className="text-2xl leading-none">{quizSet.icon || '📝'}</span>
                             </div>
                             <div className="flex flex-wrap gap-1.5">
@@ -876,11 +948,16 @@ export function QuizzesPage() {
                               <Badge variant="outline" className="text-[10px] bg-muted/50 text-muted-foreground border-border">
                                 {quizSet.questionCount} سؤال
                               </Badge>
+                              {isCompleted && !isLocked && (
+                                <Badge variant="outline" className="text-[10px] bg-neon-green/10 text-neon-green border-neon-green/20">
+                                  تم الإجابة ✓
+                                </Badge>
+                              )}
                             </div>
                           </div>
 
                           {/* Title & Description */}
-                          <h3 className="font-bold text-lg mb-1 group-hover:neon-text transition-all">
+                          <h3 className={`font-bold text-lg mb-1 ${!isLocked ? 'group-hover:neon-text' : ''} transition-all`}>
                             {quizSet.titleAr || quizSet.title}
                           </h3>
                           <p className="text-xs text-muted-foreground leading-5 mb-3">{quizSet.descriptionAr || quizSet.description}</p>
@@ -930,11 +1007,13 @@ export function QuizzesPage() {
                           )}
                         </div>
 
-                        {/* Arrow indicator */}
-                        <div className="absolute bottom-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ChevronLeft className="h-5 w-5 text-neon-cyan" />
-                        </div>
-                      </motion.button>
+                        {/* Arrow indicator (only for unlocked) */}
+                        {!isLocked && (
+                          <div className="absolute bottom-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ChevronLeft className="h-5 w-5 text-neon-cyan" />
+                          </div>
+                        )}
+                      </motion.div>
                     )
                   })}
                 </div>
@@ -1402,6 +1481,16 @@ export function QuizzesPage() {
                     <p className="text-sm text-muted-foreground">
                       {activeQuizSet ? (activeQuizSet.titleAr || activeQuizSet.title) : selectedMode === 'flashcards' ? 'نتيجة البطاقات' : 'نتيجة الاختبار'}
                     </p>
+                    {isRepeatAttempt && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-neon-orange/10 border border-neon-orange/20 px-3 py-1"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-neon-orange" />
+                        <span className="text-xs font-semibold text-neon-orange">لقد أكملت هذا الاختبار مسبقاً</span>
+                      </motion.div>
+                    )}
                   </motion.div>
 
                   {/* Score Circle */}

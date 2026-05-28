@@ -969,6 +969,18 @@ export function HomePage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [resetQuickChallenge])
 
+  // Auto-dismiss quick challenge celebration after 4 seconds
+  useEffect(() => {
+    if (showCelebration) {
+      const timer = setTimeout(() => {
+        setShowCelebration(false)
+        setQuickChallengeDone(true)
+        localStorage.setItem('nabd-quick-challenge-done', 'true')
+      }, 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [showCelebration])
+
   // Gift celebration state
   const [giftCelebration, setGiftCelebration] = useState<{ id: string; titleAr: string; giftedAt: string | null } | null>(null)
 
@@ -1786,10 +1798,11 @@ export function HomePage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.7 }}
                     >
-                      <h2 className="text-3xl font-black bg-gradient-to-r from-emerald-300 via-cyan-300 to-purple-300 bg-clip-text text-transparent mb-2">
-                        🎊 مبروووك! 🎊
+                      <h2 className="text-4xl font-black bg-gradient-to-r from-neon-cyan via-neon-purple to-neon-pink bg-clip-text text-transparent mb-2"
+                        style={{ textShadow: '0 0 40px rgba(0,245,255,0.3)' }}>
+                        مبروووك 🎉
                       </h2>
-                      <p className="text-emerald-200/70 text-sm">أجابة صحيحة! أحسنت 🌟</p>
+                      <p className="text-neon-green font-bold text-lg">+10 XP</p>
                     </motion.div>
 
                     {/* XP earned */}

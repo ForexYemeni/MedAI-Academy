@@ -3371,7 +3371,7 @@ function CommunityManagementSection() {
   const [apiPosts, setApiPosts] = useState<any[]>([])
   const [joinRequests, setJoinRequests] = useState<any[]>([])
   const [totalPosts, setTotalPosts] = useState(0)
-  const [dataLoading, setDataLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(false)
   const [showGroupForm, setShowGroupForm] = useState(false)
   const [editingGroup, setEditingGroup] = useState<any>(null)
   const [groupForm, setGroupForm] = useState({ nameAr: '', name: '', icon: '📚', category: 'general', description: '' })
@@ -3696,13 +3696,7 @@ function CommunityManagementSection() {
         ))}
       </div>
 
-      {dataLoading ? (
-        <div className="glass-card p-8 text-center">
-          <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin text-neon-purple" />
-          <p className="text-sm text-muted-foreground">جاري تحميل البيانات...</p>
-        </div>
-      ) : (
-        <>
+      <>
           {/* ──── Groups Tab ──── */}
           {activeTab === 'groups' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -3965,7 +3959,6 @@ function CommunityManagementSection() {
             </motion.div>
           )}
         </>
-      )}
     </motion.div>
   )
 }
@@ -4009,7 +4002,7 @@ const DIFFICULTY_CONFIG = {
 function QuizManagementSection() {
   // ─── State ────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'sets' | 'questions' | 'leaderboard'>('sets')
-  const [dataLoading, setDataLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(false)
 
   // Quiz Sets state
   const [quizSets, setQuizSets] = useState<any[]>([])
@@ -4106,9 +4099,7 @@ function QuizManagementSection() {
   }, [])
 
   const fetchAllData = useCallback(async () => {
-    setDataLoading(true)
     await Promise.all([fetchQuizSets(), fetchQuestions(), fetchLeaderboard()])
-    setDataLoading(false)
   }, [fetchQuizSets, fetchQuestions, fetchLeaderboard])
 
   useEffect(() => { fetchAllData() }, [fetchAllData])
@@ -4356,17 +4347,6 @@ function QuizManagementSection() {
   }, [questions])
 
   const ICON_OPTIONS = ['📋', '🧠', '❤️', '🚑', '🔬', '💊', '🔪', '👶', '🩺', '🏥', '⚡', '🎯', '📖', '🃏', '🏆', '🧪', '💡', '🩻']
-
-  // ─── Loading ──────────────────────────────────────────────
-
-  if (dataLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 className="h-10 w-10 animate-spin text-neon-cyan" />
-        <p className="text-sm text-muted-foreground">جاري تحميل بيانات الاختبارات...</p>
-      </div>
-    )
-  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
