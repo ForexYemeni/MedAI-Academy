@@ -901,10 +901,35 @@ export function HomePage() {
     const isCorrect = idx === currentQuiz?.correctIndex
     if (isCorrect) {
       setShowCelebration(true)
-      // Update user XP
+      // Update user XP locally
       const xpEarned = 10
       const { updateUser, user } = useAppStore.getState()
       updateUser({ xp: user.xp + xpEarned })
+
+      // Save XP to database via API
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        if (token) {
+          fetch('/api/quizzes/results', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              quizMode: 'quick-challenge',
+              correct: 1,
+              total: 1,
+              xpEarned,
+              coinsEarned: 0,
+            }),
+          }).then(async (res) => {
+            const data = await res.json().catch(() => ({}))
+            // Sync XP from server (authoritative)
+            if (data.updatedXp !== undefined) {
+              const { updateUser } = useAppStore.getState()
+              updateUser({ xp: data.updatedXp, coins: data.updatedCoins ?? 0 })
+            }
+          }).catch(() => {})
+        }
+      } catch {}
     }
 
     // Mark challenge as done - it will disappear after explanation

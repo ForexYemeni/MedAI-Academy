@@ -710,6 +710,13 @@ export function QuizzesPage() {
                 coins: user.coins,
               })
             }
+            // Sync XP/coins from server response (authoritative source)
+            if (data.updatedXp !== undefined && !data.isDuplicate) {
+              updateUser({
+                xp: data.updatedXp,
+                coins: data.updatedCoins !== undefined ? data.updatedCoins : user.coins + coinsEarned,
+              })
+            }
             // Refresh completed sets after saving result
             if (activeQuizSet?.id) {
               const completedRes = await fetch('/api/quizzes/completed', {

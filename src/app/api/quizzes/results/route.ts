@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
+import { ObjectId } from 'mongodb'
 
 // POST /api/quizzes/results - حفظ نتيجة اختبار
 export async function POST(req: NextRequest) {
@@ -53,8 +54,14 @@ export async function POST(req: NextRequest) {
 
     // Update user XP and coins only if not a duplicate attempt
     if (!isDuplicate && (xpEarned > 0 || coinsEarned > 0)) {
+      let userObjectId
+      try {
+        userObjectId = new ObjectId(payload.id)
+      } catch {
+        userObjectId = payload.id
+      }
       await db.collection('users').updateOne(
-        { _id: payload.id },
+        { _id: userObjectId },
         {
           $inc: {
             xp: xpEarned || 0,
@@ -64,7 +71,21 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true, isDuplicate })
+    // Return updated user XP for client to sync
+    let updatedXp = 0
+    let updatedCoins = 0
+    try {
+      let userObjectId
+      try { userObjectId = new ObjectId(payload.id) } catch { userObjectId = payload.id }
+      const updatedUser = await db.collection('users').findOne(
+        { _id: userObjectId },
+        { projection: { xp: 1, coins: 1 } }
+      )
+      updatedXp = updatedUser?.xp || 0
+      updatedCoins = updatedUser?.coins || 0
+    } catch {}
+
+    return NextResponse.json({ success: true, isDuplicate, updatedXp, updatedCoins })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'حدث خطأ'
     return NextResponse.json({ error: message }, { status: 500 })

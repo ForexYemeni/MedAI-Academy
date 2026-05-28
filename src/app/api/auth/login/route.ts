@@ -122,6 +122,13 @@ export async function POST(req: NextRequest) {
         phone: authUser.phone,
         role: authUser.role,
         mustChangePassword: authUser.mustChangePassword,
+        xp: user.xp || 0,
+        coins: user.coins || 0,
+        level: user.level || 1,
+        streak: user.streak || 0,
+        maxStreak: user.maxStreak || 0,
+        medicalSpecialty: user.medicalSpecialty || '',
+        subscription: user.subscription || 'free',
       },
       token,
     })
