@@ -9,6 +9,7 @@ import {
   CreditCard, UserPlus, Zap, BarChart3,
   Settings, ChevronDown, Edit3, Save, X, FileText, Video, HelpCircle, FlaskConical, Layers, Plus, Trash2, RefreshCw, Loader2, Wallet, ToggleLeft, ToggleRight, Image as ImageIcon,
   Menu, LogOut, Gift, MessageSquare, Sun, Moon, Lock, Info, Copy, EyeOff, Crown,
+  Trophy, Target, Timer, Shuffle,
 } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,

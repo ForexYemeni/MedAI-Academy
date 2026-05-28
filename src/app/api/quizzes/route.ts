@@ -38,20 +38,11 @@ export async function GET(req: NextRequest) {
         .sort({ createdAt: -1 })
         .toArray()
     } else {
-      // Regular user gets active questions
+      // Regular user gets active questions with all fields (including correctIndex for quiz logic)
       questions = await db.collection('quizzes')
-        .find(filter, { projection: { correctIndex: 0 } })
-        .sort({ order: 1 })
-        .toArray()
-    }
-
-    // For regular users, add correctIndex back (needed for quiz functionality)
-    if (!isAdmin) {
-      const fullQuestions = await db.collection('quizzes')
         .find(filter)
         .sort({ order: 1 })
         .toArray()
-      questions = fullQuestions
     }
 
     if (limit > 0 && !random) {
