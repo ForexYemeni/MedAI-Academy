@@ -72,6 +72,7 @@ interface ApiQuizSet {
   order: number
   attemptCount: number
   bestResult: { correct: number; total: number; percentage: number } | null
+  questionIds?: string[]
 }
 
 // ─── Quiz Mode Config ───────────────────────────────────────
@@ -469,6 +470,24 @@ export function QuizzesPage() {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' }
         if (token) headers['Authorization'] = `Bearer ${token}`
 
+        // If quiz set has specific questionIds, fetch those directly
+        if (quizSet.questionIds && quizSet.questionIds.length > 0) {
+          const res = await fetch(`/api/quizzes?ids=${quizSet.questionIds.join(',')}&limit=${quizSet.questionCount}&random=true`, { headers })
+          const data = await res.json()
+          if (data.questions && data.questions.length > 0) {
+            return data.questions.map((q: any) => ({
+              id: q.id,
+              question: q.questionAr || q.question,
+              options: q.optionsAr || q.options,
+              correctIndex: q.correctIndex,
+              explanation: q.explanationAr || q.explanation,
+              difficulty: q.difficulty,
+              category: q.category,
+            }))
+          }
+        }
+
+        // Fallback: fetch by category
         const res = await fetch(`/api/quizzes?category=${encodeURIComponent(quizSet.category)}&limit=${quizSet.questionCount}&random=true`, { headers })
         const data = await res.json()
         if (data.questions && data.questions.length > 0) {

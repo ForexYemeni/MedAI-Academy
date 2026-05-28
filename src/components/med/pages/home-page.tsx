@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore, type Course, type CourseProgress } from '@/store/app-store'
 import { Progress } from '@/components/ui/progress'
@@ -684,6 +684,9 @@ export function HomePage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [isIOS, setIsIOS] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [quickChallengeDone, setQuickChallengeDone] = useState(false)
+  const [quickChallengeQuestion, setQuickChallengeQuestion] = useState<any>(null)
 
   // PWA Install prompt detection
   useEffect(() => {
@@ -846,14 +849,125 @@ export function HomePage() {
     () => courses.filter((c) => c.category === user.medicalSpecialty || c.category === 'emergency').slice(0, 3),
     [courses, user.medicalSpecialty]
   )
-  const currentQuiz = useMemo(() => quizQuestions?.[0] ?? null, [quizQuestions])
+  // Quick Challenge - Fetch a random question from API
+  useEffect(() => {
+    // Check if user already answered the quick challenge this session
+    const challengeDone = localStorage.getItem('nabd-quick-challenge-done')
+    if (challengeDone === 'true') {
+      setQuickChallengeDone(true)
+      return
+    }
+
+    const fetchQuickChallenge = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        const headers: Record<string, string> = {}
+        if (token) headers['Authorization'] = `Bearer ${token}`
+
+        const res = await fetch('/api/quizzes?limit=1&random=true', { headers })
+        const data = await res.json()
+        if (data.questions && data.questions.length > 0) {
+          const q = data.questions[0]
+          setQuickChallengeQuestion({
+            id: q.id,
+            question: q.questionAr || q.question,
+            options: q.optionsAr || q.options,
+            correctIndex: q.correctIndex,
+            explanation: q.explanationAr || q.explanation,
+            difficulty: q.difficulty,
+            category: q.category,
+          })
+        }
+      } catch (err) {
+        // Fallback to store questions
+        if (quizQuestions && quizQuestions.length > 0) {
+          const randomIdx = Math.floor(Math.random() * quizQuestions.length)
+          setQuickChallengeQuestion(quizQuestions[randomIdx])
+        }
+      }
+    }
+    fetchQuickChallenge()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const currentQuiz = useMemo(() => quickChallengeQuestion, [quickChallengeQuestion])
 
   // Quick Challenge handler
   const handleAnswer = (idx: number) => {
     if (selectedAnswer !== null) return
     setSelectedAnswer(idx)
     setShowExplanation(true)
+
+    // If correct answer, show celebration
+    const isCorrect = idx === currentQuiz?.correctIndex
+    if (isCorrect) {
+      setShowCelebration(true)
+      // Update user XP
+      const xpEarned = 10
+      const { updateUser, user } = useAppStore.getState()
+      updateUser({ xp: user.xp + xpEarned })
+    }
+
+    // Mark challenge as done - it will disappear after explanation
+    setTimeout(() => {
+      setQuickChallengeDone(true)
+      localStorage.setItem('nabd-quick-challenge-done', 'true')
+    }, isCorrect ? 4000 : 3000)
   }
+
+  // Reset quick challenge when user returns to the app
+  const resetQuickChallenge = useCallback(() => {
+    localStorage.removeItem('nabd-quick-challenge-done')
+    setQuickChallengeDone(false)
+    setSelectedAnswer(null)
+    setShowExplanation(false)
+    setShowCelebration(false)
+    setQuickChallengeQuestion(null)
+
+    // Fetch a new random question
+    const fetchNewQuestion = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        const headers: Record<string, string> = {}
+        if (token) headers['Authorization'] = `Bearer ${token}`
+        const res = await fetch('/api/quizzes?limit=1&random=true', { headers })
+        const data = await res.json()
+        if (data.questions && data.questions.length > 0) {
+          const q = data.questions[0]
+          setQuickChallengeQuestion({
+            id: q.id,
+            question: q.questionAr || q.question,
+            options: q.optionsAr || q.options,
+            correctIndex: q.correctIndex,
+            explanation: q.explanationAr || q.explanation,
+            difficulty: q.difficulty,
+            category: q.category,
+          })
+        }
+      } catch {
+        if (quizQuestions && quizQuestions.length > 0) {
+          const randomIdx = Math.floor(Math.random() * quizQuestions.length)
+          setQuickChallengeQuestion(quizQuestions[randomIdx])
+        }
+      }
+    }
+    fetchNewQuestion()
+  }, [quizQuestions])
+
+  // Reset quick challenge when user returns to the app (tab/window visibility change)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // When the user comes back to the app, reset the challenge
+        const challengeDone = localStorage.getItem('nabd-quick-challenge-done')
+        if (challengeDone === 'true') {
+          // Small delay to let the page settle
+          setTimeout(() => resetQuickChallenge(), 500)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [resetQuickChallenge])
 
   // Gift celebration state
   const [giftCelebration, setGiftCelebration] = useState<{ id: string; titleAr: string; giftedAt: string | null } | null>(null)
@@ -1447,7 +1561,7 @@ export function HomePage() {
         {/* ═══════════════════════════════════════════════════
             8. QUICK CHALLENGE
         ═══════════════════════════════════════════════════ */}
-        {currentQuiz ? (
+        {currentQuiz && !quickChallengeDone ? (
         <motion.section variants={itemVariants}>
           <div className="glass-card gradient-border p-5 relative overflow-hidden">
             {/* Background decoration */}
@@ -1471,7 +1585,7 @@ export function HomePage() {
               <p className="text-sm font-semibold mb-4 leading-7">{currentQuiz?.question ?? ''}</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {(currentQuiz?.options ?? []).map((option, idx) => {
+                {(currentQuiz?.options ?? []).map((option: string, idx: number) => {
                   const isCorrect = idx === currentQuiz?.correctIndex
                   const isSelected = selectedAnswer === idx
                   let btnClass = 'glass-card border-border text-right'
@@ -1526,6 +1640,225 @@ export function HomePage() {
           </div>
         </motion.section>
         ) : null}
+
+        {/* ═══════════════════════════════════════════════════
+            8.5 QUICK CHALLENGE CELEBRATION
+        ═══════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {showCelebration && (
+            <motion.div
+              className="fixed inset-0 z-[200] flex items-center justify-center"
+              dir="rtl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* Dark backdrop */}
+              <motion.div
+                className="absolute inset-0 bg-black/80"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              />
+
+              {/* Firework particles */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {Array.from({ length: 60 }, (_, i) => {
+                  const p = {
+                    x: 50 + (Math.random() - 0.5) * 80,
+                    y: 50 + (Math.random() - 0.5) * 80,
+                    size: Math.random() * 6 + 2,
+                    color: ['#10b981', '#00f5ff', '#f59e0b', '#ec4899', '#8b5cf6', '#f43f5e'][i % 6],
+                    delay: Math.random() * 0.8,
+                    duration: Math.random() * 1 + 1.2,
+                  }
+                  return (
+                    <motion.div
+                      key={`fw-${i}`}
+                      className="absolute rounded-full"
+                      style={{
+                        left: '50%',
+                        top: '50%',
+                        width: p.size,
+                        height: p.size,
+                        backgroundColor: p.color,
+                        boxShadow: `0 0 ${p.size * 3}px ${p.color}`,
+                      }}
+                      initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
+                      animate={{
+                        x: (p.x - 50) * 5,
+                        y: (p.y - 50) * 5,
+                        scale: [0, 1.5, 0],
+                        opacity: [1, 1, 0],
+                      }}
+                      transition={{
+                        duration: p.duration,
+                        delay: p.delay,
+                        ease: 'easeOut',
+                      }}
+                    />
+                  )
+                })}
+                {/* Center burst glow */}
+                <motion.div
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full"
+                  style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.6) 0%, transparent 70%)' }}
+                  initial={{ scale: 0, opacity: 1 }}
+                  animate={{ scale: [0, 3, 5], opacity: [1, 0.5, 0] }}
+                  transition={{ duration: 1.5, ease: 'easeOut' }}
+                />
+                {/* Ring bursts */}
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={`ring-${i}`}
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2"
+                    style={{ borderColor: ['#10b981', '#00f5ff', '#f59e0b'][i] }}
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: [0, 30, 50], opacity: [1, 0.4, 0] }}
+                    transition={{ duration: 1.8, delay: i * 0.15, ease: 'easeOut' }}
+                  />
+                ))}
+              </div>
+
+              {/* Main celebration card */}
+              <motion.div
+                className="relative z-10 w-full max-w-md mx-4"
+                initial={{ scale: 0.3, opacity: 0, y: 40 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.3 }}
+              >
+                <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30" style={{
+                  background: 'linear-gradient(135deg, rgba(16,185,129,0.3) 0%, rgba(30,20,60,0.95) 30%, rgba(20,15,40,0.98) 100%)',
+                }}>
+                  {/* Sparkle background */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    {Array.from({ length: 20 }, (_, i) => (
+                      <motion.div
+                        key={`spark-${i}`}
+                        className="absolute w-1 h-1 rounded-full bg-emerald-300/50"
+                        style={{
+                          left: `${Math.random() * 100}%`,
+                          top: `${Math.random() * 100}%`,
+                        }}
+                        animate={{
+                          opacity: [0, 1, 0],
+                          scale: [0, 1, 0],
+                        }}
+                        transition={{
+                          duration: Math.random() * 2 + 1,
+                          repeat: Infinity,
+                          delay: Math.random() * 2,
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Top glow line */}
+                  <div className="h-1.5 w-full bg-gradient-to-l from-emerald-500 via-cyan-500 to-purple-500" />
+
+                  <div className="p-8 text-center space-y-5">
+                    {/* Trophy icon */}
+                    <motion.div
+                      className="relative inline-block"
+                      initial={{ scale: 0, rotate: -30 }}
+                      animate={{
+                        scale: [1, 1.2, 1],
+                        rotate: [0, 5, -5, 0],
+                      }}
+                      transition={{ duration: 0.8, delay: 0.5 }}
+                    >
+                      <div className="text-7xl">🎉</div>
+                      <motion.div
+                        className="absolute inset-0 -m-4 rounded-full border-2 border-emerald-400/30"
+                        animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
+                      <motion.div
+                        className="absolute inset-0 -m-8 rounded-full border border-cyan-400/20"
+                        animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
+                        transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
+                      />
+                    </motion.div>
+
+                    {/* Congratulations text */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.7 }}
+                    >
+                      <h2 className="text-3xl font-black bg-gradient-to-r from-emerald-300 via-cyan-300 to-purple-300 bg-clip-text text-transparent mb-2">
+                        🎊 مبروووك! 🎊
+                      </h2>
+                      <p className="text-emerald-200/70 text-sm">أجابة صحيحة! أحسنت 🌟</p>
+                    </motion.div>
+
+                    {/* XP earned */}
+                    <motion.div
+                      className="rounded-2xl p-4"
+                      style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(0,245,255,0.1) 100%)' }}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.9 }}
+                    >
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="flex items-center gap-1.5 rounded-full bg-neon-cyan/15 px-4 py-2 border border-neon-cyan/30">
+                          <Sparkles className="h-4 w-4 text-neon-cyan" />
+                          <span className="text-lg font-black text-neon-cyan">+10 XP</span>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Close button */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1.2 }}
+                    >
+                      <button
+                        onClick={() => {
+                          setShowCelebration(false)
+                          setQuickChallengeDone(true)
+                          localStorage.setItem('nabd-quick-challenge-done', 'true')
+                        }}
+                        className="w-full h-12 rounded-xl bg-gradient-to-l from-emerald-500 via-cyan-500 to-purple-500 text-white font-bold text-base hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all active:scale-[0.98]"
+                      >
+                        🚀 متابعة
+                      </button>
+                    </motion.div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Side fireworks (continuous subtle) */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <motion.div
+                    key={`side-${i}`}
+                    className="absolute rounded-full"
+                    style={{
+                      left: `${10 + Math.random() * 80}%`,
+                      top: `${10 + Math.random() * 80}%`,
+                      width: Math.random() * 4 + 2,
+                      height: Math.random() * 4 + 2,
+                      backgroundColor: ['#10b981', '#00f5ff', '#f59e0b'][i % 3],
+                    }}
+                    animate={{
+                      y: [0, -30, -60],
+                      opacity: [0, 1, 0],
+                      scale: [0, 1, 0],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      delay: i * 0.3,
+                      ease: 'easeOut',
+                    }}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ═══════════════════════════════════════════════════
             9. RECENT COURSES

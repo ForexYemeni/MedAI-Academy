@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     const difficulty = searchParams.get('difficulty')
     const limit = parseInt(searchParams.get('limit') || '0')
     const random = searchParams.get('random') === 'true'
+    const idsParam = searchParams.get('ids') // comma-separated question IDs
     
     // Check if admin request (with auth)
     const token = req.headers.get('authorization')?.replace('Bearer ', '')
@@ -19,8 +20,18 @@ export async function GET(req: NextRequest) {
     const isAdmin = payload?.role === 'admin'
 
     const filter: Record<string, unknown> = { active: { $ne: false } }
-    if (category) filter.category = category
-    if (difficulty) filter.difficulty = difficulty
+    
+    // If specific IDs are requested, use those
+    if (idsParam) {
+      const { ObjectId } = await import('mongodb')
+      const ids = idsParam.split(',').map((id: string) => {
+        try { return new ObjectId(id.trim()) } catch { return id.trim() }
+      }).filter(Boolean)
+      filter._id = { $in: ids }
+    } else {
+      if (category) filter.category = category
+      if (difficulty) filter.difficulty = difficulty
+    }
 
     let questions
     if (random && limit > 0) {

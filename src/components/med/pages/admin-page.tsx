@@ -4065,6 +4065,7 @@ function QuizManagementSection() {
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
     category: 'emergency',
     active: true,
+    selectedQuizSetIds: [] as string[],
   })
 
   // ─── Data Fetching ────────────────────────────────────────
@@ -4200,12 +4201,17 @@ function QuizManagementSection() {
     setForm({
       questionAr: '', question: '', option1: '', option2: '', option3: '', option4: '',
       correctIndex: 0, explanationAr: '', explanation: '', difficulty: 'medium', category: 'emergency', active: true,
+      selectedQuizSetIds: [],
     })
     setShowForm(false)
     setEditingQuestion(null)
   }
 
   const startEditQuestion = (q: ApiQuizQuestion) => {
+    // Find which quiz sets contain this question
+    const containingSets = quizSets
+      .filter(s => (s.questionIds || []).includes(q.id))
+      .map(s => s.id)
     setForm({
       questionAr: q.questionAr || q.question, question: q.question,
       option1: q.optionsAr?.[0] || q.options?.[0] || '',
@@ -4217,6 +4223,7 @@ function QuizManagementSection() {
       explanation: q.explanation || '',
       difficulty: q.difficulty, category: q.category,
       active: q.active !== false,
+      selectedQuizSetIds: containingSets,
     })
     setEditingQuestion(q)
     setShowForm(true)
@@ -4234,21 +4241,61 @@ function QuizManagementSection() {
         explanationAr: form.explanationAr, explanation: form.explanation || form.explanationAr,
         difficulty: form.difficulty, category: form.category, active: form.active,
       }
+      let savedQuestionId = editingQuestion?.id || null
+
       if (editingQuestion) {
         const res = await fetch('/api/quizzes', {
           method: 'PUT', headers: getAuthHeaders(),
           body: JSON.stringify({ id: editingQuestion.id, ...payload }),
         })
         const data = await res.json()
-        if (data.success) { resetQuestionForm(); await fetchQuestions() }
+        if (data.success) { savedQuestionId = editingQuestion.id } 
+        else { setSaving(false); return }
       } else {
         const res = await fetch('/api/quizzes', {
           method: 'POST', headers: getAuthHeaders(),
           body: JSON.stringify(payload),
         })
         const data = await res.json()
-        if (data.success) { resetQuestionForm(); await fetchQuestions() }
+        if (data.success && data.question?.id) { savedQuestionId = data.question.id }
+        else { setSaving(false); return }
       }
+
+      // Update quiz sets with this question
+      if (savedQuestionId && form.selectedQuizSetIds.length > 0) {
+        for (const setId of form.selectedQuizSetIds) {
+          const existingSet = quizSets.find(s => s.id === setId)
+          if (existingSet) {
+            const existingIds: string[] = existingSet.questionIds || []
+            if (!existingIds.includes(savedQuestionId)) {
+              const updatedIds = [...existingIds, savedQuestionId]
+              await fetch('/api/quizzes/sets', {
+                method: 'PUT', headers: getAuthHeaders(),
+                body: JSON.stringify({ id: setId, questionIds: updatedIds }),
+              })
+            }
+          }
+        }
+      }
+
+      // Remove question from quiz sets that were unchecked
+      if (savedQuestionId && editingQuestion) {
+        const previousSets = quizSets.filter(s => (s.questionIds || []).includes(savedQuestionId)).map(s => s.id)
+        const removedSets = previousSets.filter(id => !form.selectedQuizSetIds.includes(id))
+        for (const setId of removedSets) {
+          const existingSet = quizSets.find(s => s.id === setId)
+          if (existingSet) {
+            const updatedIds = (existingSet.questionIds || []).filter((id: string) => id !== savedQuestionId)
+            await fetch('/api/quizzes/sets', {
+              method: 'PUT', headers: getAuthHeaders(),
+              body: JSON.stringify({ id: setId, questionIds: updatedIds }),
+            })
+          }
+        }
+      }
+
+      resetQuestionForm()
+      await Promise.all([fetchQuestions(), fetchQuizSets()])
     } catch (err) { console.error('Save quiz error:', err) }
     setSaving(false)
   }
@@ -4819,6 +4866,46 @@ function QuizManagementSection() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Quiz Set Selector */}
+                    {quizSets.length > 0 && (
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1.5">
+                          <Layers className="h-3.5 w-3.5" />
+                          إضافة إلى مجموعة اختبار
+                        </label>
+                        <div className="flex flex-wrap gap-2 bg-muted/20 border border-border rounded-xl p-3 max-h-[120px] overflow-y-auto">
+                          {quizSets.map(s => {
+                            const isSelected = form.selectedQuizSetIds.includes(s.id)
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => {
+                                  setForm(p => ({
+                                    ...p,
+                                    selectedQuizSetIds: isSelected
+                                      ? p.selectedQuizSetIds.filter(id => id !== s.id)
+                                      : [...p.selectedQuizSetIds, s.id],
+                                    category: !isSelected && p.selectedQuizSetIds.length === 0 ? s.category : p.category,
+                                  }))
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                                  isSelected
+                                    ? 'bg-neon-cyan/15 border-neon-cyan/40 text-neon-cyan shadow-[0_0_8px_rgba(0,245,255,0.1)]'
+                                    : 'bg-muted/30 border-border text-muted-foreground hover:border-neon-cyan/20 hover:text-foreground'
+                                }`}
+                              >
+                                <span className="text-sm">{s.icon || '📋'}</span>
+                                <span>{s.titleAr || s.title}</span>
+                                {isSelected && <CheckCircle2 className="h-3 w-3" />}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground/50 mt-1">اختر المجموعات التي سيظهر فيها هذا السؤال</p>
+                      </div>
+                    )}
 
                     <div className="flex gap-2 pt-2">
                       <Button variant="ghost" onClick={resetQuestionForm} className="flex-1 h-10 rounded-xl">إلغاء</Button>
