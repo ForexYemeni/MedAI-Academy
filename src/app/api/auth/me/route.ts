@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectToDatabase, ObjectId } from '@/lib/mongodb'
+import { connectToDatabase } from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
 import { verifyToken } from '@/lib/auth'
 
 // GET /api/auth/me - الحصول على بيانات المستخدم الحالي
