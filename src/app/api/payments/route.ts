@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
+import { createAdminNotification } from '@/app/api/notifications/route'
 
 // إنشاء طلب دفع جديد (للمستخدمين)
 export async function POST(req: NextRequest) {
@@ -15,13 +16,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'جلسة غير صالحة' }, { status: 401 })
     }
 
-    const { courseId, amount, screenshotUrl } = await req.json()
+    const { courseId, amount, screenshotUrl, paymentMethodId } = await req.json()
 
     if (!courseId || !amount) {
       return NextResponse.json({ error: 'جميع الحقول مطلوبة' }, { status: 400 })
     }
 
     const { db } = await connectToDatabase()
+
+    // جلب بيانات الدورة لاسم الدورة
+    const { ObjectId } = await import('mongodb')
+    let courseName = ''
+    try {
+      const courseObj = await db.collection('courses').findOne(
+        { _id: new ObjectId(courseId) },
+        { projection: { titleAr: 1, title: 1 } }
+      )
+      courseName = courseObj?.titleAr || courseObj?.title || ''
+    } catch (e) { /* ignore */ }
+
+    // جلب بيانات طريقة الدفع
+    let walletName = ''
+    let walletPhone = ''
+    if (paymentMethodId) {
+      try {
+        const paymentMethod = await db.collection('payment_methods').findOne(
+          { _id: new ObjectId(paymentMethodId) },
+          { projection: { name: 1, accountNumber: 1, accountName: 1 } }
+        )
+        if (paymentMethod) {
+          walletName = paymentMethod.name || ''
+          walletPhone = paymentMethod.accountNumber || paymentMethod.accountName || ''
+        }
+      } catch (e) { /* ignore */ }
+    }
 
     // التحقق من عدم وجود دفع معلق لنفس الدورة
     const existingPayment = await db.collection('payments').findOne({
@@ -44,9 +72,10 @@ export async function POST(req: NextRequest) {
       userName: authUser.name,
       userPhone: authUser.phone,
       courseId,
+      courseName,
       amount,
-      walletName: '',
-      walletPhone: '',
+      walletName,
+      walletPhone,
       screenshotUrl: screenshotUrl || '',
       status: 'pending',
       adminNote: '',
@@ -55,6 +84,18 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await db.collection('payments').insertOne(payment)
+
+    // Send notification to admin about new payment
+    try {
+      await createAdminNotification({
+        title: 'طلب دفع جديد',
+        message: `${authUser.name} أرسل طلب دفع بقيمة ${amount.toLocaleString()} ر.ي${courseName ? ` لدورة "${courseName}"` : ''}`,
+        type: 'payment',
+        link: 'admin',
+        category: 'payment',
+        icon: '💳',
+      })
+    } catch (e) { /* notification is non-critical */ }
 
     return NextResponse.json({
       success: true,

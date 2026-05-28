@@ -1,20 +1,20 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore, type Badge as BadgeType } from '@/store/app-store'
-import { useTheme } from '@/components/med/layout/theme-provider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  Zap, Coins, Flame, BookOpen, Clock, Trophy, Pencil,
-  Lock, CheckCircle2, Circle, ChevronLeft, Settings,
-  Bell, Shield, Globe, Info, Star, Award, Target,
-  TrendingUp, Heart, Activity, Crown, Sparkles,
-  Languages, Volume2, Eye, ChevronDown, LogOut, Sun, Moon
+  Zap, BookOpen, Clock, Trophy, Pencil,
+  Lock, CheckCircle2, ChevronLeft, Settings,
+  Bell, Shield, Info, Star, Award, Target,
+  Sparkles, LogOut, Loader2,
+  Languages, Flame
 } from 'lucide-react'
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -59,39 +59,6 @@ function getNextRank(xp: number) {
   return null
 }
 
-// ─── Activity Heatmap Data ──────────────────────────────────
-
-function generateHeatmapData(): number[][] {
-  const data: number[][] = []
-  for (let week = 0; week < 4; week++) {
-    const row: number[] = []
-    for (let day = 0; day < 7; day++) {
-      if (week === 3 && day > 2) {
-        row.push(Math.random() > 0.3 ? Math.floor(Math.random() * 4) + 1 : 0)
-      } else {
-        const val = Math.random()
-        if (val < 0.15) row.push(0)
-        else if (val < 0.35) row.push(1)
-        else if (val < 0.6) row.push(2)
-        else if (val < 0.85) row.push(3)
-        else row.push(4)
-      }
-    }
-    data.push(row)
-  }
-  return data
-}
-
-const HEATMAP_COLORS = [
-  'bg-white/5',
-  'bg-neon-cyan/20',
-  'bg-neon-cyan/40',
-  'bg-neon-cyan/60',
-  'bg-neon-cyan/80',
-]
-
-const DAY_LABELS = ['سبت', 'أحد', 'اثن', 'ثلا', 'أرب', 'خمي', 'جمع']
-
 // ─── Rarity Config ──────────────────────────────────────────
 
 const RARITY_CONFIG: Record<string, { label: string; borderColor: string; glowColor: string; textColor: string; bgColor: string }> = {
@@ -125,17 +92,109 @@ const cardHover = {
   transition: { duration: 0.25, ease: 'easeOut' },
 }
 
+// ─── Default fallback texts ────────────────────────────────
+
+const DEFAULT_PRIVACY_TEXT = 'أكاديمية نبض تحترم خصوصيتك. نلتزم بحماية بياناتك الشخصية وعدم مشاركتها مع أطراف ثالثة. يتم استخدام بياناتك فقط لتقديم خدمات التعليم الطبي وتحسين تجربتك. يحق لك حذف حسابك وبياناتك في أي وقت بالتواصل مع إدارة المنصة.'
+
+const DEFAULT_ABOUT_TEXT = 'أكاديمية نبض - المنصة الطبية الذكية. منصة تعليم طبي عربية متكاملة مدعومة بالذكاء الاصطناعي. نوفر دورات طبية تفاعلية، محاكاة سريرية، اختبارات ذكية، ومساعد AI شخصي. هدفنا تمكين الطلاب والأطباء العرب من التعلم الطبي بأعلى جودة.'
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  MAIN COMPONENT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export function ProfilePage() {
-  const { user, courses, updateUser, openCourse, courseProgress, logout } = useAppStore()
-  const { theme, toggleTheme } = useTheme()
-  const [selectedBadge, setSelectedBadge] = useState<BadgeType | null>(null)
-  const [heatmapData] = useState(() => generateHeatmapData())
-  const [editingProfile, setEditingProfile] = useState(false)
+  const { user, courses, updateUser, openCourse, courseProgress, logout, authToken, notifications } = useAppStore()
 
+  // ─── State ────────────────────────────────────────────
+  const [selectedBadge, setSelectedBadge] = useState<BadgeType | null>(null)
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editSpecialty, setEditSpecialty] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+
+  // Dialog states
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
+
+  // Privacy / About fetched content
+  const [privacyText, setPrivacyText] = useState<string | null>(null)
+  const [privacyLoading, setPrivacyLoading] = useState(false)
+  const [aboutText, setAboutText] = useState<string | null>(null)
+  const [aboutLoading, setAboutLoading] = useState(false)
+
+  // ─── Auth token helper ────────────────────────────────
+  const getToken = useCallback(() => {
+    return authToken || (typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null)
+  }, [authToken])
+
+  // ─── Profile edit handlers ────────────────────────────
+  const handleOpenEditProfile = useCallback(() => {
+    setEditName(user.name)
+    setEditSpecialty(user.medicalSpecialty)
+    setEditingProfile(true)
+  }, [user.name, user.medicalSpecialty])
+
+  const handleSaveProfile = useCallback(async () => {
+    setEditSaving(true)
+    try {
+      const token = getToken()
+      if (token) {
+        await fetch('/api/auth', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name: editName, medicalSpecialty: editSpecialty }),
+        })
+      }
+      updateUser({ name: editName, medicalSpecialty: editSpecialty })
+      setEditingProfile(false)
+    } catch {
+      // Still update locally even if API fails
+      updateUser({ name: editName, medicalSpecialty: editSpecialty })
+      setEditingProfile(false)
+    } finally {
+      setEditSaving(false)
+    }
+  }, [editName, editSpecialty, getToken, updateUser])
+
+  // ─── Fetch privacy text ───────────────────────────────
+  const handleOpenPrivacy = useCallback(() => {
+    setShowPrivacy(true)
+    if (privacyText === null) {
+      setPrivacyLoading(true)
+      fetch('/api/settings/privacy')
+        .then(r => r.json())
+        .then(data => {
+          setPrivacyText(data.text || data.content || DEFAULT_PRIVACY_TEXT)
+        })
+        .catch(() => {
+          setPrivacyText(DEFAULT_PRIVACY_TEXT)
+        })
+        .finally(() => setPrivacyLoading(false))
+    }
+  }, [privacyText])
+
+  // ─── Fetch about text ─────────────────────────────────
+  const handleOpenAbout = useCallback(() => {
+    setShowAbout(true)
+    if (aboutText === null) {
+      setAboutLoading(true)
+      fetch('/api/settings/about')
+        .then(r => r.json())
+        .then(data => {
+          setAboutText(data.text || data.content || DEFAULT_ABOUT_TEXT)
+        })
+        .catch(() => {
+          setAboutText(DEFAULT_ABOUT_TEXT)
+        })
+        .finally(() => setAboutLoading(false))
+    }
+  }, [aboutText])
+
+  // ─── Computed values ──────────────────────────────────
   const xpInfo = useMemo(() => xpToNextLevel(user.xp), [user.xp])
   const currentRankIndex = useMemo(() => {
     let idx = 0
@@ -155,28 +214,51 @@ export function ProfilePage() {
     [courses, courseProgress]
   )
 
+  const totalCompletedLessons = useMemo(
+    () => courseProgress.reduce((sum, p) => sum + p.completedLessons.length, 0),
+    [courseProgress]
+  )
+
   const stats = useMemo(() => [
     { label: 'دورات مسجلة', value: String(enrolledCourses.length), icon: <BookOpen className="w-5 h-5" />, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
-    { label: 'دروس مكتملة', value: courseProgress.reduce((sum, p) => sum + p.completedLessons.length, 0).toString(), icon: <CheckCircle2 className="w-5 h-5" />, color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
+    { label: 'دروس مكتملة', value: totalCompletedLessons.toString(), icon: <CheckCircle2 className="w-5 h-5" />, color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
     { label: 'ساعات الدراسة', value: `${user.totalHours} ساعة`, icon: <Clock className="w-5 h-5" />, color: 'text-neon-purple', bg: 'bg-neon-purple/10', border: 'border-neon-purple/20' },
     { label: 'شهادات', value: user.completedCourses.toString(), icon: <Award className="w-5 h-5" />, color: 'text-neon-orange', bg: 'bg-neon-orange/10', border: 'border-neon-orange/20' },
-  ], [user, enrolledCourses, courseProgress])
+  ], [user, enrolledCourses, totalCompletedLessons])
 
-  const allBadges: BadgeType[] = useMemo(() => [
-    ...user.badges,
-    { id: '7', name: 'Speed Runner', nameAr: 'عدّاء السرعة', description: 'أكمل محاكاة في أقل من 5 دقائق', icon: '⚡', earned: false, rarity: 'epic' },
-    { id: '8', name: 'Team Player', nameAr: 'لاعب فريق', description: 'شارك في 10 نقاشات جماعية', icon: '🤝', earned: false, rarity: 'rare' },
-    { id: '9', name: 'Scholar', nameAr: 'عالم', description: 'أكمل 50 درساً', icon: '📚', earned: false, rarity: 'common' },
-    { id: '10', name: 'Perfect Score', nameAr: 'درجة كاملة', description: 'احصل على 100% في 5 اختبارات', icon: '💯', earned: false, rarity: 'legendary' },
-  ], [user.badges])
+  // Dynamic badges based on real user stats
+  const allBadges: BadgeType[] = useMemo(() => {
+    const extraBadges: BadgeType[] = [
+      { id: '7', name: 'Speed Runner', nameAr: 'عدّاء السرعة', description: 'أكمل محاكاة في أقل من 5 دقائق', icon: '⚡', earned: false, rarity: 'epic' },
+      { id: '8', name: 'Team Player', nameAr: 'لاعب فريق', description: 'شارك في 10 نقاشات جماعية', icon: '🤝', earned: false, rarity: 'rare' },
+      { id: '9', name: 'Scholar', nameAr: 'عالم', description: 'أكمل 10 دروس', icon: '📚', earned: totalCompletedLessons >= 10, rarity: 'common', earnedAt: totalCompletedLessons >= 10 ? Date.now() : undefined },
+      { id: '10', name: 'Perfect Score', nameAr: 'درجة كاملة', description: 'احصل على 100% في 5 اختبارات', icon: '💯', earned: false, rarity: 'legendary' },
+    ]
+    // Check "أول خطوة" badge - earned when user has at least 1 completed lesson
+    const firstStepBadge: BadgeType = {
+      id: '11',
+      name: 'First Step',
+      nameAr: 'أول خطوة',
+      description: 'أكمل أول درس',
+      icon: '👣',
+      earned: totalCompletedLessons >= 1,
+      rarity: 'common',
+      earnedAt: totalCompletedLessons >= 1 ? Date.now() : undefined,
+    }
+    // Check if user already has "أول خطوة" badge in their badges
+    const hasFirstStep = user.badges.some(b => b.nameAr === 'أول خطوة')
+    if (!hasFirstStep) {
+      extraBadges.unshift(firstStepBadge)
+    }
+    return [...user.badges, ...extraBadges]
+  }, [user.badges, totalCompletedLessons])
 
   const settingsItems = useMemo(() => [
-    { label: 'المظهر', labelEn: theme === 'dark' ? 'داكن' : 'فاتح', icon: theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />, color: 'text-primary', bg: 'bg-primary/10', action: toggleTheme },
-    { label: 'اللغة', labelEn: 'العربية / English', icon: <Languages className="w-5 h-5" />, color: 'text-neon-cyan', bg: 'bg-neon-cyan/10' },
-    { label: 'الإشعارات', labelEn: '', icon: <Bell className="w-5 h-5" />, color: 'text-neon-purple', bg: 'bg-neon-purple/10' },
-    { label: 'الخصوصية', labelEn: '', icon: <Shield className="w-5 h-5" />, color: 'text-neon-green', bg: 'bg-neon-green/10' },
-    { label: 'حول التطبيق', labelEn: '', icon: <Info className="w-5 h-5" />, color: 'text-muted-foreground', bg: 'bg-white/5' },
-  ], [theme, toggleTheme])
+    { label: 'اللغة', labelEn: 'العربية / English', icon: <Languages className="w-5 h-5" />, color: 'text-neon-cyan', bg: 'bg-neon-cyan/10', action: () => {} },
+    { label: 'الإشعارات', labelEn: '', icon: <Bell className="w-5 h-5" />, color: 'text-neon-purple', bg: 'bg-neon-purple/10', action: () => setShowNotifications(true) },
+    { label: 'الخصوصية', labelEn: '', icon: <Shield className="w-5 h-5" />, color: 'text-neon-green', bg: 'bg-neon-green/10', action: () => handleOpenPrivacy() },
+    { label: 'حول التطبيق', labelEn: '', icon: <Info className="w-5 h-5" />, color: 'text-muted-foreground', bg: 'bg-muted/30', action: () => handleOpenAbout() },
+  ], [handleOpenPrivacy, handleOpenAbout])
 
   // ─── Render ────────────────────────────────────────────
 
@@ -211,7 +293,7 @@ export function ProfilePage() {
               <div className="relative shrink-0">
                 <div className="absolute -inset-1.5 rounded-full bg-gradient-to-bl from-neon-cyan via-neon-purple to-neon-pink opacity-60 animate-neon-pulse" />
                 <Avatar className="h-24 w-24 border-4 border-med-dark relative z-10">
-                  <AvatarFallback className="bg-gradient-to-br from-neon-cyan/30 to-neon-purple/30 text-3xl font-bold text-white">
+                  <AvatarFallback className="bg-gradient-to-br from-neon-cyan/30 to-neon-purple/30 text-3xl font-bold text-foreground">
                     {user.name ? user.name.substring(0, 2) : '??'}
                   </AvatarFallback>
                 </Avatar>
@@ -241,7 +323,7 @@ export function ProfilePage() {
                     <span className="text-muted-foreground">التقدم للمستوى التالي</span>
                     <span className="font-bold text-neon-cyan">{xpInfo.current.toLocaleString('ar-EG')} / {xpInfo.needed.toLocaleString('ar-EG')} XP</span>
                   </div>
-                  <div className="h-3 rounded-full bg-white/5 overflow-hidden">
+                  <div className="h-3 rounded-full bg-muted/30 overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${xpInfo.percent}%` }}
@@ -263,8 +345,8 @@ export function ProfilePage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setEditingProfile(true)}
-                className="shrink-0 flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm font-medium text-white hover:bg-neon-cyan/10 hover:border-neon-cyan/30 transition-all"
+                onClick={handleOpenEditProfile}
+                className="shrink-0 flex items-center gap-2 rounded-xl bg-muted/30 border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-neon-cyan/10 hover:border-neon-cyan/30 transition-all"
               >
                 <Pencil className="w-4 h-4" />
                 تعديل الملف
@@ -294,7 +376,7 @@ export function ProfilePage() {
                   <div className={`rounded-xl ${stat.bg} w-10 h-10 flex items-center justify-center mb-3`}>
                     <span className={stat.color}>{stat.icon}</span>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-black text-white">{stat.value}</p>
+                  <p className="text-2xl sm:text-3xl font-black text-foreground">{stat.value}</p>
                   <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
                 </div>
               </motion.div>
@@ -306,10 +388,19 @@ export function ProfilePage() {
             3. MEDICAL RANKS PROGRESS
         ═══════════════════════════════════════════════════ */}
         <motion.section variants={itemVariants}>
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-bold flex items-center gap-2 mb-2">
             <Award className="h-5 w-5 text-amber-400" />
             مسار الرتب الطبية
           </h2>
+          {/* XP info box */}
+          <div className="mb-4 p-3 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15">
+            <div className="flex items-start gap-2">
+              <Zap className="w-4 h-4 text-neon-cyan shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground leading-5">
+                اكسب نقاط الخبرة (XP) من خلال: إكمال الدروس (25 XP)، إكمال الاختبارات (50 XP)، المشاركة في المجتمع (10 XP)، الإنجازات اليومية (15-30 XP)
+              </p>
+            </div>
+          </div>
           <div className="glass-card p-5 sm:p-6 neon-glow relative overflow-hidden">
             <div className="absolute top-0 left-0 w-40 h-40 bg-neon-purple/5 rounded-full blur-3xl" />
             <div className="relative z-10">
@@ -330,7 +421,7 @@ export function ProfilePage() {
                         isCurrent
                           ? 'bg-neon-cyan/10 border border-neon-cyan/25 shadow-[0_0_20px_rgba(0,245,255,0.08)]'
                           : isCompleted
-                          ? 'bg-white/3 hover:bg-white/5'
+                          ? 'bg-muted/30 hover:bg-muted/50'
                           : 'opacity-50'
                       }`}
                     >
@@ -340,7 +431,7 @@ export function ProfilePage() {
                           w-10 h-10 rounded-full flex items-center justify-center text-lg
                           ${isCompleted ? 'bg-neon-green/20 border-2 border-neon-green/40' : ''}
                           ${isCurrent ? 'bg-neon-cyan/20 border-2 border-neon-cyan/50 shadow-[0_0_15px_rgba(0,245,255,0.3)]' : ''}
-                          ${isLocked ? 'bg-white/5 border-2 border-white/10' : ''}
+                          ${isLocked ? 'bg-muted/30 border-2 border-border' : ''}
                         `}>
                           {isCompleted ? (
                             <CheckCircle2 className="w-5 h-5 text-neon-green" />
@@ -357,7 +448,7 @@ export function ProfilePage() {
                         </div>
                         {i < MEDICAL_RANKS.length - 1 && (
                           <div className={`w-0.5 h-4 mt-1 rounded-full ${
-                            isCompleted ? 'bg-neon-green/30' : 'bg-white/10'
+                            isCompleted ? 'bg-neon-green/30' : 'bg-border'
                           }`} />
                         )}
                       </div>
@@ -365,7 +456,7 @@ export function ProfilePage() {
                       {/* Rank info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-white">{rank.icon} {rank.title}</span>
+                          <span className="text-sm font-bold text-foreground">{rank.icon} {rank.title}</span>
                           {isCurrent && (
                             <Badge className="text-[10px] bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 animate-neon-pulse">
                               الرتبة الحالية
@@ -414,7 +505,7 @@ export function ProfilePage() {
               مجموعة الشارات
             </h2>
             <span className="text-xs text-muted-foreground">
-              {user.badges.filter(b => b.earned).length}/{allBadges.length} مكتسبة
+              {allBadges.filter(b => b.earned).length}/{allBadges.length} مكتسبة
             </span>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
@@ -440,12 +531,12 @@ export function ProfilePage() {
                     {badge.icon}
                     {!badge.earned && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Lock className="w-4 h-4 text-white/60" />
+                        <Lock className="w-4 h-4 text-muted-foreground/60" />
                       </div>
                     )}
                   </div>
                   {/* Badge name */}
-                  <span className={`text-[10px] sm:text-xs font-semibold text-center leading-4 ${badge.earned ? 'text-white' : 'text-muted-foreground'}`}>
+                  <span className={`text-[10px] sm:text-xs font-semibold text-center leading-4 ${badge.earned ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {badge.nameAr}
                   </span>
                   {/* Rarity indicator */}
@@ -459,76 +550,7 @@ export function ProfilePage() {
         </motion.section>
 
         {/* ═══════════════════════════════════════════════════
-            5. STUDY ACTIVITY HEATMAP
-        ═══════════════════════════════════════════════════ */}
-        <motion.section variants={itemVariants}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Activity className="h-5 w-5 text-neon-green" />
-              نشاط الدراسة
-            </h2>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>أقل</span>
-              <div className="flex gap-1">
-                {HEATMAP_COLORS.map((color, i) => (
-                  <div key={i} className={`w-3 h-3 rounded-sm ${color}`} />
-                ))}
-              </div>
-              <span>أكثر</span>
-            </div>
-          </div>
-          <div className="glass-card p-5 overflow-x-auto">
-            <div className="min-w-[400px]">
-              {/* Day labels */}
-              <div className="flex items-center gap-1 mb-2">
-                <div className="w-8" /> {/* spacer */}
-                {DAY_LABELS.map((day) => (
-                  <div key={day} className="flex-1 text-center text-[10px] text-muted-foreground">{day}</div>
-                ))}
-              </div>
-              {/* Heatmap grid */}
-              <div className="space-y-1.5">
-                {heatmapData.map((week, weekIdx) => (
-                  <div key={weekIdx} className="flex items-center gap-1">
-                    <div className="w-8 text-[10px] text-muted-foreground text-left">
-                      أسبوع {weekIdx + 1}
-                    </div>
-                    {week.map((val, dayIdx) => {
-                      const isCurrentStreak = weekIdx === 3 && dayIdx <= 2
-                      return (
-                        <motion.div
-                          key={dayIdx}
-                          initial={{ opacity: 0, scale: 0 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: (weekIdx * 7 + dayIdx) * 0.02 }}
-                          className={`
-                            flex-1 aspect-square rounded-md ${HEATMAP_COLORS[val]}
-                            ${isCurrentStreak ? 'ring-1 ring-neon-cyan/50' : ''}
-                            hover:ring-1 hover:ring-white/30 transition-all cursor-pointer
-                          `}
-                          title={`${DAY_LABELS[dayIdx]} - أسبوع ${weekIdx + 1}`}
-                        />
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
-              {/* Streak info */}
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5">
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-neon-orange animate-heartbeat" />
-                  <span className="text-sm font-semibold text-neon-orange">{user.streak} يوم متتالي</span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  أعلى تتابع: {user.maxStreak} يوم 🔥
-                </span>
-              </div>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* ═══════════════════════════════════════════════════
-            6. LEARNING PATH - CURRENT COURSES
+            5. LEARNING PATH - CURRENT COURSES
         ═══════════════════════════════════════════════════ */}
         <motion.section variants={itemVariants}>
           <div className="flex items-center justify-between mb-4">
@@ -557,10 +579,10 @@ export function ProfilePage() {
                   </div>
                   {/* Course info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-white truncate">{course.titleAr}</h3>
+                    <h3 className="text-sm font-bold text-foreground truncate">{course.titleAr}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{course.instructor} · {course.duration}</p>
                     <div className="mt-2 flex items-center gap-3">
-                      <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                      <div className="flex-1 h-2 rounded-full bg-muted/30 overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${courseProgress.find(p => p.courseId === course.id)?.progress || 0}%` }}
@@ -598,7 +620,7 @@ export function ProfilePage() {
             <Settings className="h-5 w-5 text-muted-foreground" />
             الإعدادات
           </h2>
-          <div className="glass-card divide-y divide-white/5">
+          <div className="glass-card divide-y divide-border">
             {settingsItems.map((item, i) => (
               <motion.button
                 key={item.label}
@@ -606,13 +628,14 @@ export function ProfilePage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
                 whileHover={{ backgroundColor: 'rgba(0,245,255,0.03)' }}
+                onClick={item.action}
                 className="w-full flex items-center gap-4 p-4 text-right transition-colors"
               >
                 <div className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center ${item.color}`}>
                   {item.icon}
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm font-semibold text-white">{item.label}</span>
+                  <span className="text-sm font-semibold text-foreground">{item.label}</span>
                   {item.labelEn && (
                     <p className="text-xs text-muted-foreground">{item.labelEn}</p>
                   )}
@@ -665,7 +688,7 @@ export function ProfilePage() {
                     {selectedBadge.icon}
                   </motion.div>
                   <div className="text-center">
-                    <h3 className="text-lg font-bold text-white">{selectedBadge.nameAr}</h3>
+                    <h3 className="text-lg font-bold text-foreground">{selectedBadge.nameAr}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{selectedBadge.description}</p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -678,7 +701,7 @@ export function ProfilePage() {
                         مكتسبة
                       </span>
                     ) : (
-                      <span className="text-xs px-3 py-1 rounded-full bg-white/5 text-muted-foreground font-semibold flex items-center gap-1">
+                      <span className="text-xs px-3 py-1 rounded-full bg-muted/30 text-muted-foreground font-semibold flex items-center gap-1">
                         <Lock className="w-3 h-3" />
                         مقفلة
                       </span>
@@ -695,6 +718,192 @@ export function ProfilePage() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* ═══════════════════════════════════════════════════
+          PROFILE EDIT DIALOG
+      ═══════════════════════════════════════════════════ */}
+      <Dialog open={editingProfile} onOpenChange={setEditingProfile}>
+        <DialogContent className="glass-strong border-neon-cyan/20 max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-center flex items-center justify-center gap-2">
+              <Pencil className="w-5 h-5 text-neon-cyan" />
+              تعديل الملف الشخصي
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 py-4">
+            {/* Name field */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">الاسم</label>
+              <div className="relative">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="bg-muted/20 border-border focus:border-neon-cyan/50 focus:ring-neon-cyan/20 text-foreground placeholder:text-muted-foreground/50"
+                  placeholder="أدخل اسمك"
+                />
+              </div>
+            </div>
+
+            {/* Specialty field */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">التخصص الطبي</label>
+              <div className="relative">
+                <Input
+                  value={editSpecialty}
+                  onChange={(e) => setEditSpecialty(e.target.value)}
+                  className="bg-muted/20 border-border focus:border-neon-cyan/50 focus:ring-neon-cyan/20 text-foreground placeholder:text-muted-foreground/50"
+                  placeholder="مثال: طب عام، جراحة، أطفال..."
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                onClick={handleSaveProfile}
+                disabled={editSaving}
+                className="flex-1 bg-gradient-to-l from-neon-cyan to-neon-blue text-med-dark font-bold hover:opacity-90 transition-opacity"
+              >
+                {editSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    جارٍ الحفظ...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 ml-2" />
+                    حفظ التغييرات
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => setEditingProfile(false)}
+                variant="outline"
+                className="border-border text-muted-foreground hover:bg-muted/30"
+              >
+                إلغاء
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════════════
+          NOTIFICATIONS DIALOG
+      ═══════════════════════════════════════════════════ */}
+      <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
+        <DialogContent className="glass-strong border-neon-purple/20 max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-center flex items-center justify-center gap-2">
+              <Bell className="w-5 h-5 text-neon-purple" />
+              الإشعارات
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-96">
+            <div className="space-y-2 py-2">
+              {notifications.length > 0 ? (
+                notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className={`p-3 rounded-xl border transition-all ${
+                      notif.read
+                        ? 'bg-muted/20 border-border opacity-60'
+                        : 'bg-neon-purple/5 border-neon-purple/15'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
+                        notif.type === 'success' ? 'bg-neon-green' :
+                        notif.type === 'warning' ? 'bg-neon-orange' :
+                        'bg-neon-cyan'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-foreground">{notif.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-1 leading-5">{notif.message}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge className={`text-[9px] ${
+                            notif.type === 'success' ? 'bg-neon-green/10 text-neon-green border-neon-green/20' :
+                            notif.type === 'warning' ? 'bg-neon-orange/10 text-neon-orange border-neon-orange/20' :
+                            'bg-neon-cyan/10 text-neon-cyan border-neon-cyan/20'
+                          }`}>
+                            {notif.type === 'success' ? 'نجاح' : notif.type === 'warning' ? 'تحذير' : 'معلومات'}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(notif.timestamp).toLocaleDateString('ar-EG')}
+                          </span>
+                          {!notif.read && (
+                            <Badge className="text-[9px] bg-neon-purple/10 text-neon-purple border-neon-purple/20">
+                              جديد
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center">
+                  <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+                  <p className="text-sm text-muted-foreground">لا توجد إشعارات</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════════════
+          PRIVACY DIALOG
+      ═══════════════════════════════════════════════════ */}
+      <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
+        <DialogContent className="glass-strong border-neon-green/20 max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-center flex items-center justify-center gap-2">
+              <Shield className="w-5 h-5 text-neon-green" />
+              سياسة الخصوصية
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {privacyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-neon-green animate-spin" />
+                <span className="mr-3 text-sm text-muted-foreground">جارٍ التحميل...</span>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-neon-green/5 border border-neon-green/10">
+                <p className="text-sm text-muted-foreground leading-7">{privacyText}</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════════════
+          ABOUT APP DIALOG
+      ═══════════════════════════════════════════════════ */}
+      <Dialog open={showAbout} onOpenChange={setShowAbout}>
+        <DialogContent className="glass-strong border-neon-cyan/20 max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-center flex items-center justify-center gap-2">
+              <Info className="w-5 h-5 text-neon-cyan" />
+              حول التطبيق
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {aboutLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-neon-cyan animate-spin" />
+                <span className="mr-3 text-sm text-muted-foreground">جارٍ التحميل...</span>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/10">
+                <p className="text-sm text-muted-foreground leading-7">{aboutText}</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </motion.div>
   )
 }

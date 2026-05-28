@@ -305,10 +305,14 @@
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .light .gradient-border::before {
   background: linear-gradient(135deg, #2563EB, #8B5CF6, #EC4899);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Pulse Animations */

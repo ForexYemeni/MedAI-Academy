@@ -512,7 +512,7 @@ export function QuizzesPage() {
   )
 
   const currentDifficulty = useMemo(
-    () => (currentQuestion ? DIFFICULTY_MAP[currentQuestion.difficulty] : DIFFICULTY_MAP.easy),
+    () => (currentQuestion ? (DIFFICULTY_MAP[currentQuestion?.difficulty ?? 'easy'] ?? DIFFICULTY_MAP.easy) : DIFFICULTY_MAP.easy),
     [currentQuestion]
   )
 
@@ -593,7 +593,7 @@ export function QuizzesPage() {
 
                     <div className="relative z-10">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className={`rounded-xl bg-white/10 p-2.5 border ${mode.borderColor} group-hover:bg-white/15 transition-colors`}>
+                        <div className={`rounded-xl bg-muted/50 p-2.5 border ${mode.borderColor} group-hover:bg-muted transition-colors`}>
                           <span className="text-neon-cyan">{mode.icon}</span>
                         </div>
                         <Badge variant="outline" className={`text-[10px] ${mode.borderColor} ${mode.gradient.split(' ')[0].replace('/20', '/30').replace('from-', 'bg-').replace('from-', '')}`}>
@@ -647,7 +647,7 @@ export function QuizzesPage() {
                 <div className="flex items-center justify-between mb-3">
                   <button
                     onClick={resetQuiz}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white transition-colors"
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <ChevronRight className="h-4 w-4" />
                     خروج
@@ -687,7 +687,7 @@ export function QuizzesPage() {
 
                 {/* Progress Bar */}
                 <div className="relative">
-                  <div className="h-3 rounded-full bg-white/5 overflow-hidden">
+                  <div className="h-3 rounded-full bg-muted/50 overflow-hidden">
                     <motion.div
                       className="h-full rounded-full bg-gradient-to-l from-neon-cyan to-neon-blue"
                       initial={{ width: 0 }}
@@ -695,7 +695,7 @@ export function QuizzesPage() {
                       transition={{ duration: 0.5, ease: 'easeOut' }}
                     />
                   </div>
-                  <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-foreground">
                     {currentQuizIndex + 1} / {activeQuestions.length}
                   </span>
                 </div>
@@ -726,12 +726,14 @@ export function QuizzesPage() {
                   )}
                 </AnimatePresence>
 
+                {/* Content wrapper above pseudo-element */}
+                <div className="relative z-10">
                 {/* Category + Difficulty badges */}
                 <div className="flex items-center gap-2 mb-4">
                   <Badge variant="outline" className={`text-xs ${currentDifficulty.bg} ${currentDifficulty.color} ${currentDifficulty.border}`}>
                     {currentDifficulty.label}
                   </Badge>
-                  <Badge variant="outline" className="text-xs bg-white/5 text-muted-foreground border-white/10">
+                  <Badge variant="outline" className="text-xs bg-muted/50 text-muted-foreground border-border">
                     <span className={currentCategory.color}>{currentCategory.label}</span>
                   </Badge>
                 </div>
@@ -748,7 +750,7 @@ export function QuizzesPage() {
                     const isSelected = selectedAnswer === idx
                     const isTimeUp = selectedAnswer === -1 && isCorrect
 
-                    let optionClass = 'glass-card border-white/5 hover:border-neon-cyan/30 hover:bg-neon-cyan/5'
+                    let optionClass = 'glass-card border-border hover:border-neon-cyan/30 hover:bg-neon-cyan/5'
                     let glowStyle = {}
 
                     if (selectedAnswer !== null) {
@@ -759,7 +761,7 @@ export function QuizzesPage() {
                         optionClass = 'border-red-500/50 bg-red-500/10'
                         glowStyle = { boxShadow: '0 0 20px rgba(239,68,68,0.2)' }
                       } else {
-                        optionClass = 'border-white/5 opacity-50'
+                        optionClass = 'border-border opacity-50'
                       }
                     }
 
@@ -780,7 +782,7 @@ export function QuizzesPage() {
                             ? 'border-neon-green/50 bg-neon-green/20 text-neon-green'
                             : selectedAnswer !== null && isSelected && !isCorrect
                             ? 'border-red-500/50 bg-red-500/20 text-red-400'
-                            : 'border-white/10 bg-white/5 text-muted-foreground'
+                            : 'border-border bg-muted/50 text-muted-foreground'
                         }`}>
                           {optionLabels[idx]}
                         </span>
@@ -803,13 +805,14 @@ export function QuizzesPage() {
                       initial={{ opacity: 0, y: 20, scale: 0.5 }}
                       animate={{ opacity: 1, y: -10, scale: 1 }}
                       exit={{ opacity: 0, y: -30 }}
-                      className="absolute top-4 left-4 flex items-center gap-1 rounded-full bg-neon-green/20 px-3 py-1 border border-neon-green/30"
+                      className="absolute top-4 left-4 flex items-center gap-1 rounded-full bg-neon-green/20 px-3 py-1 border border-neon-green/30 z-30"
                     >
                       <Zap className="h-4 w-4 text-neon-green" />
                       <span className="text-sm font-bold text-neon-green">+{QUIZ_MODES.find(m => m.id === selectedMode)?.xpPerQuestion ?? 10} XP</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
+                </div>{/* end content wrapper z-10 */}
               </motion.div>
 
               {/* Explanation */}
@@ -879,7 +882,7 @@ export function QuizzesPage() {
                 <div className="flex items-center justify-between">
                   <button
                     onClick={resetQuiz}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white transition-colors"
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <ChevronRight className="h-4 w-4" />
                     خروج
@@ -896,7 +899,7 @@ export function QuizzesPage() {
                     </span>
                   </div>
                 </div>
-                <div className="mt-3 h-2 rounded-full bg-white/5 overflow-hidden">
+                <div className="mt-3 h-2 rounded-full bg-muted/50 overflow-hidden">
                   <motion.div
                     className="h-full rounded-full bg-gradient-to-l from-neon-pink to-neon-purple"
                     animate={{ width: `${((flashcardIndex + 1) / activeQuestions.length) * 100}%` }}
@@ -922,9 +925,10 @@ export function QuizzesPage() {
                 >
                   {/* Front - Question */}
                   <div
-                    className="glass-card gradient-border p-8 min-h-[320px] flex flex-col items-center justify-center text-center"
+                    className="glass-card gradient-border p-8 min-h-[320px] flex flex-col items-center justify-center text-center relative"
                     style={{ backfaceVisibility: 'hidden' }}
                   >
+                    <div className="relative z-10">
                     <Badge variant="outline" className={`text-xs mb-4 ${currentDifficulty.bg} ${currentDifficulty.color} ${currentDifficulty.border}`}>
                       {activeQuestions[flashcardIndex]?.difficulty === 'easy' ? 'سهل' : activeQuestions[flashcardIndex]?.difficulty === 'medium' ? 'متوسط' : 'صعب'}
                     </Badge>
@@ -938,6 +942,7 @@ export function QuizzesPage() {
                       <Eye className="h-4 w-4" />
                       اضغط لعرض الإجابة
                     </button>
+                    </div>
                   </div>
 
                   {/* Back - Answer */}
@@ -945,9 +950,10 @@ export function QuizzesPage() {
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="absolute inset-0 glass-card gradient-border p-8 min-h-[320px] flex flex-col items-center justify-center text-center"
+                      className="absolute inset-0 glass-card gradient-border p-8 min-h-[320px] flex flex-col items-center justify-center text-center relative"
                       style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                     >
+                      <div className="relative z-10">
                       <div className="mb-4">
                         <CheckCircle2 className="h-8 w-8 text-neon-green mx-auto mb-3" />
                         <p className="text-lg font-bold text-neon-green mb-2">
@@ -957,6 +963,7 @@ export function QuizzesPage() {
                       <p className="text-sm text-muted-foreground leading-6 mb-6">
                         {activeQuestions[flashcardIndex]?.explanation}
                       </p>
+                      </div>
                     </motion.div>
                   )}
                 </motion.div>
@@ -1100,7 +1107,7 @@ export function QuizzesPage() {
                     <Button
                       onClick={resetQuiz}
                       variant="outline"
-                      className="flex-1 h-12 border-white/10 text-muted-foreground hover:bg-white/5 rounded-xl"
+                      className="flex-1 h-12 border-border text-muted-foreground hover:bg-muted rounded-xl"
                     >
                       <Home className="h-4 w-4 ml-2" />
                       العودة
@@ -1126,7 +1133,7 @@ export function QuizzesPage() {
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => setPhase('results')}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white transition-colors"
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <ChevronRight className="h-4 w-4" />
                     العودة للنتائج
@@ -1147,34 +1154,34 @@ export function QuizzesPage() {
                 className="glass-card p-6 mb-4"
               >
                 <div className="flex items-center gap-2 mb-4">
-                  <Badge variant="outline" className={`text-xs ${DIFFICULTY_MAP[activeQuestions[currentQuizIndex].difficulty].bg} ${DIFFICULTY_MAP[activeQuestions[currentQuizIndex].difficulty].color} ${DIFFICULTY_MAP[activeQuestions[currentQuizIndex].difficulty].border}`}>
-                    {DIFFICULTY_MAP[activeQuestions[currentQuizIndex].difficulty].label}
+                  <Badge variant="outline" className={`text-xs ${(DIFFICULTY_MAP[activeQuestions[currentQuizIndex]?.difficulty ?? 'easy'] ?? DIFFICULTY_MAP.easy).bg} ${(DIFFICULTY_MAP[activeQuestions[currentQuizIndex]?.difficulty ?? 'easy'] ?? DIFFICULTY_MAP.easy).color} ${(DIFFICULTY_MAP[activeQuestions[currentQuizIndex]?.difficulty ?? 'easy'] ?? DIFFICULTY_MAP.easy).border}`}>
+                    {(DIFFICULTY_MAP[activeQuestions[currentQuizIndex]?.difficulty ?? 'easy'] ?? DIFFICULTY_MAP.easy).label}
                   </Badge>
-                  <Badge variant="outline" className="text-xs bg-white/5 text-muted-foreground border-white/10">
-                    {(CATEGORY_MAP[activeQuestions[currentQuizIndex].category] ?? CATEGORY_MAP.general).label}
+                  <Badge variant="outline" className="text-xs bg-muted/50 text-muted-foreground border-border">
+                    {(CATEGORY_MAP[activeQuestions[currentQuizIndex]?.category ?? 'general'] ?? CATEGORY_MAP.general).label}
                   </Badge>
                 </div>
 
                 <h2 className="text-lg font-bold leading-8 mb-6">
-                  {activeQuestions[currentQuizIndex].question}
+                  {activeQuestions[currentQuizIndex]?.question ?? ''}
                 </h2>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                  {activeQuestions[currentQuizIndex].options.map((option, idx) => {
-                    const isCorrect = idx === activeQuestions[currentQuizIndex].correctIndex
+                  {(activeQuestions[currentQuizIndex]?.options ?? []).map((option, idx) => {
+                    const isCorrect = idx === activeQuestions[currentQuizIndex]?.correctIndex
                     return (
                       <div
                         key={idx}
                         className={`rounded-xl p-4 border flex items-center gap-3 ${
                           isCorrect
                             ? 'border-neon-green/50 bg-neon-green/10'
-                            : 'border-white/5 bg-white/3'
+                            : 'border-border bg-muted/30'
                         }`}
                       >
                         <span className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs font-bold shrink-0 ${
                           isCorrect
                             ? 'border-neon-green/50 bg-neon-green/20 text-neon-green'
-                            : 'border-white/10 bg-white/5 text-muted-foreground'
+                            : 'border-border bg-muted/50 text-muted-foreground'
                         }`}>
                           {['أ', 'ب', 'ج', 'د'][idx]}
                         </span>
@@ -1187,7 +1194,7 @@ export function QuizzesPage() {
 
                 <div className="rounded-xl bg-neon-cyan/5 border border-neon-cyan/15 p-3">
                   <p className="text-xs font-semibold text-neon-cyan mb-1">الشرح:</p>
-                  <p className="text-xs text-muted-foreground leading-5">{activeQuestions[currentQuizIndex].explanation}</p>
+                  <p className="text-xs text-muted-foreground leading-5">{activeQuestions[currentQuizIndex]?.explanation ?? ''}</p>
                 </div>
               </motion.div>
 

@@ -154,21 +154,21 @@ function SidebarContent() {
         <div className="space-y-3">
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-300">طب الطوارئ</span>
+              <span className="text-foreground">طب الطوارئ</span>
               <span className="text-neon-cyan">65%</span>
             </div>
             <Progress value={65} className="h-2 bg-slate-800 [&>div]:bg-gradient-to-r [&>div]:from-neon-cyan [&>div]:to-neon-blue" />
           </div>
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-300">أمراض القلب</span>
+              <span className="text-foreground">أمراض القلب</span>
               <span className="text-neon-purple">30%</span>
             </div>
             <Progress value={30} className="h-2 bg-slate-800 [&>div]:bg-gradient-to-r [&>div]:from-neon-purple [&>div]:to-neon-pink" />
           </div>
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-300">طب الأطفال</span>
+              <span className="text-foreground">طب الأطفال</span>
               <span className="text-neon-green">85%</span>
             </div>
             <Progress value={85} className="h-2 bg-slate-800 [&>div]:bg-gradient-to-r [&>div]:from-neon-green [&>div]:to-neon-cyan" />
@@ -185,7 +185,7 @@ function SidebarContent() {
         <div className="space-y-2">
           {weakAreas.map((area) => (
             <div key={area.nameEn} className="flex items-center justify-between">
-              <span className="text-xs text-slate-300">{area.name}</span>
+              <span className="text-xs text-foreground">{area.name}</span>
               <div className="flex items-center gap-2">
                 <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                   <div
@@ -224,8 +224,8 @@ function SidebarContent() {
           {studyStats.map((stat) => (
             <div key={stat.label} className="bg-slate-800/50 rounded-lg p-2.5 text-center border border-slate-700/50">
               <stat.icon className="w-3.5 h-3.5 mx-auto mb-1 text-neon-cyan" />
-              <div className="text-sm font-bold text-white">{stat.value}</div>
-              <div className="text-[10px] text-slate-400">{stat.label}</div>
+              <div className="text-sm font-bold text-foreground">{stat.value}</div>
+              <div className="text-[10px] text-muted-foreground">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -240,7 +240,7 @@ function SidebarContent() {
         <div className="space-y-3">
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-300">الرسائل اليومية</span>
+              <span className="text-foreground">الرسائل اليومية</span>
               <span className="text-neon-cyan">12 / 50</span>
             </div>
             <Progress value={24} className="h-2 bg-slate-800 [&>div]:bg-neon-cyan" />
@@ -248,13 +248,13 @@ function SidebarContent() {
           <div className="flex items-center justify-between bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-2.5 border border-purple-500/20">
             <div className="flex items-center gap-2">
               <Crown className="w-4 h-4 text-neon-purple" />
-              <span className="text-xs text-slate-300">اشتراك مميز</span>
+              <span className="text-xs text-foreground">اشتراك مميز</span>
             </div>
             <Badge className="bg-neon-purple/20 text-neon-purple border-neon-purple/30 text-[10px]">
               {user.subscription === 'premium' ? 'بريميوم' : 'مجاني'}
             </Badge>
           </div>
-          <p className="text-[10px] text-slate-500 text-center">
+          <p className="text-[10px] text-muted-foreground text-center">
             رسائل غير محدودة مع الاشتراك المميز ✨
           </p>
         </div>
@@ -434,7 +434,7 @@ export function AITutorPage() {
             </div>
 
             <div>
-              <h1 className="text-sm font-bold text-white neon-text">
+              <h1 className="text-sm font-bold text-foreground neon-text">
                 المساعد الطبي الذكي 🧠
               </h1>
               <p className="text-[10px] text-neon-green flex items-center gap-1">
@@ -450,7 +450,7 @@ export function AITutorPage() {
               variant="ghost"
               size="icon"
               onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-              className="text-slate-400 hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8"
+              className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8"
               title={language === 'ar' ? 'Switch to English' : 'التبديل للعربية'}
             >
               <Globe className="w-4 h-4" />
@@ -461,7 +461,7 @@ export function AITutorPage() {
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-slate-400 hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 hidden lg:flex"
+              className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 hidden lg:flex"
             >
               <BarChart3 className="w-4 h-4" />
             </Button>
@@ -472,14 +472,14 @@ export function AITutorPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-slate-400 hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 lg:hidden"
+                  className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 lg:hidden"
                 >
                   <BarChart3 className="w-4 h-4" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="bg-med-dark border-med-border p-0 w-80">
                 <SheetHeader className="glass-strong border-b border-med-border p-4">
-                  <SheetTitle className="text-white text-sm flex items-center gap-2">
+                  <SheetTitle className="text-foreground text-sm flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-neon-purple" />
                     إحصائيات التعلم
                   </SheetTitle>
@@ -495,7 +495,7 @@ export function AITutorPage() {
               variant="ghost"
               size="icon"
               onClick={handleClearChat}
-              className="text-slate-400 hover:text-red-400 hover:bg-red-400/10 h-8 w-8"
+              className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10 h-8 w-8"
               title="مسح المحادثة"
             >
               <Trash2 className="w-4 h-4" />
@@ -547,7 +547,7 @@ export function AITutorPage() {
                   >
                     {/* Content */}
                     <div className={`text-sm leading-relaxed ${
-                      msg.role === 'user' ? 'text-white' : 'text-slate-200'
+                      msg.role === 'user' ? 'text-foreground' : 'text-foreground'
                     }`}>
                       {msg.role === 'assistant'
                         ? formatAIText(msg.content)
@@ -556,8 +556,8 @@ export function AITutorPage() {
 
                     {/* Timestamp */}
                     <div className="flex items-center gap-1 mt-2">
-                      <Clock className="w-2.5 h-2.5 text-slate-500" />
-                      <span className="text-[10px] text-slate-500">
+                      <Clock className="w-2.5 h-2.5 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground">
                         {formatTime(msg.timestamp)}
                       </span>
                     </div>
@@ -584,7 +584,7 @@ export function AITutorPage() {
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleQuickAction(action.prompt)}
                   disabled={aiLoading}
-                  className="flex-shrink-0 glass-card px-3 py-1.5 text-xs text-slate-300 hover:text-neon-cyan hover:border-neon-cyan/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="flex-shrink-0 glass-card px-3 py-1.5 text-xs text-foreground hover:text-neon-cyan hover:border-neon-cyan/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   {action.label}
                 </motion.button>
@@ -611,7 +611,7 @@ export function AITutorPage() {
                   className={`h-9 w-9 rounded-xl transition-all ${
                     isListening
                       ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 animate-pulse'
-                      : 'text-slate-400 hover:text-neon-cyan hover:bg-neon-cyan/10'
+                      : 'text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10'
                   }`}
                   title={isListening ? 'إيقاف التسجيل' : 'إدخال صوتي'}
                 >
@@ -637,7 +637,7 @@ export function AITutorPage() {
                     }}
                     placeholder="اسأل أي سؤال طبي..."
                     disabled={aiLoading}
-                    className="w-full bg-transparent text-sm text-white placeholder-slate-500 outline-none disabled:opacity-50 py-2"
+                    className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50 py-2"
                     dir="rtl"
                   />
                 </div>
@@ -646,7 +646,7 @@ export function AITutorPage() {
                 <span className={`text-[10px] font-mono ${
                   input.length > MAX_CHARS * 0.8
                     ? 'text-neon-orange'
-                    : 'text-slate-600'
+                    : 'text-muted-foreground'
                 }`}>
                   {input.length}/{MAX_CHARS}
                 </span>
@@ -666,7 +666,7 @@ export function AITutorPage() {
             </div>
 
             {/* Disclaimer */}
-            <p className="text-[9px] text-slate-600 text-center mt-2">
+            <p className="text-[9px] text-muted-foreground text-center mt-2">
               ⚕️ المساعد الطبي الذكي للأغراض التعليمية فقط - لا يُغني عن الاستشارة الطبية المتخصصة
             </p>
           </div>
@@ -685,7 +685,7 @@ export function AITutorPage() {
           >
             <div className="w-80 h-full flex flex-col">
               <div className="glass-strong px-4 py-3 flex items-center justify-between border-b border-med-border">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-neon-purple" />
                   إحصائيات التعلم
                 </h2>
@@ -693,7 +693,7 @@ export function AITutorPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() => setSidebarOpen(false)}
-                  className="text-slate-400 hover:text-white h-7 w-7"
+                  className="text-muted-foreground hover:text-foreground h-7 w-7"
                 >
                   <X className="w-4 h-4" />
                 </Button>

@@ -20,14 +20,25 @@ export async function GET(req: NextRequest) {
     // Get user enrollment status if token is provided
     const authHeader = req.headers.get('Authorization')
     let enrolledCourseIds: Set<string> = new Set()
+    let enrollmentMap: Map<string, any> = new Map()
     if (authHeader) {
       try {
         const token = authHeader.replace('Bearer ', '')
         const { verifyToken } = await import('@/lib/auth')
         const authUser = verifyToken(token)
         if (authUser) {
-          const enrollments = await db.collection('enrollments').find({ userId: authUser.id }).toArray()
+          // Query enrollments matching both string and ObjectId userId formats
+          const ObjectId = (await import('mongodb')).ObjectId
+          const userIdQueries = [authUser.id]
+          try { if (ObjectId.isValid(authUser.id)) userIdQueries.push(new ObjectId(authUser.id)) } catch {}
+          const enrollments = await db.collection('enrollments').find({
+            userId: { $in: userIdQueries }
+          }).toArray()
           enrolledCourseIds = new Set(enrollments.map((e: any) => e.courseId.toString()))
+          // Build enrollment map for gift info
+          for (const e of enrollments) {
+            enrollmentMap.set(e.courseId.toString(), e)
+          }
         }
       } catch { /* ignore auth errors */ }
     }
@@ -83,12 +94,19 @@ export async function GET(req: NextRequest) {
           const { content, videoUrl, ...metaOnly } = lesson
           return metaOnly
         })
+
+        // Check if this course was gifted by admin
+        const enrollment = enrollmentMap.get(course._id.toString())
+        const isGifted = enrollment?.giftSource === 'admin'
+
         return {
           ...course,
           id: course._id.toString(),
           students: studentCount || course.students || 0,
           lessonsData: filteredLessonsData,
           isEnrolled: isEnrolled || isCourseFree,
+          isGifted,
+          giftedAt: isGifted ? (enrollment.giftedAt?.toISOString?.() || enrollment.giftedAt) : null,
         }
       })
     )

@@ -102,15 +102,17 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
   const progress = courseProgress.find(p => p.courseId === course.id)
   const isEnrolled = !!progress
   const hasProgress = isEnrolled && progress.progress > 0
-  const isLockedPremium = course.isPremium && course.price > 0 && !isEnrolled
+  const isLockedPremium = !course.isGifted && course.isPremium && course.price > 0 && !isEnrolled
 
   const handleClick = useCallback(() => {
-    if (isLockedPremium && onPaymentClick) {
+    if (course.isGifted && onPaymentClick) {
+      onPaymentClick(course)
+    } else if (isLockedPremium && onPaymentClick) {
       onPaymentClick(course)
     } else {
       openCourse(course.id)
     }
-  }, [isLockedPremium, onPaymentClick, course, openCourse])
+  }, [course.isGifted, isLockedPremium, onPaymentClick, course, openCourse])
 
   return (
     <motion.div
@@ -130,8 +132,8 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
           {/* Animated mesh pattern */}
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-2 right-4 text-4xl animate-float">{icon}</div>
-            <div className="absolute bottom-2 left-4 w-16 h-16 rounded-full border border-white/10" />
-            <div className="absolute top-8 left-12 w-8 h-8 rounded-full border border-white/5" />
+            <div className="absolute bottom-2 left-4 w-16 h-16 rounded-full border border-border" />
+            <div className="absolute top-8 left-12 w-8 h-8 rounded-full border border-border" />
           </div>
 
           {/* Level badge */}
@@ -142,7 +144,7 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
           </div>
 
           {/* Premium badge */}
-          {course.isPremium && (
+          {course.isPremium && !course.isGifted && (
             <div className="absolute top-3 left-3">
               <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 font-medium">
                 <Crown className="w-3 h-3" />
@@ -151,14 +153,23 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
             </div>
           )}
 
+          {/* Gift badge */}
+          {course.isGifted && (
+            <div className="absolute top-3 left-3">
+              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 font-medium">
+                🎁 هدية من الإدارة
+              </span>
+            </div>
+          )}
+
           {/* Lock overlay for paid courses */}
           {isLockedPremium && (
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-10">
               <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-                  <Lock className="w-6 h-6 text-white/80" />
+                <div className="w-12 h-12 rounded-full bg-muted/50 border border-border flex items-center justify-center">
+                  <Lock className="w-6 h-6 text-muted-foreground" />
                 </div>
-                <span className="text-xs font-bold text-white/80">{course.price.toLocaleString()} ر.ي</span>
+                <span className="text-xs font-bold text-muted-foreground">{course.price.toLocaleString()} ر.ي</span>
               </div>
             </div>
           )}
@@ -178,7 +189,7 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
 
         {/* Content */}
         <div className="p-4 space-y-2.5">
-          <h3 className="text-sm font-bold text-white leading-relaxed line-clamp-2 min-h-[2.5rem]">
+          <h3 className="text-sm font-bold text-foreground leading-relaxed line-clamp-2 min-h-[2.5rem]">
             {course.titleAr}
           </h3>
 
@@ -215,7 +226,7 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
                 <span className="text-neon-cyan">التقدم</span>
                 <span className="text-muted-foreground">{progress.progress}%</span>
               </div>
-              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${progress.progress}%` }}
@@ -228,7 +239,9 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
 
           {/* Price */}
           <div className="flex items-center justify-between pt-1">
-            {course.price === 0 ? (
+            {course.isGifted ? (
+              <span className="text-sm font-bold text-purple-400">🎁 هدية مجانية</span>
+            ) : course.price === 0 ? (
               <span className="text-sm font-bold text-emerald-400">مجاني</span>
             ) : (
               <span className="text-sm font-bold text-neon-cyan">{course.price.toLocaleString()} ر.ي</span>
@@ -238,7 +251,9 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()
-                if (isLockedPremium && onPaymentClick) {
+                if (course.isGifted && onPaymentClick) {
+                  onPaymentClick(course)
+                } else if (isLockedPremium && onPaymentClick) {
                   onPaymentClick(course)
                 } else {
                   openCourse(course.id)
@@ -246,7 +261,7 @@ function CourseCard({ course, index, onPaymentClick }: { course: Course; index: 
               }}
               className="h-7 text-xs text-neon-cyan hover:text-neon-cyan hover:bg-neon-cyan/10"
             >
-              {isLockedPremium ? `${course.price.toLocaleString()} ر.ي` : hasProgress ? 'متابعة' : isEnrolled ? 'ابدأ الدورة' : (course.price === 0 ? 'ابدأ مجاناً' : `${course.price.toLocaleString()} ر.ي`)}
+              {course.isGifted ? '🎁 هدية' : isLockedPremium ? `${course.price.toLocaleString()} ر.ي` : hasProgress ? 'متابعة' : isEnrolled ? 'ابدأ الدورة' : (course.price === 0 ? 'ابدأ مجاناً' : `${course.price.toLocaleString()} ر.ي`)}
             </Button>
           </div>
         </div>
@@ -288,8 +303,8 @@ function HorizontalCourseRow({
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
           {icon}
-          <h2 className="text-lg font-bold text-white">{title}</h2>
-          <Badge variant="secondary" className="text-[10px] bg-white/5 text-muted-foreground border-0">
+          <h2 className="text-lg font-bold text-foreground">{title}</h2>
+          <Badge variant="secondary" className="text-[10px] bg-muted/30 text-muted-foreground border-0">
             {courses.length} دورة
           </Badge>
         </div>
@@ -342,6 +357,37 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  const copyToClipboard = async (text: string, fieldId: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        throw new Error('clipboard not available')
+      }
+    } catch {
+      try {
+        const textArea = document.createElement('textarea')
+        textArea.value = text
+        textArea.setAttribute('readonly', '')
+        textArea.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        const success = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        if (!success) throw new Error('execCommand failed')
+      } catch {
+        prompt('انسخ الرقم:', text)
+        setCopiedField(fieldId)
+        setTimeout(() => setCopiedField(null), 2000)
+        return
+      }
+    }
+    setCopiedField(fieldId)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
 
   // Fetch payment methods on mount
   useEffect(() => {
@@ -414,21 +460,21 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 border-b border-white/10">
+        <div className="p-5 border-b border-border">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Lock className="h-5 w-5 text-neon-cyan" />
               شراء الدورة
             </h2>
             <button
               onClick={onClose}
-              className="h-8 w-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+              className="h-8 w-8 rounded-lg hover:bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="mt-3 p-3 rounded-xl bg-white/5">
-            <p className="font-bold text-white">{course.titleAr}</p>
+          <div className="mt-3 p-3 rounded-xl bg-muted/30">
+            <p className="font-bold text-foreground">{course.titleAr}</p>
             <p className="text-sm text-muted-foreground mt-1">{course.instructor}</p>
             <div className="flex items-center justify-between mt-2">
               <span className="text-neon-cyan font-bold text-lg">{course.price.toLocaleString()} ر.ي</span>
@@ -441,7 +487,7 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
           <div className="p-5 space-y-5">
             {/* Payment method selection */}
             <div>
-              <label className="text-sm font-medium mb-2 block text-white">اختر طريقة الدفع</label>
+              <label className="text-sm font-medium mb-2 block text-foreground">اختر طريقة الدفع</label>
               {paymentMethods.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">لا توجد طرق دفع متاحة حالياً</p>
               ) : (
@@ -453,10 +499,10 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
                       className={`w-full p-3 rounded-xl text-right transition-all ${
                         selectedMethod?._id === method._id
                           ? 'bg-neon-cyan/10 border border-neon-cyan/30'
-                          : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                          : 'bg-muted/30 border border-border hover:bg-muted/50'
                       }`}
                     >
-                      <p className="font-medium text-sm text-white">{method.name}</p>
+                      <p className="font-medium text-sm text-foreground">{method.name}</p>
                       <p className="text-xs text-muted-foreground mt-1">{method.type}</p>
                     </button>
                   ))}
@@ -464,21 +510,80 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
               )}
             </div>
 
-            {/* Selected method details */}
+            {/* Selected method details - Professional copyable fields */}
             {selectedMethod && (
-              <div className="p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15 space-y-2">
-                <p className="text-xs text-muted-foreground font-medium">تفاصيل التحويل:</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">رقم الحساب:</span>
-                  <span className="text-sm font-mono text-white" dir="ltr">{selectedMethod.accountNumber}</span>
+              <div className="p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15 space-y-3">
+                <p className="text-xs text-neon-cyan font-bold flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  تفاصيل التحويل
+                </p>
+                {/* Account Number - Copyable */}
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">رقم الحساب</p>
+                    <p className="text-sm font-mono text-foreground font-bold tracking-wide select-all" dir="ltr">{selectedMethod.accountNumber}</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(selectedMethod.accountNumber, 'accountNumber')}
+                    className={`shrink-0 mr-2 h-8 px-3 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                      copiedField === 'accountNumber'
+                        ? 'bg-neon-green/20 text-neon-green border border-neon-green/30'
+                        : 'bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 hover:bg-neon-cyan/20'
+                    }`}
+                  >
+                    {copiedField === 'accountNumber' ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        تم النسخ
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        نسخ
+                      </>
+                    )}
+                  </button>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">اسم الحساب:</span>
-                  <span className="text-sm text-white">{selectedMethod.accountName}</span>
+                {/* Account Name - Copyable */}
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">اسم الحساب</p>
+                    <p className="text-sm text-foreground font-bold select-all">{selectedMethod.accountName}</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(selectedMethod.accountName, 'accountName')}
+                    className={`shrink-0 mr-2 h-8 px-3 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                      copiedField === 'accountName'
+                        ? 'bg-neon-green/20 text-neon-green border border-neon-green/30'
+                        : 'bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 hover:bg-neon-cyan/20'
+                    }`}
+                  >
+                    {copiedField === 'accountName' ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        تم النسخ
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        نسخ
+                      </>
+                    )}
+                  </button>
                 </div>
                 {selectedMethod.instructions && (
-                  <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-white/5">{selectedMethod.instructions}</p>
+                  <div className="p-2.5 rounded-lg bg-muted/30 border border-border">
+                    <p className="text-[10px] text-muted-foreground mb-1">التعليمات</p>
+                    <p className="text-xs text-muted-foreground select-all">{selectedMethod.instructions}</p>
+                  </div>
                 )}
+                {/* Amount to pay */}
+                <div className="p-3 rounded-lg bg-gradient-to-l from-neon-cyan/10 to-neon-purple/10 border border-neon-cyan/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">المبلغ المطلوب تحويله</span>
+                    <span className="text-lg font-black text-neon-cyan">{course.price.toLocaleString()} ر.ي</span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -497,7 +602,7 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center h-36 rounded-xl border-2 border-dashed border-white/15 hover:border-neon-cyan/30 cursor-pointer transition-colors bg-white/[0.02]">
+                  <label className="flex flex-col items-center justify-center h-36 rounded-xl border-2 border-dashed border-border hover:border-neon-cyan/30 cursor-pointer transition-colors bg-muted/10">
                     <ImageIcon className="h-8 w-8 text-muted-foreground/40 mb-2" />
                     <span className="text-xs text-muted-foreground">اضغط لرفع لقطة الشاشة</span>
                     <span className="text-[10px] text-muted-foreground/50 mt-1">PNG, JPG حتى 5MB</span>
@@ -541,7 +646,7 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
             >
               <CheckCircle2 className="h-8 w-8 text-emerald-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-white mb-2">تم إرسال الطلب بنجاح!</h3>
+            <h3 className="text-lg font-bold text-foreground mb-2">تم إرسال الطلب بنجاح!</h3>
             <p className="text-sm text-muted-foreground mb-6">سيتم مراجعة الدفع وتفعيل الدورة خلال 24 ساعة</p>
             <Button
               onClick={onClose}
@@ -556,6 +661,212 @@ function PaymentModal({ course, onClose }: { course: Course; onClose: () => void
   )
 }
 
+// ─── Gift Celebration Modal ────────────────────────────────
+function GiftCelebrationModal({ course, onClose }: { course: Course; onClose: () => void }) {
+  const [phase, setPhase] = useState<'fireworks' | 'reveal' | 'ready'>('fireworks')
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase('reveal'), 1200)
+    const t2 = setTimeout(() => setPhase('ready'), 2800)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [])
+
+  const particles = useMemo(() => {
+    return Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      x: 50 + (Math.random() - 0.5) * 80,
+      y: 50 + (Math.random() - 0.5) * 80,
+      size: Math.random() * 6 + 2,
+      color: ['#a855f7', '#ec4899', '#f59e0b', '#06b6d4', '#10b981', '#f43f5e'][i % 6],
+      delay: Math.random() * 0.8,
+      duration: Math.random() * 1 + 1.2,
+    }))
+  }, [])
+
+  const giftDate = course.giftedAt ? new Date(course.giftedAt) : null
+  const dateStr = giftDate ? giftDate.toLocaleDateString('ar-YE', { year: 'numeric', month: 'long', day: 'numeric' }) : ''
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[200] flex items-center justify-center"
+      dir="rtl"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-black/80"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      />
+
+      {phase === 'fireworks' && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {particles.map((p) => (
+            <motion.div
+              key={p.id}
+              className="absolute rounded-full"
+              style={{
+                left: '50%', top: '50%',
+                width: p.size, height: p.size,
+                backgroundColor: p.color,
+                boxShadow: `0 0 ${p.size * 3}px ${p.color}`,
+              }}
+              initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
+              animate={{
+                x: (p.x - 50) * 4, y: (p.y - 50) * 4,
+                scale: [0, 1.5, 0], opacity: [1, 1, 0],
+              }}
+              transition={{ duration: p.duration, delay: p.delay, ease: 'easeOut' }}
+            />
+          ))}
+          <motion.div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.6) 0%, transparent 70%)' }}
+            initial={{ scale: 0, opacity: 1 }}
+            animate={{ scale: [0, 3, 5], opacity: [1, 0.5, 0] }}
+            transition={{ duration: 1.5, ease: 'easeOut' }}
+          />
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2"
+              style={{ borderColor: ['#a855f7', '#ec4899', '#06b6d4'][i] }}
+              initial={{ scale: 0, opacity: 1 }}
+              animate={{ scale: [0, 30, 50], opacity: [1, 0.4, 0] }}
+              transition={{ duration: 1.8, delay: i * 0.15, ease: 'easeOut' }}
+            />
+          ))}
+        </div>
+      )}
+
+      <motion.div
+        className="relative z-10 w-full max-w-md mx-4"
+        initial={{ scale: 0.3, opacity: 0, y: 40 }}
+        animate={{
+          scale: phase === 'fireworks' ? 0.3 : 1,
+          opacity: phase === 'fireworks' ? 0 : 1,
+          y: phase === 'fireworks' ? 40 : 0,
+        }}
+        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+      >
+        <div className="relative overflow-hidden rounded-3xl border border-purple-500/30" style={{
+          background: 'linear-gradient(135deg, rgba(88,28,135,0.4) 0%, rgba(30,20,60,0.95) 30%, rgba(20,15,40,0.98) 100%)',
+        }}>
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {phase !== 'fireworks' && Array.from({ length: 20 }, (_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1 h-1 rounded-full bg-purple-300/50"
+                style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%` }}
+                animate={{ opacity: [0, 1, 0], scale: [0, 1, 0] }}
+                transition={{ duration: Math.random() * 2 + 1, repeat: Infinity, delay: Math.random() * 2 }}
+              />
+            ))}
+          </div>
+
+          <div className="h-1 w-full bg-gradient-to-l from-purple-500 via-pink-500 to-cyan-500" />
+
+          <div className="p-8 text-center space-y-6">
+            <motion.div
+              className="relative inline-block"
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{
+                scale: phase === 'ready' ? [1, 1.15, 1] : 1,
+                rotate: phase === 'ready' ? [0, 5, -5, 0] : 0,
+              }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="text-7xl">🎁</div>
+              <motion.div
+                className="absolute inset-0 -m-4 rounded-full border-2 border-purple-400/30"
+                animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+              <motion.div
+                className="absolute inset-0 -m-8 rounded-full border border-pink-400/20"
+                animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
+                transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
+              />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: phase === 'fireworks' ? 0 : 1, y: phase === 'fireworks' ? 10 : 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <h2 className="text-2xl font-black bg-gradient-to-r from-purple-300 via-pink-300 to-cyan-300 bg-clip-text text-transparent mb-2">
+                🎊 هدية خاصة من الإدارة! 🎊
+              </h2>
+              <p className="text-purple-200/70 text-sm">لقد حصلت على هذه الدورة كهدية مجانية</p>
+            </motion.div>
+
+            <motion.div
+              className="relative rounded-2xl p-4 text-right"
+              style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(236,72,153,0.1) 100%)' }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: phase === 'fireworks' ? 0 : 1, scale: phase === 'fireworks' ? 0.9 : 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-l from-purple-500/50 via-pink-500/50 to-cyan-500/50" />
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-2xl shrink-0">🎁</div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-foreground text-base leading-relaxed">{course.titleAr}</h3>
+                  {dateStr && (
+                    <p className="text-xs text-purple-300/60 mt-1 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      أُهديت في {dateStr}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-[10px] px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-medium">🎁 هدية من الإدارة</span>
+                <span className="text-[10px] px-2.5 py-1 rounded-full bg-neon-green/20 text-neon-green border border-neon-green/30 font-medium">✅ مفتوحة بالكامل</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: phase === 'ready' ? 1 : 0, y: phase === 'ready' ? 0 : 10 }}
+              transition={{ delay: 0.2 }}
+            >
+              <button
+                onClick={onClose}
+                className="w-full h-12 rounded-xl bg-gradient-to-l from-purple-500 via-pink-500 to-cyan-500 text-white font-bold text-base hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all active:scale-[0.98]"
+              >
+                🚀 ابدأ الدورة الآن
+              </button>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+
+      {phase !== 'fireworks' && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {Array.from({ length: 12 }, (_, i) => (
+            <motion.div
+              key={`side-${i}`}
+              className="absolute rounded-full"
+              style={{
+                left: `${10 + Math.random() * 80}%`,
+                top: `${10 + Math.random() * 80}%`,
+                width: Math.random() * 4 + 2,
+                height: Math.random() * 4 + 2,
+                backgroundColor: ['#a855f7', '#ec4899', '#06b6d4'][i % 3],
+              }}
+              animate={{ y: [0, -30, -60], opacity: [0, 1, 0], scale: [0, 1, 0] }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.3, ease: 'easeOut' }}
+            />
+          ))}
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
 export function CoursesPage() {
   const { courses, searchQuery, setSearchQuery, openCourse, courseProgress } = useAppStore()
   const [activeCategory, setActiveCategory] = useState('all')
@@ -563,9 +874,14 @@ export function CoursesPage() {
   const [sortBy, setSortBy] = useState('popular')
   const [showFilters, setShowFilters] = useState(false)
   const [paymentCourse, setPaymentCourse] = useState<Course | null>(null)
+  const [giftCelebrationCourse, setGiftCelebrationCourse] = useState<Course | null>(null)
 
   const handlePaymentClick = useCallback((course: Course) => {
-    setPaymentCourse(course)
+    if (course.isGifted) {
+      setGiftCelebrationCourse(course)
+    } else {
+      setPaymentCourse(course)
+    }
   }, [])
 
   // Fetch courses from API on mount
@@ -592,8 +908,10 @@ export function CoursesPage() {
             students: c.students || 0,
             duration: c.duration || '0 ساعة',
             level: c.level || 'beginner',
-            price: c.price || 0,
+            price: c.price ?? 0,
             isPremium: c.isPremium || false,
+            isGifted: c.isGifted || false,
+            giftedAt: c.giftedAt || null,
             lessons: c.lessons || (c.lessonsData?.length || 0),
             tags: c.tags || [],
             lessonsData: c.lessonsData?.map((l: any) => ({
@@ -729,6 +1047,18 @@ export function CoursesPage() {
     [courses]
   )
 
+  // Don't render until courses are loaded from API
+  if (courses.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" dir="rtl">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-neon-cyan animate-spin" />
+          <p className="text-muted-foreground text-sm">جاري تحميل الدورات...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen pb-8" dir="rtl">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -750,7 +1080,7 @@ export function CoursesPage() {
                   placeholder="ابحث عن دورة، مدرب، أو موضوع..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-12 pr-12 pl-4 rounded-xl bg-med-card/80 border border-neon-cyan/20 text-white placeholder:text-muted-foreground focus:outline-none focus:border-neon-cyan/50 focus:ring-1 focus:ring-neon-cyan/20 transition-all backdrop-blur-md"
+                  className="w-full h-12 pr-12 pl-4 rounded-xl bg-med-card/80 border border-neon-cyan/20 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-neon-cyan/50 focus:ring-1 focus:ring-neon-cyan/20 transition-all backdrop-blur-md"
                 />
               </div>
               <button
@@ -778,7 +1108,7 @@ export function CoursesPage() {
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                   activeCategory === cat.id
                     ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/40 shadow-[0_0_15px_rgba(0,245,255,0.15)]'
-                    : 'glass text-muted-foreground hover:text-white hover:border-neon-cyan/20'
+                    : 'glass text-muted-foreground hover:text-foreground hover:border-neon-cyan/20'
                 }`}
               >
                 <span>{cat.icon}</span>
@@ -809,7 +1139,7 @@ export function CoursesPage() {
                           className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                             activeLevel === level
                               ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30'
-                              : 'text-muted-foreground hover:text-white border border-transparent hover:border-white/10'
+                              : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
                           }`}
                         >
                           {level === 'all' ? 'الكل' : levelConfig[level].label}
@@ -823,7 +1153,7 @@ export function CoursesPage() {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="bg-med-card/80 border border-neon-cyan/15 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-neon-cyan/40 appearance-none cursor-pointer"
+                        className="bg-med-card/80 border border-neon-cyan/15 rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-neon-cyan/40 appearance-none cursor-pointer"
                       >
                         {sortOptions.map((opt) => (
                           <option key={opt.id} value={opt.id} className="bg-med-dark">
@@ -851,8 +1181,8 @@ export function CoursesPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-med-dark via-med-dark/60 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-l from-transparent to-med-dark/80" />
             {/* Animated background elements */}
-            <div className="absolute top-6 left-10 w-24 h-24 rounded-full border border-white/5 animate-float" />
-            <div className="absolute bottom-10 right-20 w-16 h-16 rounded-full border border-white/10 animate-float" style={{ animationDelay: '1s' }} />
+            <div className="absolute top-6 left-10 w-24 h-24 rounded-full border border-border animate-float" />
+            <div className="absolute bottom-10 right-20 w-16 h-16 rounded-full border border-border animate-float" style={{ animationDelay: '1s' }} />
             <div className="absolute top-1/2 left-1/3 text-6xl opacity-10 animate-float" style={{ animationDelay: '2s' }}>
               {categoryIcons[featuredCourse.category]}
             </div>
@@ -871,7 +1201,7 @@ export function CoursesPage() {
                 </Badge>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-bold text-white neon-text">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground neon-text">
                 {featuredCourse.titleAr}
               </h1>
 
@@ -905,8 +1235,10 @@ export function CoursesPage() {
               <div className="flex items-center gap-3 pt-2">
                 <Button
                   onClick={() => {
-                    const isPremiumLocked = featuredCourse.isPremium && featuredCourse.price > 0 && !courseProgress.find(p => p.courseId === featuredCourse.id)
-                    if (isPremiumLocked) { setPaymentCourse(featuredCourse) } else { openCourse(featuredCourse.id) }
+                    const isPremiumLocked = !featuredCourse.isGifted && featuredCourse.isPremium && featuredCourse.price > 0 && !courseProgress.find(p => p.courseId === featuredCourse.id)
+                    if (featuredCourse.isGifted) {
+                      setGiftCelebrationCourse(featuredCourse)
+                    } else if (isPremiumLocked) { setPaymentCourse(featuredCourse) } else { openCourse(featuredCourse.id) }
                   }}
                   className="bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold hover:shadow-[0_0_30px_rgba(0,245,255,0.3)] transition-all"
                 >
@@ -914,9 +1246,15 @@ export function CoursesPage() {
                   ابدأ الآن
                 </Button>
                 <Button
-                  onClick={() => openCourse(featuredCourse.id)}
+                  onClick={() => {
+                    if (featuredCourse.isGifted) {
+                      setGiftCelebrationCourse(featuredCourse)
+                    } else {
+                      openCourse(featuredCourse.id)
+                    }
+                  }}
                   variant="ghost"
-                  className="text-white border border-white/10 hover:bg-white/5"
+                  className="text-foreground border border-border hover:bg-muted/30"
                 >
                   <Zap className="w-4 h-4 ml-2" />
                   نظرة سريعة
@@ -959,7 +1297,7 @@ export function CoursesPage() {
           /* Show filtered results */
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">
+              <h2 className="text-lg font-bold text-foreground">
                 نتائج البحث
                 <span className="text-sm text-muted-foreground font-normal mr-2">
                   ({filteredCourses.length} دورة)
@@ -975,7 +1313,7 @@ export function CoursesPage() {
             ) : (
               <div className="glass rounded-2xl p-12 text-center">
                 <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-white mb-2">لا توجد نتائج</h3>
+                <h3 className="text-lg font-bold text-foreground mb-2">لا توجد نتائج</h3>
                 <p className="text-sm text-muted-foreground">
                   جرّب البحث بكلمات مختلفة أو غيّر التصفية
                 </p>
@@ -1038,6 +1376,20 @@ export function CoursesPage() {
           <PaymentModal
             course={paymentCourse}
             onClose={() => setPaymentCourse(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Gift Celebration Modal */}
+      <AnimatePresence>
+        {giftCelebrationCourse && (
+          <GiftCelebrationModal
+            course={giftCelebrationCourse}
+            onClose={() => {
+              const gift = giftCelebrationCourse
+              setGiftCelebrationCourse(null)
+              openCourse(gift.id)
+            }}
           />
         )}
       </AnimatePresence>

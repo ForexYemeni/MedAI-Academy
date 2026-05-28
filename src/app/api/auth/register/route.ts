@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { hashPassword, generateToken, type AuthUser } from '@/lib/auth'
+import { createAdminNotification } from '@/app/api/notifications/route'
 
 export async function POST(req: NextRequest) {
   try {
@@ -88,6 +89,18 @@ export async function POST(req: NextRequest) {
     }
 
     const token = generateToken(authUser)
+
+    // Notify admin about new user registration
+    try {
+      await createAdminNotification({
+        title: 'مستخدم جديد',
+        message: `سجّل ${name} حساباً جديداً في الأكاديمية`,
+        type: 'system',
+        link: 'admin',
+        category: 'system',
+        icon: '👤',
+      })
+    } catch (e) { /* notification is non-critical */ }
 
     return NextResponse.json({
       success: true,

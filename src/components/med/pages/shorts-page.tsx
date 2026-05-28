@@ -109,8 +109,8 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
         <div className="absolute top-[50%] right-[60%] text-3xl opacity-5 animate-float" style={{ animationDelay: '2s' }}>{icon}</div>
 
         {/* Circular rings */}
-        <div className="absolute top-[20%] left-[50%] w-48 h-48 rounded-full border border-white/5 animate-pulse" />
-        <div className="absolute bottom-[20%] right-[30%] w-32 h-32 rounded-full border border-white/5 animate-pulse" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute top-[20%] left-[50%] w-48 h-48 rounded-full border border-border animate-pulse" />
+        <div className="absolute bottom-[20%] right-[30%] w-32 h-32 rounded-full border border-border animate-pulse" style={{ animationDelay: '1.5s' }} />
 
         {/* ECG line overlay */}
         <svg className="absolute bottom-[15%] left-0 w-full h-16 opacity-10" viewBox="0 0 400 50">
@@ -147,15 +147,15 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
 
           <div className="flex items-center gap-2">
             {/* Category badge */}
-            <Badge className="bg-black/40 backdrop-blur-sm text-white border-white/10 text-xs">
+            <Badge className="bg-black/40 backdrop-blur-sm text-foreground border-border text-xs">
               <span className="ml-1">{icon}</span>
               {categoryLabel}
             </Badge>
 
             {/* Duration badge */}
             <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2.5 py-1">
-              <Clock className="w-3 h-3 text-white/70" />
-              <span className="text-[10px] text-white font-medium">{formatDuration(short.duration)}</span>
+              <Clock className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10px] text-foreground font-medium">{formatDuration(short.duration)}</span>
             </div>
           </div>
         </div>
@@ -164,7 +164,7 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
         <motion.h2
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-lg font-bold text-white mt-3 neon-text max-w-[70%] leading-relaxed"
+          className="text-lg font-bold text-foreground mt-3 neon-text max-w-[70%] leading-relaxed"
         >
           {short.title}
         </motion.h2>
@@ -179,9 +179,9 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.5 }}
               onClick={() => setIsPlaying(true)}
-              className="w-16 h-16 rounded-full bg-black/30 backdrop-blur-md border border-white/20 flex items-center justify-center"
+              className="w-16 h-16 rounded-full bg-black/30 backdrop-blur-md border border-border flex items-center justify-center"
             >
-              <Play className="w-7 h-7 text-white fill-white mr-[-2px]" />
+              <Play className="w-7 h-7 text-foreground fill-foreground mr-[-2px]" />
             </motion.button>
           )}
         </AnimatePresence>
@@ -202,7 +202,7 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
           className="relative"
         >
           <div className="w-11 h-11 rounded-full bg-gradient-to-br from-neon-cyan/40 to-neon-purple/40 border-2 border-neon-cyan/50 flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 text-white" />
+            <GraduationCap className="w-5 h-5 text-foreground" />
           </div>
           <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-neon-cyan flex items-center justify-center">
             <span className="text-[8px] text-med-dark font-bold">+</span>
@@ -215,10 +215,10 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
           onClick={() => onLike(short.id)}
           className="flex flex-col items-center gap-1"
         >
-          <div className={`transition-colors ${isLiked ? 'text-red-500' : 'text-white'}`}>
+          <div className={`transition-colors ${isLiked ? 'text-red-500' : 'text-foreground'}`}>
             <Heart className={`w-7 h-7 ${isLiked ? 'fill-red-500' : ''}`} />
           </div>
-          <span className="text-[10px] text-white font-medium">{formatViews(short.likes + (isLiked ? 1 : 0))}</span>
+          <span className="text-[10px] text-foreground font-medium">{formatViews(short.likes + (isLiked ? 1 : 0))}</span>
         </motion.button>
 
         {/* Comment button */}
@@ -227,8 +227,8 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
           onClick={() => setShowComments(!showComments)}
           className="flex flex-col items-center gap-1"
         >
-          <MessageCircle className="w-7 h-7 text-white" />
-          <span className="text-[10px] text-white font-medium">{formatViews(Math.floor(short.likes * 0.3))}</span>
+          <MessageCircle className="w-7 h-7 text-foreground" />
+          <span className="text-[10px] text-foreground font-medium">{formatViews(Math.floor(short.likes * 0.3))}</span>
         </motion.button>
 
         {/* Share button */}
@@ -236,8 +236,8 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
           whileTap={{ scale: 0.8 }}
           className="flex flex-col items-center gap-1"
         >
-          <Share2 className="w-7 h-7 text-white" />
-          <span className="text-[10px] text-white font-medium">شارك</span>
+          <Share2 className="w-7 h-7 text-foreground" />
+          <span className="text-[10px] text-foreground font-medium">شارك</span>
         </motion.button>
 
         {/* Bookmark button */}
@@ -246,20 +246,20 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
           onClick={() => onBookmark(short.id)}
           className="flex flex-col items-center gap-1"
         >
-          <Bookmark className={`w-7 h-7 transition-colors ${isBookmarked ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
-          <span className="text-[10px] text-white font-medium">حفظ</span>
+          <Bookmark className={`w-7 h-7 transition-colors ${isBookmarked ? 'fill-yellow-400 text-yellow-400' : 'text-foreground'}`} />
+          <span className="text-[10px] text-foreground font-medium">حفظ</span>
         </motion.button>
 
         {/* Mute toggle */}
         <motion.button
           whileTap={{ scale: 0.8 }}
           onClick={() => setIsMuted(!isMuted)}
-          className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center"
+          className="w-9 h-9 rounded-full bg-muted/50 backdrop-blur-sm flex items-center justify-center"
         >
           {isMuted ? (
-            <VolumeX className="w-4 h-4 text-white" />
+            <VolumeX className="w-4 h-4 text-foreground" />
           ) : (
-            <Volume2 className="w-4 h-4 text-white" />
+            <Volume2 className="w-4 h-4 text-foreground" />
           )}
         </motion.button>
       </div>
@@ -269,19 +269,19 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
         {/* Instructor and description */}
         <div className="mb-3 pr-12">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-sm font-bold text-white">{short.instructor}</span>
+            <span className="text-sm font-bold text-foreground">{short.instructor}</span>
             <Badge className="bg-neon-cyan/20 text-neon-cyan border-neon-cyan/30 text-[9px] h-4">
               مُعتمد
             </Badge>
           </div>
-          <p className="text-xs text-white/70 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
             تعلّم أسرار {categoryLabel} في أقل من دقيقة! محتوى طبي موثوق ومبسط لمساعدتك في مسيرتك المهنية 🩺✨
           </p>
         </div>
 
         {/* Views and fire */}
         <div className="flex items-center gap-3 mb-3">
-          <div className="flex items-center gap-1 text-xs text-white/60">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Eye className="w-3 h-3" />
             <span>{formatViews(short.views)} مشاهدة</span>
           </div>
@@ -292,7 +292,7 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
         </div>
 
         {/* Progress bar */}
-        <div className="relative h-1 rounded-full bg-white/10 overflow-hidden">
+        <div className="relative h-1 rounded-full bg-muted/50 overflow-hidden">
           <motion.div
             className="absolute right-0 top-0 h-full rounded-full bg-gradient-to-l from-neon-cyan to-neon-purple"
             style={{ width: `${progress}%` }}
@@ -302,8 +302,8 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
 
         {/* Time indicator */}
         <div className="flex items-center justify-between mt-1.5">
-          <span className="text-[9px] text-white/40">0:00</span>
-          <span className="text-[9px] text-white/40">{formatDuration(short.duration)}</span>
+          <span className="text-[9px] text-muted-foreground/50">0:00</span>
+          <span className="text-[9px] text-muted-foreground/50">{formatDuration(short.duration)}</span>
         </div>
       </div>
 
@@ -320,12 +320,12 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
           >
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white">التعليقات</h3>
+                <h3 className="text-sm font-bold text-foreground">التعليقات</h3>
                 <button
                   onClick={() => setShowComments(false)}
-                  className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center"
+                  className="w-6 h-6 rounded-full bg-muted/30 flex items-center justify-center"
                 >
-                  <ChevronDown className="w-3 h-3 text-white" />
+                  <ChevronDown className="w-3 h-3 text-foreground" />
                 </button>
               </div>
 
@@ -335,16 +335,16 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
                 { name: 'سارة', text: 'شرح واضح ومفيد جداً 👏', time: 'منذ 3 ساعات' },
                 { name: 'د. خالد', text: 'أخيراً فهمت هالمفهوم! 💡', time: 'منذ 5 ساعات' },
               ].map((comment, i) => (
-                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-white/5">
+                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30">
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-neon-cyan/20 to-neon-purple/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-[10px] text-white">{comment.name[0]}</span>
+                    <span className="text-[10px] text-foreground">{comment.name[0]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-white">{comment.name}</span>
-                      <span className="text-[9px] text-white/30">{comment.time}</span>
+                      <span className="text-xs font-semibold text-foreground">{comment.name}</span>
+                      <span className="text-[9px] text-muted-foreground/50">{comment.time}</span>
                     </div>
-                    <p className="text-xs text-white/70 mt-0.5">{comment.text}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{comment.text}</p>
                   </div>
                 </div>
               ))}
@@ -357,7 +357,7 @@ function ShortCard({ short, isActive, onLike, onBookmark, isLiked, isBookmarked 
                 <input
                   type="text"
                   placeholder="أضف تعليقاً..."
-                  className="flex-1 h-8 px-3 rounded-full bg-white/5 border border-white/10 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-neon-cyan/30"
+                  className="flex-1 h-8 px-3 rounded-full bg-muted/30 border border-border text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan/30"
                 />
               </div>
             </div>
@@ -443,7 +443,7 @@ export function ShortsPage() {
             <Play className="w-5 h-5 text-neon-cyan fill-neon-cyan" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">فيديوهات قصيرة</h2>
+            <h2 className="text-lg font-bold text-foreground">فيديوهات قصيرة</h2>
             <p className="text-xs text-muted-foreground">تعلّم في دقيقة ⚡</p>
           </div>
         </div>
@@ -498,7 +498,7 @@ export function ShortsPage() {
             className={`rounded-full transition-all duration-300 ${
               index === activeIndex
                 ? 'w-1.5 h-4 bg-neon-cyan shadow-[0_0_8px_rgba(0,245,255,0.5)]'
-                : 'w-1.5 h-1.5 bg-white/20 hover:bg-white/40'
+                : 'w-1.5 h-1.5 bg-muted/70 hover:bg-muted'
             }`}
           />
         ))}
@@ -518,8 +518,8 @@ export function ShortsPage() {
               transition={{ duration: 1.5, repeat: Infinity }}
               className="flex flex-col items-center"
             >
-              <ChevronDown className="w-4 h-4 text-white/30" />
-              <span className="text-[9px] text-white/30">اسحب للأسفل</span>
+              <ChevronDown className="w-4 h-4 text-muted-foreground/30" />
+              <span className="text-[9px] text-muted-foreground/30">اسحب للأسفل</span>
             </motion.div>
           </motion.div>
         )}

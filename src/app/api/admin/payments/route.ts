@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
+import { createNotification } from '@/app/api/notifications/route'
 
 export async function GET(req: NextRequest) {
   try {
@@ -31,11 +32,28 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .toArray()
 
+    // إضافة اسم الدورة للمدفوعات التي لا تحتوي عليه
+    const { ObjectId } = await import('mongodb')
+    const paymentsWithCourse = await Promise.all(
+      payments.map(async (payment) => {
+        if (payment.courseName) return payment
+        try {
+          const course = await db.collection('courses').findOne(
+            { _id: new ObjectId(payment.courseId) },
+            { projection: { titleAr: 1, title: 1 } }
+          )
+          return { ...payment, courseName: course?.titleAr || course?.title || '' }
+        } catch {
+          return payment
+        }
+      })
+    )
+
     const total = await db.collection('payments').countDocuments(query)
 
     return NextResponse.json({
       success: true,
-      payments,
+      payments: paymentsWithCourse,
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -110,6 +128,32 @@ export async function PUT(req: NextRequest) {
         })
       }
     }
+
+    // Send notification to the user about payment status
+    try {
+      const courseName = payment.courseName || ''
+      if (status === 'approved') {
+        await createNotification({
+          userId: payment.userId,
+          title: 'تمت الموافقة على الدفع',
+          message: `تمت الموافقة على طلب الدفع${courseName ? ` لدورة "${courseName}"` : ''}. يمكنك الآن الوصول لجميع الدروس`,
+          type: 'payment',
+          link: 'courses',
+          category: 'payment',
+          icon: '✅',
+        })
+      } else {
+        await createNotification({
+          userId: payment.userId,
+          title: 'تم رفض طلب الدفع',
+          message: `تم رفض طلب الدفع${courseName ? ` لدورة "${courseName}"` : ''}${adminNote ? `. السبب: ${adminNote}` : ''}`,
+          type: 'warning',
+          link: 'subscriptions',
+          category: 'payment',
+          icon: '❌',
+        })
+      }
+    } catch (e) { /* notification is non-critical */ }
 
     return NextResponse.json({
       success: true,

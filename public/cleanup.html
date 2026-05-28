@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تنظيف - أكاديمية نبض</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container { text-align: center; max-width: 400px; }
+    h1 { font-size: 24px; margin-bottom: 16px; color: #00f5ff; }
+    p { font-size: 14px; color: #94a3b8; margin-bottom: 12px; line-height: 1.8; }
+    .status {
+      margin: 20px 0;
+      padding: 16px;
+      background: rgba(0,245,255,0.05);
+      border: 1px solid rgba(0,245,255,0.2);
+      border-radius: 12px;
+      font-size: 14px;
+      min-height: 60px;
+    }
+    .success { color: #10b981; }
+    .error { color: #ef4444; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #00f5ff, #a855f7);
+      color: #0a0a1a;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #log { text-align: right; font-size: 12px; color: #64748b; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>تنظيف بيانات التطبيق</h1>
+    <p>هذه الصفحة تقوم بإزالة جميع البيانات المخزنة المؤقتة وحل مشكلة تحميل التطبيق</p>
+    <div class="status" id="status">جاري التنظيف...</div>
+    <div id="log"></div>
+    <button class="btn" id="btn" onclick="doCleanup()" disabled>تنظيف الآن</button>
+  </div>
+
+  <script>
+    var logEl = document.getElementById('log');
+    var statusEl = document.getElementById('status');
+    var btnEl = document.getElementById('btn');
+
+    function log(msg) {
+      logEl.innerHTML += msg + '<br>';
+    }
+
+    async function doCleanup() {
+      btnEl.disabled = true;
+      statusEl.textContent = 'جاري التنظيف...';
+      logEl.innerHTML = '';
+      
+      var success = true;
+
+      // 1. Unregister ALL service workers
+      if ('serviceWorker' in navigator) {
+        try {
+          var registrations = await navigator.serviceWorker.getRegistrations();
+          log('عدد Service Workers: ' + registrations.length);
+          for (var i = 0; i < registrations.length; i++) {
+            log('إزالة: ' + registrations[i].scope);
+            await registrations[i].unregister();
+          }
+          log('تم إزالة جميع Service Workers');
+        } catch (e) {
+          log('خطأ في إزالة SW: ' + e.message);
+          success = false;
+        }
+      }
+
+      // 2. Delete ALL caches
+      if ('caches' in window) {
+        try {
+          var names = await caches.keys();
+          log('عدد الكاش: ' + names.length);
+          for (var i = 0; i < names.length; i++) {
+            log('حذف كاش: ' + names[i]);
+            await caches.delete(names[i]);
+          }
+          log('تم حذف جميع الكاش');
+        } catch (e) {
+          log('خطأ في حذف الكاش: ' + e.message);
+          success = false;
+        }
+      }
+
+      // 3. Clear localStorage
+      try {
+        localStorage.clear();
+        log('تم مسح localStorage');
+      } catch (e) {
+        log('خطأ في localStorage: ' + e.message);
+      }
+
+      // 4. Clear sessionStorage
+      try {
+        sessionStorage.clear();
+        log('تم مسح sessionStorage');
+      } catch (e) {
+        log('خطأ في sessionStorage: ' + e.message);
+      }
+
+      // 5. Clear all cookies for this domain
+      try {
+        document.cookie.split(';').forEach(function(c) {
+          document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+        });
+        log('تم مسح الكوكيز');
+      } catch (e) {
+        log('خطأ في الكوكيز: ' + e.message);
+      }
+
+      if (success) {
+        statusEl.innerHTML = '<span class="success">تم التنظيف بنجاح! اضغط الزر للعودة للتطبيق</span>';
+        btnEl.disabled = false;
+        btnEl.textContent = 'العودة للتطبيق';
+        btnEl.onclick = function() {
+          window.location.href = '/';
+        };
+      } else {
+        statusEl.innerHTML = '<span class="error">حدثت بعض الأخطاء، حاول مرة أخرى</span>';
+        btnEl.disabled = false;
+        btnEl.textContent = 'إعادة المحاولة';
+      }
+    }
+
+    // Auto-start cleanup
+    doCleanup();
+  </script>
+</body>
+</html>

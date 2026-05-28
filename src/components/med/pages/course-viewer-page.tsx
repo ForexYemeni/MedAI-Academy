@@ -6,13 +6,17 @@ import {
   ArrowRight, BookOpen, Clock, CheckCircle2, Circle, Lock,
   Play, FileText, HelpCircle, Activity, Zap, ChevronLeft,
   Star, Users, Crown, GraduationCap, Sparkles, Award,
-  Menu, X, Brain, Target, Lightbulb, ChevronDown
+  Menu, X, Brain, Target, Lightbulb, ChevronDown,
+  CreditCard, Loader2, Image as ImageIcon
 } from 'lucide-react'
 import { useAppStore, type Lesson, type Course } from '@/store/app-store'
+import { useOffline } from '@/hooks/use-offline'
+import { OfflineBadge } from '@/components/med/layout/offline-indicator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Input } from '@/components/ui/input'
 
 // ─── Category Config ────────────────────────────────────────
 
@@ -70,7 +74,7 @@ function formatInline(text: string): React.ReactNode {
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
-        <span key={i} className="text-white font-bold bg-neon-cyan/8 px-1 rounded">
+        <span key={i} className="text-foreground font-bold bg-neon-cyan/8 px-1 rounded">
           {part.slice(2, -2)}
         </span>
       )
@@ -146,7 +150,7 @@ function renderContent(content: string) {
         <div key={getKey()} className="mt-8 mb-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-1 h-8 rounded-full bg-gradient-to-b from-neon-cyan to-neon-purple shadow-[0_0_8px_rgba(0,245,255,0.3)]" />
-            <h3 className="text-lg font-bold text-white">{formatInline(line.slice(4))}</h3>
+            <h3 className="text-lg font-bold text-foreground">{formatInline(line.slice(4))}</h3>
           </div>
           <div className="h-px bg-gradient-to-l from-neon-cyan/20 via-neon-purple/10 to-transparent mr-4" />
         </div>
@@ -163,7 +167,7 @@ function renderContent(content: string) {
             <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-neon-cyan/20 to-neon-purple/20 border border-neon-cyan/20 flex items-center justify-center shadow-[0_0_15px_rgba(0,245,255,0.1)]">
               <Sparkles className="w-4 h-4 text-neon-cyan" />
             </div>
-            <h2 className="text-xl font-bold text-white">{formatInline(line.slice(3))}</h2>
+            <h2 className="text-xl font-bold text-foreground">{formatInline(line.slice(3))}</h2>
           </div>
           <div className="mt-3 h-0.5 rounded-full bg-gradient-to-l from-neon-cyan/30 via-neon-purple/15 to-transparent" />
         </div>
@@ -205,7 +209,7 @@ function renderContent(content: string) {
               <div className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-full h-2 w-0.5 bg-neon-cyan/15" />
             )}
           </div>
-          <span className="text-gray-300 leading-8 flex-1 text-[15px]">{formatInline(text)}</span>
+          <span className="text-foreground/80 leading-8 flex-1 text-[15px]">{formatInline(text)}</span>
         </motion.div>
       )
       continue
@@ -224,8 +228,8 @@ function renderContent(content: string) {
           <div className="flex-shrink-0 mt-2.5">
             <div className="w-2 h-2 rounded-full bg-gradient-to-br from-neon-cyan to-neon-blue shadow-[0_0_6px_rgba(0,245,255,0.4)]" />
           </div>
-          <div className="flex-1 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04] group-hover:border-neon-cyan/15 group-hover:bg-white/[0.04] transition-all">
-            <span className="text-gray-300 leading-7 text-[15px]">{formatInline(text)}</span>
+          <div className="flex-1 px-3 py-2 rounded-lg bg-muted/20 border border-border group-hover:border-neon-cyan/15 group-hover:bg-muted/30 transition-all">
+            <span className="text-foreground/80 leading-7 text-[15px]">{formatInline(text)}</span>
           </div>
         </motion.div>
       )
@@ -234,7 +238,7 @@ function renderContent(content: string) {
 
     // Regular paragraph with improved typography
     elements.push(
-      <p key={getKey()} className="text-gray-300 leading-[2] my-3 text-[15px]">
+      <p key={getKey()} className="text-foreground/80 leading-[2] my-3 text-[15px]">
         {formatInline(line)}
       </p>
     )
@@ -287,7 +291,7 @@ function renderInfoBox(content: string[]) {
       </div>
       <div className="bg-neon-cyan/[0.02] px-5 py-3 space-y-2">
         {content.map((line, i) => (
-          <p key={i} className="text-gray-300 text-sm leading-7">{formatInline(line)}</p>
+          <p key={i} className="text-foreground/80 text-sm leading-7">{formatInline(line)}</p>
         ))}
       </div>
     </motion.div>
@@ -300,7 +304,7 @@ function renderTable(headers: string[], rows: string[][]) {
       key={getKey()}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="my-6 overflow-x-auto rounded-xl border border-white/10 shadow-[0_0_20px_rgba(0,245,255,0.05)]"
+      className="my-6 overflow-x-auto rounded-xl border border-border shadow-[0_0_20px_rgba(0,245,255,0.05)]"
     >
       <table className="w-full text-sm">
         <thead>
@@ -314,9 +318,9 @@ function renderTable(headers: string[], rows: string[][]) {
         </thead>
         <tbody>
           {rows.map((row, ri) => (
-            <tr key={ri} className={`border-b border-white/5 ${ri % 2 === 0 ? 'bg-white/[0.01]' : ''} hover:bg-white/[0.04] transition-colors`}>
+            <tr key={ri} className={`border-b border-border ${ri % 2 === 0 ? 'bg-muted/10' : ''} hover:bg-muted/20 transition-colors`}>
               {row.map((cell, ci) => (
-                <td key={ci} className="px-5 py-3 text-gray-300 text-[13px] leading-6">
+                <td key={ci} className="px-5 py-3 text-foreground/80 text-[13px] leading-6">
                   {formatInline(cell)}
                 </td>
               ))}
@@ -328,7 +332,7 @@ function renderTable(headers: string[], rows: string[][]) {
   )
 }
 
-// ─── Lesson Sidebar Item ─────────────────────────────────────
+// ─── Lesson Sidebar Item (Professional Redesign) ─────────────
 
 function LessonItem({
   lesson,
@@ -336,6 +340,8 @@ function LessonItem({
   isCompleted,
   isLocked,
   isNext,
+  isCached,
+  totalLessons,
   onClick,
 }: {
   lesson: Lesson
@@ -343,6 +349,8 @@ function LessonItem({
   isCompleted: boolean
   isLocked: boolean
   isNext: boolean
+  isCached: boolean
+  totalLessons: number
   onClick: () => void
 }) {
   const TypeIcon = lessonTypeIcons[lesson.type]
@@ -351,72 +359,434 @@ function LessonItem({
   return (
     <motion.button
       onClick={onClick}
-      disabled={isLocked}
-      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-right transition-all relative group ${
+      className={`w-full relative text-right transition-all group ${
         isActive
-          ? 'bg-neon-cyan/10 border border-neon-cyan/30 shadow-[0_0_15px_rgba(0,245,255,0.1)]'
-          : isLocked
-          ? 'opacity-40 cursor-not-allowed border border-transparent'
-          : 'hover:bg-white/5 border border-transparent'
+          ? 'z-10'
+          : ''
       }`}
-      whileHover={!isLocked ? { x: -3 } : {}}
-      whileTap={!isLocked ? { scale: 0.98 } : {}}
+      whileTap={{ scale: 0.98 }}
     >
-      {/* Status indicator */}
-      <div className="flex-shrink-0">
-        {isCompleted ? (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="w-7 h-7 rounded-full bg-neon-green/20 border border-neon-green/40 flex items-center justify-center"
-          >
-            <CheckCircle2 className="w-4 h-4 text-neon-green" />
-          </motion.div>
-        ) : isLocked ? (
-          <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-            <Lock className="w-3.5 h-3.5 text-gray-500" />
-          </div>
-        ) : isActive ? (
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="w-7 h-7 rounded-full bg-neon-cyan/20 border border-neon-cyan/40 flex items-center justify-center"
-          >
-            <Play className="w-3.5 h-3.5 text-neon-cyan fill-neon-cyan" />
-          </motion.div>
-        ) : isNext ? (
-          <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-            <Circle className="w-3.5 h-3.5 text-amber-400" />
-          </div>
-        ) : (
-          <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-            <Circle className="w-3.5 h-3.5 text-gray-500" />
-          </div>
-        )}
-      </div>
+      {/* Active background glow */}
+      {isActive && (
+        <motion.div
+          layoutId="activeLessonGlow"
+          className="absolute inset-0 rounded-xl bg-neon-cyan/8 border border-neon-cyan/25"
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        />
+      )}
 
-      {/* Lesson info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[10px] text-gray-500 font-mono">الدرس {lesson.order}</span>
-          <Badge className={`text-[9px] px-1.5 py-0 ${typeColor} border`}>
-            <TypeIcon className="w-2.5 h-2.5 ml-0.5" />
-            {lessonTypeLabels[lesson.type]}
-          </Badge>
+      <div className="relative flex items-start gap-3 px-3 py-3">
+        {/* Left: Step indicator with connecting line */}
+        <div className="flex flex-col items-center flex-shrink-0 pt-0.5">
+          {/* Step circle */}
+          <div className="relative">
+            {isCompleted ? (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="w-8 h-8 rounded-full bg-neon-green/20 border-2 border-neon-green/50 flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+              >
+                <CheckCircle2 className="w-4 h-4 text-neon-green" />
+              </motion.div>
+            ) : isLocked ? (
+              <div className="w-8 h-8 rounded-full bg-red-500/10 border-2 border-red-500/25 flex items-center justify-center">
+                <Lock className="w-3.5 h-3.5 text-red-400/70" />
+              </div>
+            ) : isActive ? (
+              <motion.div
+                animate={{ boxShadow: ['0 0 0 0 rgba(0,245,255,0.3)', '0 0 0 8px rgba(0,245,255,0)', '0 0 0 0 rgba(0,245,255,0.3)'] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="w-8 h-8 rounded-full bg-neon-cyan/20 border-2 border-neon-cyan/60 flex items-center justify-center"
+              >
+                <Play className="w-3.5 h-3.5 text-neon-cyan fill-neon-cyan mr-[-1px]" />
+              </motion.div>
+            ) : isNext ? (
+              <div className="w-8 h-8 rounded-full bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-muted/30 border-2 border-border/60 flex items-center justify-center">
+                <span className="text-[10px] font-bold text-muted-foreground">{lesson.order}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Connecting line to next lesson */}
+          {lesson.order < totalLessons && (
+            <div className={`w-0.5 h-4 mt-1 ${
+              isCompleted ? 'bg-neon-green/30' : isActive ? 'bg-neon-cyan/20' : 'bg-border/40'
+            }`} />
+          )}
         </div>
-        <p className={`text-sm font-medium truncate ${
-          isActive ? 'text-neon-cyan' : isCompleted ? 'text-white' : 'text-gray-300'
-        }`}>
-          {lesson.titleAr}
-        </p>
-      </div>
 
-      {/* Duration */}
-      <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
-        <Clock className="w-3 h-3" />
-        <span>{lesson.duration}د</span>
+        {/* Right: Lesson details */}
+        <div className="flex-1 min-w-0">
+          {/* Top row: order + type badge */}
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-[10px] font-bold ${
+              isActive ? 'text-neon-cyan' : isCompleted ? 'text-neon-green' : 'text-muted-foreground'
+            }`}>
+              الدرس {lesson.order}
+            </span>
+            <Badge className={`text-[9px] px-1.5 py-0 ${typeColor} border`}>
+              <TypeIcon className="w-2.5 h-2.5 ml-0.5" />
+              {lessonTypeLabels[lesson.type]}
+            </Badge>
+            {lesson.isFree && !isCompleted && (
+              <Badge className="text-[9px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                مجاني
+              </Badge>
+            )}
+            {isLocked && (
+              <Badge className="text-[9px] px-1.5 py-0 bg-red-500/10 text-red-400 border border-red-500/20">
+                <Lock className="w-2.5 h-2.5 ml-0.5" />
+                مدفوع
+              </Badge>
+            )}
+          </div>
+
+          {/* Lesson title */}
+          <p className={`text-[13px] font-semibold leading-relaxed line-clamp-2 ${
+            isActive ? 'text-neon-cyan' : isCompleted ? 'text-foreground' : isLocked ? 'text-foreground/50' : 'text-foreground/80'
+          }`}>
+            {lesson.titleAr}
+          </p>
+
+          {/* Bottom row: duration + offline */}
+          <div className="flex items-center gap-2 mt-1">
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Clock className="w-2.5 h-2.5" />
+              {lesson.duration} دقيقة
+            </span>
+            {isCached && !isLocked && (
+              <OfflineBadge isCached={true} />
+            )}
+          </div>
+        </div>
       </div>
     </motion.button>
+  )
+}
+
+// ─── Payment Method Type ────────────────────────────────────
+interface PaymentMethod {
+  _id: string
+  type: string
+  name: string
+  accountNumber: string
+  accountName: string
+  instructions?: string
+  active?: boolean
+}
+
+// ─── In-Course Payment Modal ────────────────────────────────
+function InCoursePaymentModal({ course, onClose }: { course: Course; onClose: () => void }) {
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
+  const [screenshot, setScreenshot] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  const copyToClipboard = async (text: string, fieldId: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        throw new Error('clipboard not available')
+      }
+    } catch {
+      try {
+        const textArea = document.createElement('textarea')
+        textArea.value = text
+        textArea.setAttribute('readonly', '')
+        textArea.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        const success = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        if (!success) throw new Error('execCommand failed')
+      } catch {
+        prompt('انسخ الرقم:', text)
+        setCopiedField(fieldId)
+        setTimeout(() => setCopiedField(null), 2000)
+        return
+      }
+    }
+    setCopiedField(fieldId)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
+
+  useEffect(() => {
+    fetch('/api/payment-methods')
+      .then(r => r.json())
+      .then(data => {
+        if (data.methods) setPaymentMethods(data.methods)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setError('حجم الملف يتجاوز 5MB')
+      return
+    }
+    setError('')
+    const reader = new FileReader()
+    reader.onload = () => setScreenshot(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleSubmit = async () => {
+    if (!selectedMethod || !screenshot) return
+    setSubmitting(true)
+    setError('')
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+      const res = await fetch('/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          courseId: course.id,
+          amount: course.price,
+          paymentMethodId: selectedMethod._id,
+          screenshotUrl: screenshot,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccess(true)
+      } else {
+        setError(data.error || 'حدث خطأ في إرسال الطلب')
+      }
+    } catch {
+      setError('حدث خطأ في الاتصال بالخادم')
+    }
+    setSubmitting(false)
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      dir="rtl"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="glass-card w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-5 border-b border-border">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Lock className="h-5 w-5 text-neon-cyan" />
+              هذا الدرس مدفوع
+            </h2>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-lg hover:bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-3 p-3 rounded-xl bg-muted/30">
+            <p className="font-bold text-foreground">{course.titleAr}</p>
+            <p className="text-sm text-muted-foreground mt-1">{course.instructor}</p>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-neon-cyan font-bold text-lg">{course.price.toLocaleString()} ر.ي</span>
+              <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/25 text-[10px]">مدفوع</Badge>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-3">للوصول إلى هذا الدرس وباقي دروس الدورة، يرجى إتمام عملية الدفع</p>
+        </div>
+
+        {!success ? (
+          <div className="p-5 space-y-5">
+            {/* Payment method selection */}
+            <div>
+              <label className="text-sm font-medium mb-2 block text-foreground">اختر طريقة الدفع</label>
+              {paymentMethods.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">لا توجد طرق دفع متاحة حالياً</p>
+              ) : (
+                <div className="space-y-2">
+                  {paymentMethods.filter(m => m.active !== false).map(method => (
+                    <button
+                      key={method._id}
+                      onClick={() => setSelectedMethod(method)}
+                      className={`w-full p-3 rounded-xl text-right transition-all ${
+                        selectedMethod?._id === method._id
+                          ? 'bg-neon-cyan/10 border border-neon-cyan/30'
+                          : 'bg-muted/30 border border-border hover:bg-muted/50'
+                      }`}
+                    >
+                      <p className="font-medium text-sm text-foreground">{method.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{method.type}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selected method details - Professional copyable fields */}
+            {selectedMethod && (
+              <div className="p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15 space-y-3">
+                <p className="text-xs text-neon-cyan font-bold flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  تفاصيل التحويل
+                </p>
+                {/* Account Number - Copyable */}
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">رقم الحساب</p>
+                    <p className="text-sm font-mono text-foreground font-bold tracking-wide select-all" dir="ltr">{selectedMethod.accountNumber}</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(selectedMethod.accountNumber, 'accountNumber')}
+                    className={`shrink-0 mr-2 h-8 px-3 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                      copiedField === 'accountNumber'
+                        ? 'bg-neon-green/20 text-neon-green border border-neon-green/30'
+                        : 'bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 hover:bg-neon-cyan/20'
+                    }`}
+                  >
+                    {copiedField === 'accountNumber' ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        تم النسخ
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        نسخ
+                      </>
+                    )}
+                  </button>
+                </div>
+                {/* Account Name - Copyable */}
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">اسم الحساب</p>
+                    <p className="text-sm text-foreground font-bold select-all">{selectedMethod.accountName}</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(selectedMethod.accountName, 'accountName')}
+                    className={`shrink-0 mr-2 h-8 px-3 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                      copiedField === 'accountName'
+                        ? 'bg-neon-green/20 text-neon-green border border-neon-green/30'
+                        : 'bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 hover:bg-neon-cyan/20'
+                    }`}
+                  >
+                    {copiedField === 'accountName' ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        تم النسخ
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        نسخ
+                      </>
+                    )}
+                  </button>
+                </div>
+                {selectedMethod.instructions && (
+                  <div className="p-2.5 rounded-lg bg-muted/30 border border-border">
+                    <p className="text-[10px] text-muted-foreground mb-1">التعليمات</p>
+                    <p className="text-xs text-muted-foreground select-all">{selectedMethod.instructions}</p>
+                  </div>
+                )}
+                {/* Amount to pay */}
+                <div className="p-3 rounded-lg bg-gradient-to-l from-neon-cyan/10 to-neon-purple/10 border border-neon-cyan/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">المبلغ المطلوب تحويله</span>
+                    <span className="text-lg font-black text-neon-cyan">{course.price.toLocaleString()} ر.ي</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Screenshot upload */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-2 block">لقطة شاشة التحويل *</label>
+              <div className="relative">
+                {screenshot ? (
+                  <div className="relative rounded-xl overflow-hidden border border-neon-cyan/20">
+                    <img src={screenshot} alt="screenshot" className="w-full h-48 object-cover" />
+                    <button
+                      onClick={() => setScreenshot(null)}
+                      className="absolute top-2 left-2 h-7 w-7 rounded-full bg-red-500/80 flex items-center justify-center hover:bg-red-500 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-36 rounded-xl border-2 border-dashed border-border hover:border-neon-cyan/30 cursor-pointer transition-colors bg-muted/10">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                    <span className="text-xs text-muted-foreground">اضغط لرفع لقطة الشاشة</span>
+                    <span className="text-[10px] text-muted-foreground/50 mt-1">PNG, JPG حتى 5MB</span>
+                    <input type="file" accept="image/*" onChange={handleScreenshotUpload} className="hidden" />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Error message */}
+            {error && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+                {error}
+              </div>
+            )}
+
+            {/* Submit */}
+            <Button
+              onClick={handleSubmit}
+              disabled={!selectedMethod || !screenshot || submitting}
+              className="w-full h-12 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <CreditCard className="h-5 w-5 ml-2" />
+                  إرسال طلب الدفع
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="p-8 text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring' }}
+              className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4"
+            >
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            </motion.div>
+            <h3 className="text-lg font-bold text-foreground mb-2">تم إرسال الطلب بنجاح!</h3>
+            <p className="text-sm text-muted-foreground mb-6">سيتم مراجعة الدفع وتفعيل الدورة خلال 24 ساعة</p>
+            <Button
+              onClick={onClose}
+              className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25"
+            >
+              حسناً
+            </Button>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
   )
 }
 
@@ -433,6 +803,11 @@ export function CourseViewerPage() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [lessonCompleted, setLessonCompleted] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  
+  // Offline support - disabled for now to fix crash
+  // const offline = useOffline()
+  const [isCurrentLessonCached, setIsCurrentLessonCached] = useState(false)
   
   // Server-side enrollment state
   const [serverEnrolled, setServerEnrolled] = useState<boolean | null>(null)
@@ -491,31 +866,27 @@ export function CourseViewerPage() {
             }
           }
           
-          // Also update store lessons with API data if they have content
+          // Always update store lessons with API data to ensure we have the full list
+          // This ensures newly added lessons by admin appear immediately
           if (data.lessons?.length > 0) {
             const currentLessons = useAppStore.getState().lessons
-            const existingForCourse = currentLessons.filter(l => l.courseId === activeCourseId)
-            // If API returned lessons with content, update store
-            const lessonsWithContent = data.lessons.filter((l: any) => l.content && !l.isLocked)
-            if (lessonsWithContent.length > existingForCourse.filter(l => l.content).length) {
-              const mappedLessons = data.lessons.map((l: any) => ({
-                id: l.id,
-                courseId: activeCourseId,
-                title: l.title || '',
-                titleAr: l.titleAr || '',
-                type: l.type || 'article',
-                duration: l.duration || 15,
-                order: l.order || 1,
-                isFree: l.isFree || false,
-                content: l.content,
-                videoUrl: l.videoUrl,
-                summary: l.summary,
-                keyPoints: l.keyPoints,
-              }))
-              // Replace lessons for this course in the store
-              const otherLessons = currentLessons.filter(l => l.courseId !== activeCourseId)
-              useAppStore.setState({ lessons: [...otherLessons, ...mappedLessons] })
-            }
+            const mappedLessons = data.lessons.map((l: any) => ({
+              id: l.id,
+              courseId: activeCourseId,
+              title: l.title || '',
+              titleAr: l.titleAr || '',
+              type: l.type || 'article',
+              duration: l.duration || 15,
+              order: l.order || 1,
+              isFree: l.isFree || false,
+              content: l.content,
+              videoUrl: l.videoUrl,
+              summary: l.summary,
+              keyPoints: l.keyPoints,
+            }))
+            // Always replace lessons for this course with API data (handles additions, deletions, and reordering)
+            const otherLessons = currentLessons.filter(l => l.courseId !== activeCourseId)
+            useAppStore.setState({ lessons: [...otherLessons, ...mappedLessons] })
           }
         }
       } catch (err) {
@@ -557,6 +928,9 @@ export function CourseViewerPage() {
     [courseLessons, activeLessonId]
   )
 
+  // Get cached lessons from store for rendering (not getState() in JSX)
+  const cachedLessons = useAppStore((state) => state.cachedLessons)
+
   // Merge server and local completed lessons
   const completedLessons = useMemo(
     () => {
@@ -573,33 +947,48 @@ export function CourseViewerPage() {
     [completedLessons]
   )
 
+  // Check if this course is gifted (from store)
+  const isCourseGifted = course?.isGifted === true
+
   // Use server-side enrollment for access control
   const isLessonLocked = useCallback(
     (lesson: Lesson) => {
       if (lesson.isFree) return false
       // If course is free (price === 0), all lessons are unlocked
       if (course?.price === 0) return false
+      // Gifted courses have all lessons unlocked
+      if (isCourseGifted) return false
       // Check server enrollment status first
       if (serverEnrolled === true) return false
       if (serverEnrolled === false) return !lesson.isFree
-      // Fallback to local progress check
-      if (progress) return false
-      // If no enrollment and lesson is not free, it's locked
+      // If no server data yet, check if user has local progress
+      // Only unlock if the course is actually free or user is enrolled
+      // Do NOT unlock paid courses just because a progress entry exists
       return !lesson.isFree
     },
-    [course, progress, serverEnrolled]
+    [course, serverEnrolled, isCourseGifted]
   )
 
-  // Find next incomplete lesson
+  // Find the next lesson (sequential order, right after current)
   const nextLesson = useMemo(() => {
-    const nextIncomplete = courseLessons.find(
-      l => !completedLessons.includes(l.id) && l.id !== currentLesson?.id
-    )
-    return nextIncomplete || null
-  }, [courseLessons, completedLessons, currentLesson])
+    if (!currentLesson) return null
+    const currentIndex = courseLessons.findIndex(l => l.id === currentLesson.id)
+    if (currentIndex === -1 || currentIndex >= courseLessons.length - 1) return null
+    return courseLessons[currentIndex + 1]
+  }, [courseLessons, currentLesson])
+
+  // Check if next lesson is locked (paid)
+  const isNextLessonLocked = useMemo(() => {
+    if (!nextLesson) return false
+    return isLessonLocked(nextLesson)
+  }, [nextLesson, isLessonLocked])
 
   const handleLessonClick = (lesson: Lesson) => {
-    if (isLessonLocked(lesson)) return
+    if (isLessonLocked(lesson)) {
+      // Show payment modal instead of doing nothing
+      setShowPaymentModal(true)
+      return
+    }
     setActiveLessonId(lesson.id)
     setLessonCompleted(false)
     setShowCelebration(false)
@@ -625,6 +1014,11 @@ export function CourseViewerPage() {
 
   const handleNextLesson = () => {
     if (nextLesson) {
+      if (isLessonLocked(nextLesson)) {
+        // Show payment modal instead of navigating to locked lesson
+        setShowPaymentModal(true)
+        return
+      }
       setActiveLessonId(nextLesson.id)
       setLessonCompleted(false)
       setShowCelebration(false)
@@ -641,7 +1035,7 @@ export function CourseViewerPage() {
       <div className="min-h-screen flex items-center justify-center" dir="rtl">
         <div className="text-center glass-card p-8">
           <BookOpen className="w-12 h-12 text-neon-cyan mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">لم يتم اختيار دورة</h2>
+          <h2 className="text-xl font-bold text-foreground mb-2">لم يتم اختيار دورة</h2>
           <p className="text-muted-foreground mb-4">اختر دورة من قائمة الدورات للبدء</p>
           <Button onClick={handleBackToCourses} className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30">
             العودة للدورات
@@ -668,7 +1062,7 @@ export function CourseViewerPage() {
         <div className="lg:hidden">
           <button
             onClick={() => setShowSidebar(!showSidebar)}
-            className="w-full flex items-center justify-between p-4 glass-card border-b border-white/10"
+            className="w-full flex items-center justify-between p-4 glass-card border-b border-border"
           >
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-neon-cyan" />
@@ -687,28 +1081,28 @@ export function CourseViewerPage() {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <ScrollArea className="max-h-[50vh]">
-                  <div className="p-3 space-y-1.5">
-                    {courseLessons.map((lesson) => (
-                      <LessonItem
-                        key={lesson.id}
-                        lesson={lesson}
-                        isActive={lesson.id === currentLesson.id}
-                        isCompleted={isLessonCompleted(lesson.id)}
-                        isLocked={isLessonLocked(lesson)}
-                        isNext={lesson.id === nextLesson?.id}
-                        onClick={() => handleLessonClick(lesson)}
-                      />
-                    ))}
-                  </div>
-                </ScrollArea>
+                <div className="p-3 space-y-0 max-h-[70vh] overflow-y-auto">
+                  {courseLessons.map((lesson, index) => (
+                    <LessonItem
+                      key={lesson.id}
+                      lesson={lesson}
+                      isActive={lesson.id === currentLesson.id}
+                      isCompleted={isLessonCompleted(lesson.id)}
+                      isLocked={isLessonLocked(lesson)}
+                      isNext={lesson.id === nextLesson?.id}
+                      isCached={cachedLessons.includes(lesson.id)}
+                      totalLessons={courseLessons.length}
+                      onClick={() => handleLessonClick(lesson)}
+                    />
+                  ))}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* Desktop: Fixed sidebar */}
-        <div className="hidden lg:block w-[340px] flex-shrink-0 border-l border-white/5 bg-[#060810]/50">
+        <div className="hidden lg:block w-[360px] flex-shrink-0 border-l border-border bg-sidebar/50">
           <ScrollArea className="h-screen">
             <div className="p-4">
               {/* Course header in sidebar */}
@@ -720,33 +1114,91 @@ export function CourseViewerPage() {
                   <ArrowRight className="w-4 h-4" />
                   العودة للدورات
                 </button>
-                <h2 className="text-sm font-bold text-white leading-6">{course.titleAr}</h2>
-                <p className="text-xs text-muted-foreground mt-1">{course.instructor}</p>
+                <h2 className="text-sm font-bold text-foreground leading-6">{course.titleAr}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-muted-foreground">{course.instructor}</span>
+                  {isCourseGifted && (
+                    <Badge className="text-[9px] px-1.5 py-0 bg-purple-500/15 text-purple-400 border border-purple-500/25">🎁 هدية</Badge>
+                  )}
+                </div>
               </div>
 
-              {/* Progress */}
+              {/* Progress card - Enhanced */}
               <div className="glass-card p-3 mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-muted-foreground">تقدم الدورة</span>
                   <span className="text-xs font-bold text-neon-cyan">{progressPercent}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                <div className="h-2 rounded-full bg-muted/50 overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progressPercent}%` }}
                     transition={{ duration: 1, ease: 'easeOut' }}
-                    className="h-full rounded-full bg-gradient-to-l from-neon-cyan to-neon-purple"
+                    className={`h-full rounded-full ${
+                      isCourseGifted
+                        ? 'bg-gradient-to-l from-purple-500 to-pink-500'
+                        : 'bg-gradient-to-l from-neon-cyan to-neon-purple'
+                    }`}
                   />
                 </div>
                 <div className="flex items-center justify-between mt-2 text-[10px] text-muted-foreground">
-                  <span>{completedLessons.length} من {courseLessons.length} درس مكتمل</span>
-                  <span>{courseLessons.length - completedLessons.length} متبقي</span>
+                  <span>✅ {completedLessons.length} مكتمل</span>
+                  <span>📝 {courseLessons.length - completedLessons.length} متبقي</span>
                 </div>
               </div>
 
+              {/* Course Stats - Professional summary */}
+              <div className="glass-card p-3 mb-4">
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Total lessons */}
+                  <div className="text-center p-2 rounded-lg bg-neon-cyan/5 border border-neon-cyan/10">
+                    <div className="text-lg font-black text-neon-cyan">{courseLessons.length}</div>
+                    <div className="text-[9px] text-muted-foreground">درس</div>
+                  </div>
+                  {/* Total duration */}
+                  <div className="text-center p-2 rounded-lg bg-neon-purple/5 border border-neon-purple/10">
+                    <div className="text-lg font-black text-neon-purple">
+                      {courseLessons.reduce((sum, l) => sum + (l.duration || 0), 0)}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground">دقيقة</div>
+                  </div>
+                  {/* Free lessons */}
+                  <div className="text-center p-2 rounded-lg bg-neon-green/5 border border-neon-green/10">
+                    <div className="text-lg font-black text-neon-green">
+                      {courseLessons.filter(l => l.isFree).length}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground">مجاني</div>
+                  </div>
+                </div>
+                {/* Lesson type breakdown */}
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border flex-wrap">
+                  {(() => {
+                    const typeCounts: Record<string, number> = {}
+                    courseLessons.forEach(l => { typeCounts[l.type] = (typeCounts[l.type] || 0) + 1 })
+                    return Object.entries(typeCounts).map(([type, count]) => {
+                      const TypeIcon = lessonTypeIcons[type as keyof typeof lessonTypeIcons]
+                      const color = lessonTypeColors[type as keyof typeof lessonTypeColors]
+                      return (
+                        <span key={type} className={`text-[9px] px-1.5 py-0.5 rounded-full border ${color} flex items-center gap-0.5`}>
+                          {TypeIcon && <TypeIcon className="w-2.5 h-2.5" />}
+                          {count} {lessonTypeLabels[type as keyof typeof lessonTypeLabels]}
+                        </span>
+                      )
+                    })
+                  })()}
+                </div>
+              </div>
+
+              {/* Section header */}
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <div className="w-1 h-4 rounded-full bg-gradient-to-b from-neon-cyan to-neon-purple" />
+                <span className="text-xs font-bold text-foreground">محتويات الدورة</span>
+                <span className="text-[10px] text-muted-foreground mr-auto">{courseLessons.length} درس</span>
+              </div>
+
               {/* Lessons list */}
-              <div className="space-y-1.5">
-                {courseLessons.map((lesson) => (
+              <div className="space-y-0">
+                {courseLessons.map((lesson, index) => (
                   <LessonItem
                     key={lesson.id}
                     lesson={lesson}
@@ -754,6 +1206,8 @@ export function CourseViewerPage() {
                     isCompleted={isLessonCompleted(lesson.id)}
                     isLocked={isLessonLocked(lesson)}
                     isNext={lesson.id === nextLesson?.id}
+                    isCached={cachedLessons.includes(lesson.id)}
+                    totalLessons={courseLessons.length}
                     onClick={() => handleLessonClick(lesson)}
                   />
                 ))}
@@ -775,19 +1229,24 @@ export function CourseViewerPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className={`relative overflow-hidden rounded-2xl mb-8 bg-gradient-to-br ${gradient} p-6 sm:p-8`}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-background/20 to-transparent" />
                 <div className="absolute top-4 left-8 text-6xl opacity-10 animate-float">{icon}</div>
                 
                 <div className="relative z-10">
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     <Badge className={`${level.color} border text-xs`}>{level.label}</Badge>
-                    {course.isPremium && (
+                    {isCourseGifted && (
+                      <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs animate-pulse">
+                        🎁 هدية من الإدارة
+                      </Badge>
+                    )}
+                    {course.isPremium && !isCourseGifted && (
                       <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 text-xs">
                         <Crown className="w-3 h-3 ml-1" />
                         مميز
                       </Badge>
                     )}
-                    {course.price === 0 && (
+                    {course.price === 0 && !isCourseGifted && (
                       <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs">
                         مجاني
                       </Badge>
@@ -796,10 +1255,32 @@ export function CourseViewerPage() {
                       {completedLessons.length}/{courseLessons.length} درس
                     </Badge>
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-white leading-relaxed">{course.titleAr}</h1>
-                  <p className="text-sm text-white/70 mt-2">{course.description}</p>
+                  {/* Gift banner for gifted courses */}
+                  {isCourseGifted && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className="mb-3 p-3 rounded-xl border border-purple-500/20"
+                      style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(236,72,153,0.08) 100%)' }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <motion.span
+                          className="text-xl"
+                          animate={{ rotate: [0, 10, -10, 0] }}
+                          transition={{ repeat: Infinity, duration: 2 }}
+                        >🎁</motion.span>
+                        <div>
+                          <p className="text-sm font-bold text-purple-300">هذه الدورة مُهداة لك من الإدارة</p>
+                          <p className="text-[10px] text-purple-300/60">جميع الدروس مفتوحة ومتاحة لك مجاناً</p>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-neon-green/20 text-neon-green border border-neon-green/30 mr-auto">✅ مفتوحة</span>
+                      </div>
+                    </motion.div>
+                  )}
+                  <h1 className="text-2xl sm:text-3xl font-black text-foreground leading-relaxed">{course.titleAr}</h1>
+                  <p className="text-sm text-foreground/70 mt-2">{course.description}</p>
                   
-                  <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-white/60">
+                  <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-foreground/60">
                     <div className="flex items-center gap-1.5">
                       <GraduationCap className="w-4 h-4" />
                       <span>{course.instructor}</span>
@@ -834,7 +1315,7 @@ export function CourseViewerPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs text-gray-500 font-mono">الدرس {currentLesson.order} من {courseLessons.length}</span>
+                          <span className="text-xs text-muted-foreground font-mono">الدرس {currentLesson.order} من {courseLessons.length}</span>
                           <Badge className={`text-[10px] px-1.5 py-0 ${lessonTypeColors[currentLesson.type]} border`}>
                             {React.createElement(lessonTypeIcons[currentLesson.type], { className: 'w-2.5 h-2.5 ml-0.5 inline' })}
                             {lessonTypeLabels[currentLesson.type]}
@@ -845,8 +1326,11 @@ export function CourseViewerPage() {
                               مكتمل
                             </Badge>
                           )}
+                          {isCurrentLessonCached && (
+                            <OfflineBadge isCached={true} />
+                          )}
                         </div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-white leading-relaxed">
+                        <h2 className="text-xl sm:text-2xl font-bold text-foreground leading-relaxed">
                           {currentLesson.titleAr}
                         </h2>
                         <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground">
@@ -863,24 +1347,6 @@ export function CourseViewerPage() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Lesson Summary Box (if exists) */}
-                  {currentLesson.summary && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="glass-card p-5 mb-6 border border-neon-purple/20 bg-gradient-to-br from-neon-purple/5 to-transparent"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-neon-purple/15 flex items-center justify-center">
-                          <Lightbulb className="w-4 h-4 text-neon-purple" />
-                        </div>
-                        <h3 className="font-bold text-neon-purple">ملخص الدرس</h3>
-                      </div>
-                      <p className="text-gray-300 leading-7 text-sm">{currentLesson.summary}</p>
-                    </motion.div>
-                  )}
 
                   {/* Key Points (if exists) */}
                   {currentLesson.keyPoints && currentLesson.keyPoints.length > 0 && (
@@ -903,12 +1369,12 @@ export function CourseViewerPage() {
                             initial={{ opacity: 0, x: 10 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.4 + i * 0.05 }}
-                            className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5"
+                            className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50"
                           >
                             <div className="flex-shrink-0 w-5 h-5 rounded-full bg-neon-cyan/15 border border-neon-cyan/30 flex items-center justify-center mt-0.5">
                               <span className="text-[9px] font-bold text-neon-cyan">{i + 1}</span>
                             </div>
-                            <span className="text-sm text-gray-300 leading-6">{point}</span>
+                            <span className="text-sm text-foreground/80 leading-6">{point}</span>
                           </motion.div>
                         ))}
                       </div>
@@ -929,7 +1395,7 @@ export function CourseViewerPage() {
                       
                       <div className="relative glass-card p-6 sm:p-8 lg:p-10">
                         {/* Reading progress indicator */}
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
                           <div className="flex items-center gap-2">
                             <BookOpen className="w-4 h-4 text-neon-cyan/60" />
                             <span className="text-xs text-muted-foreground">محتوى تعليمي</span>
@@ -946,7 +1412,7 @@ export function CourseViewerPage() {
                         </div>
                         
                         {/* End of lesson decoration */}
-                        <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-center gap-2">
+                        <div className="mt-8 pt-4 border-t border-border flex items-center justify-center gap-2">
                           <div className="w-8 h-0.5 rounded-full bg-gradient-to-l from-transparent to-neon-cyan/30" />
                           <Activity className="w-4 h-4 text-neon-cyan/30" />
                           <div className="w-8 h-0.5 rounded-full bg-gradient-to-r from-transparent to-neon-cyan/30" />
@@ -965,7 +1431,7 @@ export function CourseViewerPage() {
                       <div className="w-20 h-20 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-4">
                         <HelpCircle className="w-10 h-10 text-amber-400" />
                       </div>
-                      <h3 className="text-xl font-bold text-white mb-2">اختبار الدورة</h3>
+                      <h3 className="text-xl font-bold text-foreground mb-2">اختبار الدورة</h3>
                       <p className="text-gray-400 mb-6">اختبر معلوماتك في ما تعلمته من هذه الدورة</p>
                       <Button
                         onClick={() => setActivePage('quizzes')}
@@ -1026,10 +1492,23 @@ export function CourseViewerPage() {
                     {nextLesson && (
                       <Button
                         onClick={handleNextLesson}
-                        className="flex-1 bg-white/5 border border-white/10 text-white hover:bg-white/10 h-12 text-base"
+                        className={`flex-1 h-12 text-base font-bold transition-all ${
+                          isNextLessonLocked
+                            ? 'bg-gradient-to-l from-amber-500 to-orange-500 text-white hover:shadow-[0_0_30px_rgba(245,158,11,0.3)]'
+                            : 'bg-muted/50 border border-border text-foreground hover:bg-muted'
+                        }`}
                       >
-                        الدرس التالي
-                        <ChevronLeft className="w-5 h-5 mr-1" />
+                        {isNextLessonLocked ? (
+                          <>
+                            <Lock className="w-4 h-4 ml-2" />
+                            الدرس التالي (مدفوع)
+                          </>
+                        ) : (
+                          <>
+                            الدرس التالي
+                            <ChevronLeft className="w-5 h-5 mr-1" />
+                          </>
+                        )}
                       </Button>
                     )}
 
@@ -1037,7 +1516,7 @@ export function CourseViewerPage() {
                     <Button
                       onClick={handleBackToCourses}
                       variant="ghost"
-                      className="text-muted-foreground hover:text-white h-12"
+                      className="text-muted-foreground hover:text-foreground h-12"
                     >
                       <ArrowRight className="w-4 h-4 ml-1" />
                       العودة للدورات
@@ -1052,12 +1531,12 @@ export function CourseViewerPage() {
                       return prevLesson ? (
                         <button
                           onClick={() => handleLessonClick(prevLesson)}
-                          className="flex items-center gap-2 glass-card px-4 py-2.5 hover:bg-white/5 transition-colors"
+                          className="flex items-center gap-2 glass-card px-4 py-2.5 hover:bg-muted/50 transition-colors"
                         >
                           <ArrowRight className="w-4 h-4 text-muted-foreground" />
                           <div className="text-right">
                             <p className="text-[10px] text-muted-foreground">الدرس السابق</p>
-                            <p className="text-xs font-medium text-white">{prevLesson.titleAr}</p>
+                            <p className="text-xs font-medium text-foreground">{prevLesson.titleAr}</p>
                           </div>
                         </button>
                       ) : <div />
@@ -1065,13 +1544,21 @@ export function CourseViewerPage() {
                     {nextLesson && (
                       <button
                         onClick={() => handleLessonClick(nextLesson)}
-                        className="flex items-center gap-2 glass-card px-4 py-2.5 hover:bg-white/5 transition-colors"
+                        className={`flex items-center gap-2 px-4 py-2.5 hover:bg-muted/50 transition-colors ${
+                          isNextLessonLocked
+                            ? 'bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/20'
+                            : 'glass-card'
+                        }`}
                       >
                         <div className="text-right">
-                          <p className="text-[10px] text-muted-foreground">الدرس التالي</p>
-                          <p className="text-xs font-medium text-white">{nextLesson.titleAr}</p>
+                          <p className="text-[10px] text-muted-foreground">{isNextLessonLocked ? 'درس مدفوع' : 'الدرس التالي'}</p>
+                          <p className={`text-xs font-medium ${isNextLessonLocked ? 'text-amber-400' : 'text-foreground'}`}>{nextLesson.titleAr}</p>
                         </div>
-                        <ChevronLeft className="w-4 h-4 text-neon-cyan" />
+                        {isNextLessonLocked ? (
+                          <Lock className="w-4 h-4 text-amber-400" />
+                        ) : (
+                          <ChevronLeft className="w-4 h-4 text-neon-cyan" />
+                        )}
                       </button>
                     )}
                   </div>
@@ -1082,33 +1569,23 @@ export function CourseViewerPage() {
         </div>
       </div>
 
-      {/* Enrollment Modal for Paid Courses */}
+      {/* Payment Modal for Locked/Paid Lessons */}
+      <AnimatePresence>
+        {showPaymentModal && course && (
+          <InCoursePaymentModal
+            course={course}
+            onClose={() => setShowPaymentModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Enrollment Modal for Paid Courses (legacy - redirects to payment) */}
       <AnimatePresence>
         {showEnrollModal && course && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="glass-card p-8 max-w-md mx-4 text-center border border-yellow-500/20"
-            >
-              <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">هذه الدورة مميزة</h2>
-              <p className="text-gray-400 mb-4">يجب الدفع للوصول لهذه الدورة</p>
-              <div className="text-2xl font-bold text-neon-cyan mb-6">{course.price.toLocaleString()} ر.ي</div>
-              <Button onClick={() => enrollInCourse(course.id)} className="w-full bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold h-12">
-                تسجيل والدفع
-              </Button>
-              <Button onClick={() => setShowEnrollModal(false)} variant="ghost" className="mt-3 text-muted-foreground">
-                إلغاء
-              </Button>
-            </motion.div>
-          </motion.div>
+          <InCoursePaymentModal
+            course={course}
+            onClose={() => setShowEnrollModal(false)}
+          />
         )}
       </AnimatePresence>
     </div>

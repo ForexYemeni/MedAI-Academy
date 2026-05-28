@@ -141,6 +141,23 @@ export async function PUT(req: NextRequest) {
     if (updates.lessonsData) {
       updates.lessons = updates.lessonsData.length
     }
+    
+    // When course price changes to 0 (free), automatically make all lessons free
+    if (updates.price === 0) {
+      const { db: dbCheck } = await connectToDatabase()
+      const existingCourse = await dbCheck.collection('courses').findOne({ _id: new ObjectId(courseId) })
+      if (existingCourse && existingCourse.price > 0) {
+        // Course was paid, now becoming free - make all lessons free
+        const lessonsData = updates.lessonsData || existingCourse.lessonsData || []
+        updates.lessonsData = lessonsData.map((lesson: any) => ({
+          ...lesson,
+          isFree: true,
+        }))
+        updates.isPremium = false
+        updates.lessons = updates.lessonsData.length
+      }
+    }
+    
     updates.updatedAt = new Date()
 
     await db.collection('courses').updateOne(

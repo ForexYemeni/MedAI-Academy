@@ -47,7 +47,7 @@ interface SimulationEvaluation {
 }
 
 // ─── Difficulty Config ───────────────────────────────────────────────
-const difficultyConfig = {
+const difficultyConfig: Record<string, { color: string; bg: string; border: string; label: string }> = {
   easy: { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30', label: 'سهل' },
   medium: { color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/30', label: 'متوسط' },
   hard: { color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/30', label: 'صعب' },
@@ -370,10 +370,10 @@ function SimulationCasesGrid() {
         <AnimatePresence mode="popLayout">
           {simulationCases.map((simCase, index) => (
             <SimulationCaseCard
-              key={simCase.id}
+              key={simCase?.id ?? index}
               simCase={simCase}
               index={index}
-              isHovered={hoveredId === simCase.id}
+              isHovered={hoveredId === simCase?.id ?? null}
               onHover={setHoveredId}
               onStart={() => setActiveSimulation(simCase)}
             />
@@ -393,8 +393,8 @@ function SimulationCaseCard({
   onHover: (id: string | null) => void
   onStart: () => void
 }) {
-  const diff = difficultyConfig[simCase.difficulty]
-  const spec = specialtyConfig[simCase.specialty] || specialtyConfig.emergency
+  const diff = difficultyConfig[simCase?.difficulty ?? 'medium'] ?? difficultyConfig.medium
+  const spec = specialtyConfig[simCase?.specialty ?? 'emergency'] ?? specialtyConfig.emergency
   const SpecIcon = spec.icon
 
   return (
@@ -404,7 +404,7 @@ function SimulationCaseCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.4, delay: index * 0.08 }}
-      onMouseEnter={() => onHover(simCase.id)}
+      onMouseEnter={() => onHover(simCase?.id ?? null)}
       onMouseLeave={() => onHover(null)}
       className="group relative"
     >
@@ -425,7 +425,7 @@ function SimulationCaseCard({
         </motion.div>
 
         {/* Lock overlay */}
-        {simCase.isLocked && (
+        {simCase?.isLocked && (
           <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-20 flex items-center justify-center rounded-xl">
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-purple-500/20 border border-purple-500/30">
@@ -448,7 +448,7 @@ function SimulationCaseCard({
                 <SpecIcon className={`size-4 ${diff.color}`} />
               </div>
               <div>
-                <h3 className="font-bold text-foreground text-sm leading-tight">{simCase.titleAr}</h3>
+                <h3 className="font-bold text-foreground text-sm leading-tight">{simCase?.titleAr ?? ''}</h3>
                 <span className="text-xs text-muted-foreground">{spec.label}</span>
               </div>
             </div>
@@ -462,33 +462,33 @@ function SimulationCaseCard({
             </Badge>
             <Badge className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px]">
               <Clock className="size-2.5 ml-0.5" />
-              {simCase.duration} دقيقة
+              {simCase?.duration ?? 15} دقيقة
             </Badge>
           </div>
 
           {/* Symptoms Preview */}
           <div className="flex flex-wrap gap-1.5">
-            {simCase.symptoms.slice(0, 3).map((symptom, i) => (
+            {(simCase?.symptoms ?? []).slice(0, 3).map((symptom, i) => (
               <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-background/50 text-muted-foreground border border-border">
                 {symptom}
               </span>
             ))}
-            {simCase.symptoms.length > 3 && (
+            {(simCase?.symptoms ?? []).length > 3 && (
               <span className="text-[10px] px-2 py-0.5 rounded-md bg-background/50 text-cyan-400 border border-cyan-500/20">
-                +{simCase.symptoms.length - 3}
+                +{(simCase?.symptoms ?? []).length - 3}
               </span>
             )}
           </div>
 
           {/* Scenario preview */}
           <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-            {simCase.scenario}
+            {simCase?.scenario ?? ''}
           </p>
 
           {/* Start Button */}
           <Button
             onClick={onStart}
-            disabled={simCase.isLocked}
+            disabled={simCase?.isLocked ?? false}
             className="w-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 hover:text-cyan-300 transition-all group/btn"
           >
             <Play className="size-4 ml-1 transition-transform group-hover/btn:scale-110" />
@@ -512,8 +512,8 @@ function SimulationCaseCard({
 // ─── Active Simulation View ─────────────────────────────────────────
 function ActiveSimulationView({ simCase }: { simCase: SimulationCase }) {
   const { setActiveSimulation, updateUser, user } = useAppStore()
-  const [vitals, setVitals] = useState(simCase.vitals)
-  const [timeLeft, setTimeLeft] = useState(simCase.duration * 60)
+  const [vitals, setVitals] = useState(simCase?.vitals ?? { hr: 80, bp: '120/80', spo2: 98, temp: 37, rr: 16 })
+  const [timeLeft, setTimeLeft] = useState((simCase?.duration ?? 15) * 60)
   const [decisions, setDecisions] = useState<DecisionEntry[]>([])
   const [isComplete, setIsComplete] = useState(false)
   const [evaluation, setEvaluation] = useState<SimulationEvaluation | null>(null)
@@ -688,9 +688,9 @@ function ActiveSimulationView({ simCase }: { simCase: SimulationCase }) {
           <div>
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Siren className="size-5 text-red-400" />
-              {simCase.titleAr}
+              {simCase?.titleAr ?? ''}
             </h2>
-            <span className="text-xs text-muted-foreground">{specialtyConfig[simCase.specialty]?.label}</span>
+            <span className="text-xs text-muted-foreground">{specialtyConfig[simCase?.specialty ?? 'emergency']?.label}</span>
           </div>
         </div>
 
@@ -698,7 +698,7 @@ function ActiveSimulationView({ simCase }: { simCase: SimulationCase }) {
           {/* Timer */}
           {!isComplete && (
             <div className="flex items-center gap-2">
-              <CircularTimer timeLeft={timeLeft} totalTime={simCase.duration * 60} />
+              <CircularTimer timeLeft={timeLeft} totalTime={(simCase?.duration ?? 15) * 60} />
             </div>
           )}
           {!isComplete && (
@@ -718,7 +718,7 @@ function ActiveSimulationView({ simCase }: { simCase: SimulationCase }) {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-cyan-500/15 bg-[#050810] p-4 relative overflow-hidden"
+          className="rounded-xl border border-cyan-500/15 bg-card p-4 relative overflow-hidden"
         >
           {/* Scanline effect */}
           <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
@@ -809,7 +809,7 @@ function ActiveSimulationView({ simCase }: { simCase: SimulationCase }) {
               <div className="bg-background/30 rounded-lg p-4 mb-3 border border-border">
                 <div className="flex items-start gap-2 mb-2">
                   <FileText className="size-4 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-sm text-foreground leading-relaxed">{simCase.scenario}</p>
+                  <p className="text-sm text-foreground leading-relaxed">{simCase?.scenario ?? ''}</p>
                 </div>
               </div>
 
@@ -818,7 +818,7 @@ function ActiveSimulationView({ simCase }: { simCase: SimulationCase }) {
                 <h4 className="text-sm font-semibold text-foreground">الأعراض</h4>
               </div>
               <div className="flex flex-wrap gap-2">
-                {simCase.symptoms.map((symptom, i) => (
+                {(simCase?.symptoms ?? []).map((symptom, i) => (
                   <span key={i} className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20">
                     {symptom}
                   </span>

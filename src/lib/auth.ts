@@ -38,8 +38,26 @@ export function verifyToken(token: string): AuthUser | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as AuthUser
     return decoded
-  } catch {
+  } catch (err: any) {
+    if (err?.name === 'TokenExpiredError') {
+      console.warn('JWT token expired:', err.expiredAt)
+    } else {
+      console.warn('JWT verification failed:', err?.message || 'unknown error')
+    }
     return null
+  }
+}
+
+// Check if a token is expired on the client side (without verifying signature)
+export function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    if (payload.exp) {
+      return Date.now() >= payload.exp * 1000
+    }
+    return false
+  } catch {
+    return true
   }
 }
 

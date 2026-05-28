@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyToken } from '@/lib/auth'
+import { connectToDatabase } from '@/lib/mongodb'
+import { createNotification } from '@/app/api/notifications/route'
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,6 +21,37 @@ export async function POST(req: NextRequest) {
         ? 'أداء ممتاز! لقد تعاملت مع الحالة باحترافية عالية.' 
         : 'أداء جيد، لكن هناك بعض النقاط التي يمكن تحسينها.',
     }
+
+    // Send notification for high-scoring simulation completion
+    try {
+      const token = req.headers.get('Authorization')?.replace('Bearer ', '')
+      if (token) {
+        const authUser = verifyToken(token)
+        if (authUser) {
+          if (score >= 90) {
+            await createNotification({
+              userId: authUser.id,
+              title: '🏆 أداء متميز في المحاكاة!',
+              message: `حصلت على ${score}% في محاكاة الحالة الطبية. أداء استثنائي!`,
+              type: 'achievement',
+              link: 'simulation',
+              category: 'simulation',
+              icon: '🏆',
+            })
+          } else {
+            await createNotification({
+              userId: authUser.id,
+              title: '✅ إكمال محاكاة',
+              message: `أكملت محاكاة بنسبة ${score}%. ${score >= 80 ? 'أحسنت!' : 'واصل التحسن!'}`,
+              type: 'simulation',
+              link: 'simulation',
+              category: 'simulation',
+              icon: '🔬',
+            })
+          }
+        }
+      }
+    } catch (e) { /* notification is non-critical */ }
 
     return NextResponse.json(evaluation)
   } catch (error) {

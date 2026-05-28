@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, DollarSign, BookOpen, TrendingUp, TrendingDown,
@@ -8,7 +8,7 @@ import {
   AlertCircle, CheckCircle2, Circle, Shield,
   CreditCard, UserPlus, Zap, BarChart3,
   Settings, ChevronDown, Edit3, Save, X, FileText, Video, HelpCircle, FlaskConical, Layers, Plus, Trash2, RefreshCw, Loader2, Wallet, ToggleLeft, ToggleRight, Image as ImageIcon,
-  Menu, LogOut,
+  Menu, LogOut, Gift, MessageSquare, Sun, Moon, Lock, Info, Copy,
 } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -26,6 +26,9 @@ import {
   Sheet, SheetContent, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet'
 import { useAppStore } from '@/store/app-store'
+import { useTheme } from '@/components/med/layout/theme-provider'
+import { NotificationBell, AdminNotificationBadge } from '@/components/med/layout/notification-center'
+import { usePushNotifications } from '@/components/med/layout/push-notification-provider'
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -186,7 +189,7 @@ function getLevelColor(level: string) {
 
 // ─── Sidebar Config ─────────────────────────────────────────
 
-type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database'
+type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database' | 'simulation' | 'community' | 'settings'
 
 const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'نظرة عامة', icon: Activity },
@@ -194,9 +197,12 @@ const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[]
   { id: 'users', label: 'المستخدمين', icon: Users },
   { id: 'payments', label: 'المدفوعات', icon: CreditCard },
   { id: 'payment-methods', label: 'طرق الدفع', icon: Wallet },
+  { id: 'simulation', label: 'المحاكاة', icon: FlaskConical },
+  { id: 'community', label: 'المجتمع', icon: MessageSquare },
   { id: 'notifications', label: 'الإشعارات', icon: Bell },
   { id: 'activity-logs', label: 'سجل العمليات', icon: FileText },
   { id: 'database', label: 'قاعدة البيانات', icon: Shield },
+  { id: 'settings', label: 'إعدادات التطبيق', icon: Settings },
 ]
 
 // ─── Course Form Component ──────────────────────────────────
@@ -237,12 +243,12 @@ function CourseForm({ course, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">العنوان بالعربي *</label>
           <Input value={form.titleAr} onChange={(e) => setForm({ ...form, titleAr: e.target.value })}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">العنوان بالإنجليزي *</label>
           <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
         </div>
       </div>
 
@@ -250,12 +256,12 @@ function CourseForm({ course, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">الوصف بالعربي</label>
           <Textarea value={form.descriptionAr} onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
-            rows={3} className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none" />
+            rows={3} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">الوصف بالإنجليزي</label>
           <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-            rows={3} className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none" dir="ltr" />
+            rows={3} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" dir="ltr" />
         </div>
       </div>
 
@@ -263,10 +269,10 @@ function CourseForm({ course, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">التصنيف *</label>
           <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-            <SelectTrigger className="bg-white/5 border-white/10 h-9 text-sm">
+            <SelectTrigger className="bg-muted/50 border-border h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-med-card border-neon-cyan/20">
+            <SelectContent className="bg-med-card">
               <SelectItem value="emergency">طب الطوارئ</SelectItem>
               <SelectItem value="cardiology">أمراض القلب</SelectItem>
               <SelectItem value="neurology">الأعصاب</SelectItem>
@@ -281,10 +287,10 @@ function CourseForm({ course, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">المستوى</label>
           <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v as any })}>
-            <SelectTrigger className="bg-white/5 border-white/10 h-9 text-sm">
+            <SelectTrigger className="bg-muted/50 border-border h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-med-card border-neon-cyan/20">
+            <SelectContent className="bg-med-card">
               <SelectItem value="beginner">مبتدئ</SelectItem>
               <SelectItem value="intermediate">متوسط</SelectItem>
               <SelectItem value="advanced">متقدم</SelectItem>
@@ -294,7 +300,7 @@ function CourseForm({ course, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">المدة</label>
           <Input value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })}
-            placeholder="مثال: 42 ساعة" className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+            placeholder="مثال: 42 ساعة" className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
         </div>
       </div>
 
@@ -302,24 +308,24 @@ function CourseForm({ course, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">السعر (ر.ي)</label>
           <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: parseInt(e.target.value) || 0 })}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">اسم المدرب</label>
           <Input value={form.instructorName} onChange={(e) => setForm({ ...form, instructorName: e.target.value })}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
         </div>
       </div>
 
       <div className="flex items-center gap-4 flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={form.isPremium} onChange={(e) => setForm({ ...form, isPremium: e.target.checked })}
-            className="rounded border-white/20 bg-white/5 text-neon-cyan focus:ring-neon-cyan/30" />
+            className="rounded border-border bg-muted/50 text-neon-cyan focus:ring-neon-cyan/30" />
           <span className="text-xs text-muted-foreground">دورة مميزة (مدفوعة)</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })}
-            className="rounded border-white/20 bg-white/5 text-neon-cyan focus:ring-neon-cyan/30" />
+            className="rounded border-border bg-muted/50 text-neon-cyan focus:ring-neon-cyan/30" />
           <span className="text-xs text-muted-foreground">منشورة</span>
         </label>
       </div>
@@ -330,7 +336,7 @@ function CourseForm({ course, onSave, onCancel }: {
           <Save className="h-4 w-4 ml-1" />
           {course ? 'حفظ التعديلات' : 'إضافة الدورة'}
         </Button>
-        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground hover:text-white h-9">إلغاء</Button>
+        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground hover:text-foreground h-9">إلغاء</Button>
       </div>
     </motion.div>
   )
@@ -375,12 +381,12 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">العنوان بالعربي *</label>
           <Input value={form.titleAr} onChange={(e) => setForm({ ...form, titleAr: e.target.value })}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">العنوان بالإنجليزي *</label>
           <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
         </div>
       </div>
 
@@ -388,8 +394,8 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">النوع</label>
           <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as ApiLesson['type'] })}>
-            <SelectTrigger className="bg-white/5 border-white/10 h-9 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-med-card border-neon-cyan/20">
+            <SelectTrigger className="bg-muted/50 border-border h-9 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-med-card">
               <SelectItem value="article">مقال</SelectItem>
               <SelectItem value="video">فيديو</SelectItem>
               <SelectItem value="quiz">اختبار</SelectItem>
@@ -401,19 +407,19 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">المدة (دقيقة)</label>
           <Input type="number" value={form.duration} onChange={(e) => setForm({ ...form, duration: parseInt(e.target.value) || 0 })}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">الترتيب</label>
           <Input type="number" value={form.order} onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) || 0 })}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
         </div>
       </div>
 
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={form.isFree} onChange={(e) => setForm({ ...form, isFree: e.target.checked })}
-            className="rounded border-white/20 bg-white/5 text-neon-cyan focus:ring-neon-cyan/30" />
+            className="rounded border-border bg-muted/50 text-neon-cyan focus:ring-neon-cyan/30" />
           <span className="text-xs text-muted-foreground">درس مجاني</span>
         </label>
       </div>
@@ -422,7 +428,7 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">المحتوى (Markdown)</label>
           <Textarea value={form.content || ''} onChange={(e) => setForm({ ...form, content: e.target.value })}
-            rows={8} className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none font-mono" dir="rtl" />
+            rows={8} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none font-mono" dir="rtl" />
         </div>
       )}
 
@@ -430,20 +436,20 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">رابط الفيديو</label>
           <Input value={form.videoUrl || ''} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-            placeholder="https://..." className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
+            placeholder="https://..." className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
         </div>
       )}
 
       <div>
         <label className="text-xs text-muted-foreground mb-1 block">الملخص</label>
         <Textarea value={form.summary || ''} onChange={(e) => setForm({ ...form, summary: e.target.value })}
-          rows={2} className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none" />
+          rows={2} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
       </div>
 
       <div>
         <label className="text-xs text-muted-foreground mb-1 block">النقاط الرئيسية (كل نقطة في سطر)</label>
         <Textarea value={(form.keyPoints || []).join('\n')} onChange={(e) => setForm({ ...form, keyPoints: e.target.value.split('\n').filter(Boolean) })}
-          rows={4} className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none" />
+          rows={4} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
       </div>
 
       <div className="flex gap-2 pt-2">
@@ -452,9 +458,24 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
           <Save className="h-4 w-4 ml-1" />
           {lesson ? 'حفظ التعديلات' : 'إضافة الدرس'}
         </Button>
-        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground hover:text-white h-9">إلغاء</Button>
+        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground hover:text-foreground h-9">إلغاء</Button>
       </div>
     </motion.div>
+  )
+}
+
+// ─── Theme Toggle Button Component ────────────────────────
+
+function ThemeToggleBtn() {
+  const { theme, toggleTheme } = useTheme()
+  return (
+    <button
+      onClick={toggleTheme}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+    >
+      {theme === 'dark' ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+      <span className="font-medium">{theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}</span>
+    </button>
   )
 }
 
@@ -464,6 +485,16 @@ function LessonForm({ lesson, courseId, onSave, onCancel }: {
 
 export function AdminPage() {
   const { user, logout } = useAppStore()
+  const unreadCount = useAppStore(s => s.unreadNotificationCount)
+  const unreadByCategory = useAppStore(s => s.unreadByCategory)
+  const adminNotifications = useAppStore(s => s.notifications)
+  const markNotificationRead = useAppStore(s => s.markNotificationRead)
+  const markAllNotificationsRead = useAppStore(s => s.markAllNotificationsRead)
+  const deleteNotification = useAppStore(s => s.deleteNotification)
+  const clearAllNotifications = useAppStore(s => s.clearAllNotifications)
+  const authToken = useAppStore(s => s.authToken)
+  const { permission, isSubscribed, isSettingUp, requestPermissionAndSubscribe } = usePushNotifications()
+  const [adminNotifFilter, setAdminNotifFilter] = useState<string>('all')
 
   // ─── API Data State ─────────────────────────────────────
   const [courses, setCourses] = useState<ApiCourse[]>([])
@@ -498,6 +529,21 @@ export function AdminPage() {
   const [dbOperation, setDbOperation] = useState('')
   const [dbConfirmPassword, setDbConfirmPassword] = useState('')
   const [dbProcessing, setDbProcessing] = useState(false)
+  const [adminConfirmAction, setAdminConfirmAction] = useState<ConfirmAction | null>(null)
+  const [adminConfirmLoading, setAdminConfirmLoading] = useState(false)
+
+  // Settings state
+  const [privacyText, setPrivacyText] = useState('')
+  const [aboutText, setAboutText] = useState('')
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsSaving, setSettingsSaving] = useState(false)
+
+  // Gift Course State
+  const [giftModalOpen, setGiftModalOpen] = useState(false)
+  const [giftTargetUser, setGiftTargetUser] = useState<ApiUser | null>(null)
+  const [giftSelectedCourses, setGiftSelectedCourses] = useState<Set<string>>(new Set())
+  const [giftSending, setGiftSending] = useState(false)
+  const [giftResult, setGiftResult] = useState<string | null>(null)
 
   // ─── API Fetch Functions ────────────────────────────────
 
@@ -560,6 +606,40 @@ export function AdminPage() {
     } catch (err) { console.error('Fetch db stats error:', err) }
   }, [])
 
+  const fetchSettings = useCallback(async () => {
+    setSettingsLoading(true)
+    try {
+      const [privacyRes, aboutRes] = await Promise.all([
+        fetch('/api/settings/privacy'),
+        fetch('/api/settings/about'),
+      ])
+      const privacyData = await privacyRes.json()
+      const aboutData = await aboutRes.json()
+      setPrivacyText(privacyData.text || '')
+      setAboutText(aboutData.text || '')
+    } catch (err) { console.error('Fetch settings error:', err) }
+    setSettingsLoading(false)
+  }, [])
+
+  const handleSaveSettings = useCallback(async (key: 'privacy' | 'about', text: string) => {
+    setSettingsSaving(true)
+    try {
+      const res = await fetch(`/api/settings/${key}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ text }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        if (key === 'privacy') setPrivacyText(text)
+        else setAboutText(text)
+      } else {
+        setError(data.error || 'فشل حفظ الإعدادات')
+      }
+    } catch { setError('خطأ في الاتصال') }
+    setSettingsSaving(false)
+  }, [])
+
   // ─── Initial Data Load (Lazy - only load data for the active section) ───
 
   const [loadedSections, setLoadedSections] = useState<Set<AdminSection>>(new Set())
@@ -598,7 +678,7 @@ export function AdminPage() {
           await fetchUsers()
           break
         case 'payments':
-          await fetchPayments()
+          await Promise.all([fetchPayments(), courses.length === 0 ? fetchCourses() : Promise.resolve()])
           break
         case 'payment-methods':
           await fetchPaymentMethods()
@@ -608,6 +688,9 @@ export function AdminPage() {
           break
         case 'database':
           await fetchDbStats()
+          break
+        case 'settings':
+          await fetchSettings()
           break
       }
       setLoadedSections(prev => new Set(prev).add(section))
@@ -684,18 +767,29 @@ export function AdminPage() {
     setSaving(false)
   }
 
-  const handleDeleteCourse = async (courseId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذه الدورة؟ سيتم حذف جميع الدروس والتسجيلات المرتبطة بها.')) return
-    setSaving(true)
-    try {
-      const res = await fetch('/api/admin/courses', {
-        method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ courseId }),
-      })
-      const data = await res.json()
-      if (data.success) { setExpandedCourseId(null); await fetchCourses() }
-      else setError(data.error || 'فشل حذف الدورة')
-    } catch { setError('خطأ في الاتصال') }
-    setSaving(false)
+  const handleDeleteCourse = (courseId: string) => {
+    setAdminConfirmAction({
+      type: 'delete',
+      title: 'حذف الدورة',
+      message: 'هل أنت متأكد من حذف هذه الدورة؟',
+      details: 'سيتم حذف جميع الدروس والتسجيلات المرتبطة بها نهائياً.',
+      confirmLabel: 'حذف الدورة',
+      onConfirm: async () => {
+        setAdminConfirmLoading(true)
+        setSaving(true)
+        try {
+          const res = await fetch('/api/admin/courses', {
+            method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ courseId }),
+          })
+          const data = await res.json()
+          if (data.success) { setExpandedCourseId(null); await fetchCourses() }
+          else setError(data.error || 'فشل حذف الدورة')
+        } catch { setError('خطأ في الاتصال') }
+        setSaving(false)
+        setAdminConfirmLoading(false)
+        setAdminConfirmAction(null)
+      },
+    })
   }
 
   const handleAddLesson = async (formData: ApiLesson, courseId: string) => {
@@ -727,19 +821,30 @@ export function AdminPage() {
     setSaving(false)
   }
 
-  const handleDeleteLesson = async (courseId: string, lessonId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الدرس؟')) return
-    setSaving(true)
-    try {
-      const res = await fetch('/api/admin/lessons', {
-        method: 'DELETE', headers: getAuthHeaders(),
-        body: JSON.stringify({ courseId, lessonId }),
-      })
-      const data = await res.json()
-      if (data.success) { await fetchCourses() }
-      else setError(data.error || 'فشل حذف الدرس')
-    } catch { setError('خطأ في الاتصال') }
-    setSaving(false)
+  const handleDeleteLesson = (courseId: string, lessonId: string) => {
+    setAdminConfirmAction({
+      type: 'delete',
+      title: 'حذف الدرس',
+      message: 'هل أنت متأكد من حذف هذا الدرس؟',
+      details: 'سيتم حذف الدرس نهائياً ولا يمكن التراجع عن هذا الإجراء.',
+      confirmLabel: 'حذف الدرس',
+      onConfirm: async () => {
+        setAdminConfirmLoading(true)
+        setSaving(true)
+        try {
+          const res = await fetch('/api/admin/lessons', {
+            method: 'DELETE', headers: getAuthHeaders(),
+            body: JSON.stringify({ courseId, lessonId }),
+          })
+          const data = await res.json()
+          if (data.success) { await fetchCourses() }
+          else setError(data.error || 'فشل حذف الدرس')
+        } catch { setError('خطأ في الاتصال') }
+        setSaving(false)
+        setAdminConfirmLoading(false)
+        setAdminConfirmAction(null)
+      },
+    })
   }
 
   const handleApprovePayment = async (paymentId: string, status: 'approved' | 'rejected', note?: string) => {
@@ -789,18 +894,77 @@ export function AdminPage() {
     setSaving(false)
   }
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return
-    setSaving(true)
+  const handleDeleteUser = (userId: string) => {
+    setAdminConfirmAction({
+      type: 'delete',
+      title: 'حذف المستخدم',
+      message: 'هل أنت متأكد من حذف هذا المستخدم؟',
+      details: 'سيتم حذف حساب المستخدم وجميع بياناته نهائياً.',
+      confirmLabel: 'حذف المستخدم',
+      onConfirm: async () => {
+        setAdminConfirmLoading(true)
+        setSaving(true)
+        try {
+          const res = await fetch('/api/admin/users', {
+            method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ userId }),
+          })
+          const data = await res.json()
+          if (data.success) await fetchUsers()
+          else setError(data.error || 'فشل حذف المستخدم')
+        } catch { setError('خطأ في الاتصال') }
+        setSaving(false)
+        setAdminConfirmLoading(false)
+        setAdminConfirmAction(null)
+      },
+    })
+  }
+
+  // ─── Gift Course Logic ────────────────────────────────────
+  const openGiftModal = (user: ApiUser) => {
+    setGiftTargetUser(user)
+    setGiftSelectedCourses(new Set())
+    setGiftResult(null)
+    setGiftModalOpen(true)
+  }
+
+  const toggleGiftCourse = (courseId: string) => {
+    setGiftSelectedCourses(prev => {
+      const next = new Set(prev)
+      if (next.has(courseId)) next.delete(courseId)
+      else next.add(courseId)
+      return next
+    })
+  }
+
+  const handleGiftCourses = async () => {
+    if (!giftTargetUser || giftSelectedCourses.size === 0) return
+    setGiftSending(true)
+    setGiftResult(null)
     try {
-      const res = await fetch('/api/admin/users', {
-        method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ userId }),
+      const res = await fetch('/api/admin/gift-course', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          userId: giftTargetUser._id,
+          courseIds: Array.from(giftSelectedCourses),
+        }),
       })
       const data = await res.json()
-      if (data.success) await fetchUsers()
-      else setError(data.error || 'فشل حذف المستخدم')
-    } catch { setError('خطأ في الاتصال') }
-    setSaving(false)
+      if (data.success) {
+        const gifted = data.results?.filter((r: any) => r.status === 'gifted') || []
+        const already = data.results?.filter((r: any) => r.status === 'already_enrolled') || []
+        let msg = ''
+        if (gifted.length > 0) msg += `تم إهداء ${gifted.length} دورة بنجاح`
+        if (already.length > 0) msg += `${msg ? '. ' : ''}${already.length} دورة مسجل بها مسبقاً`
+        setGiftResult(msg || data.message)
+        await fetchUsers()
+      } else {
+        setGiftResult(data.error || 'فشل في إهداء الدورات')
+      }
+    } catch {
+      setGiftResult('خطأ في الاتصال')
+    }
+    setGiftSending(false)
   }
 
   const handleTogglePublish = async (course: ApiCourse) => {
@@ -875,6 +1039,19 @@ export function AdminPage() {
   const freeLessons = courses.reduce((sum, c) => sum + (c.lessonsData?.filter(l => l.isFree).length || 0), 0)
   const paidLessons = totalLessons - freeLessons
 
+  // Course name lookup map for payments
+  const courseNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    courses.forEach(c => map.set(c._id, c.titleAr || c.title))
+    return map
+  }, [courses])
+
+  // Memoized payment filters
+  const pendingPayments = useMemo(() => payments.filter(p => p.status === 'pending'), [payments])
+  const approvedPayments = useMemo(() => payments.filter(p => p.status === 'approved'), [payments])
+  const rejectedPayments = useMemo(() => payments.filter(p => p.status === 'rejected'), [payments])
+  const filteredPayments = useMemo(() => payments.filter(p => paymentFilter === 'all' || p.status === paymentFilter), [payments, paymentFilter])
+
   // ─── Sidebar Content (shared between desktop and mobile) ──
 
   const sidebarContent = (
@@ -887,18 +1064,18 @@ export function AdminPage() {
           </div>
           <div>
             <h2 className="text-base font-black bg-gradient-to-l from-cyan-300 to-cyan-500 bg-clip-text text-transparent">
-              MedAI Admin
+              أكاديمية نبض
             </h2>
             <p className="text-[10px] text-muted-foreground">لوحة التحكم الإدارية</p>
           </div>
         </div>
       </div>
 
-      <Separator className="bg-white/5 mx-3 w-auto" />
+      <Separator className="bg-muted/50 mx-3 w-auto" />
 
       {/* Admin User Card */}
       <div className="px-4 py-3">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500/30 to-purple-500/30 flex items-center justify-center text-sm font-bold shrink-0">
             {user?.name?.charAt(0) || 'A'}
           </div>
@@ -911,15 +1088,16 @@ export function AdminPage() {
         </div>
       </div>
 
-      {/* System Status */}
-      <div className="px-4 pb-2">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-green/5 border border-neon-green/10">
+      {/* System Status + Notification Bell */}
+      <div className="px-4 pb-2 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-green/5 border border-neon-green/10">
           <div className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
           <span className="text-[11px] text-neon-green font-medium">النظام يعمل</span>
         </div>
+        <NotificationBell />
       </div>
 
-      <Separator className="bg-white/5 mx-3 w-auto" />
+      <Separator className="bg-muted/50 mx-3 w-auto" />
 
       {/* Navigation Items */}
       <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
@@ -935,7 +1113,7 @@ export function AdminPage() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 relative group ${
                 isActive
                   ? 'bg-cyan-500/10 text-cyan-400'
-                  : 'text-muted-foreground hover:bg-white/5 hover:text-white'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
               {/* Active indicator bar on the right (RTL) */}
@@ -946,11 +1124,16 @@ export function AdminPage() {
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
               )}
-              <item.icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? 'text-cyan-400' : 'text-muted-foreground group-hover:text-white'}`} />
+              <item.icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? 'text-cyan-400' : 'text-muted-foreground group-hover:text-foreground'}`} />
               <span className="font-medium">{item.label}</span>
-              {item.id === 'payments' && payments.filter(p => p.status === 'pending').length > 0 && (
+              {item.id === 'payments' && pendingPayments.length > 0 && (
                 <Badge className="mr-auto bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[9px] h-5 min-w-[20px] flex items-center justify-center">
-                  {payments.filter(p => p.status === 'pending').length}
+                  {pendingPayments.length}
+                </Badge>
+              )}
+              {item.id === 'notifications' && unreadCount > 0 && (
+                <Badge className="mr-auto bg-red-500/15 text-red-400 border border-red-500/25 text-[9px] h-5 min-w-[20px] flex items-center justify-center">
+                  {unreadCount}
                 </Badge>
               )}
             </button>
@@ -958,14 +1141,17 @@ export function AdminPage() {
         })}
       </nav>
 
-      <Separator className="bg-white/5 mx-3 w-auto" />
+      <Separator className="bg-muted/50 mx-3 w-auto" />
 
       {/* Bottom Actions */}
       <div className="p-3 space-y-2">
+        {/* Theme Toggle */}
+        <ThemeToggleBtn />
+
         {/* Refresh */}
         <button
           onClick={handleRefreshAll}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-white/5 hover:text-white transition-all"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
         >
           <RefreshCw className="h-4 w-4 shrink-0" />
           <span className="font-medium">تحديث البيانات</span>
@@ -1023,15 +1209,15 @@ export function AdminPage() {
             <Activity className="h-5 w-5 text-neon-cyan" /> إحصائيات اليوم
           </h2>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
               <span className="text-sm text-muted-foreground">مستخدمين جدد اليوم</span>
               <span className="font-bold text-neon-cyan">{stats?.newUsersToday || 0}</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
               <span className="text-sm text-muted-foreground">مدفوعات معلقة اليوم</span>
               <span className="font-bold text-neon-orange">{stats?.pendingPaymentsToday || 0}</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
               <span className="text-sm text-muted-foreground">إجمالي المدفوعات المقبولة</span>
               <span className="font-bold text-neon-green">{stats?.approvedPayments || 0}</span>
             </div>
@@ -1046,12 +1232,12 @@ export function AdminPage() {
             <div>
               <label className="text-xs text-muted-foreground mb-1.5 block">العنوان</label>
               <Input value={notifTitle} onChange={(e) => setNotifTitle(e.target.value)} placeholder="عنوان الإشعار..."
-                className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+                className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1.5 block">الرسالة</label>
               <Textarea value={notifMessage} onChange={(e) => setNotifMessage(e.target.value)} placeholder="نص الإشعار..." rows={3}
-                className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none" />
+                className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
             </div>
             <Button onClick={handleSendNotif} disabled={sendingNotif || !notifTitle.trim() || !notifMessage.trim()}
               className="w-full bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 transition-all h-10">
@@ -1144,7 +1330,7 @@ export function AdminPage() {
                     </div>
                     {/* Course info - tappable to expand */}
                     <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
-                      className="flex-1 min-w-0 text-right hover:bg-white/5 rounded-lg transition-colors">
+                      className="flex-1 min-w-0 text-right hover:bg-muted rounded-lg transition-colors">
                       <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                         <h3 className="font-bold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">{course.titleAr}</h3>
                         <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[7px] sm:text-[8px] px-1 shrink-0">
@@ -1197,9 +1383,9 @@ export function AdminPage() {
                   {isExpanded && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3 }} className="overflow-hidden">
-                      <div className="px-2 sm:px-5 pb-3 sm:pb-5 space-y-2 border-t border-white/5 pt-3 sm:pt-4 overflow-x-auto">
+                      <div className="px-2 sm:px-5 pb-3 sm:pb-5 space-y-2 border-t border-border pt-3 sm:pt-4 overflow-x-auto">
                         {/* Lessons count + Add Lesson Button */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-2 rounded-lg bg-white/5 text-xs text-muted-foreground gap-2">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-2 rounded-lg bg-muted/50 text-xs text-muted-foreground gap-2">
                           <span className="text-[10px] sm:text-xs">دروس هذه الدورة ({courseLessons.length})</span>
                           <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
                             <span className="flex items-center gap-0.5 text-[9px] sm:text-xs">
@@ -1239,10 +1425,10 @@ export function AdminPage() {
                                   onCancel={() => setEditingLesson(null)} />
                               ) : (
                                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: lessonIdx * 0.02 }}
-                                  className="p-1.5 sm:p-3 rounded-lg sm:rounded-xl hover:bg-white/5 transition-colors group">
+                                  className="p-1.5 sm:p-3 rounded-lg sm:rounded-xl hover:bg-muted transition-colors group">
                                   {/* Lesson info row */}
                                   <div className="flex items-center gap-1 sm:gap-2">
-                                    <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-md bg-white/5 flex items-center justify-center text-[9px] sm:text-xs font-bold text-muted-foreground shrink-0">
+                                    <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-md bg-muted/50 flex items-center justify-center text-[9px] sm:text-xs font-bold text-muted-foreground shrink-0">
                                       {lesson.order}
                                     </div>
                                     <div className="shrink-0 hidden sm:block">{getLessonTypeIcon(lesson.type)}</div>
@@ -1309,7 +1495,7 @@ export function AdminPage() {
         <div className="flex-1 max-w-sm">
           <Input placeholder="بحث بالاسم أو الرقم..." value={usersSearch}
             onChange={(e) => { setUsersSearch(e.target.value); setUsersPage(1) }}
-            className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
         </div>
         <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px]">
           {usersTotal} مستخدم
@@ -1321,7 +1507,7 @@ export function AdminPage() {
         <div className="max-h-[560px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-white/10 hover:bg-transparent">
+              <TableRow className="border-b border-border hover:bg-transparent">
                 <TableHead className="text-neon-cyan/70 text-xs font-semibold">المستخدم</TableHead>
                 <TableHead className="text-neon-cyan/70 text-xs font-semibold text-center">الرقم</TableHead>
                 <TableHead className="text-neon-cyan/70 text-xs font-semibold text-center">الدورات</TableHead>
@@ -1334,7 +1520,7 @@ export function AdminPage() {
               {dbUsers.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">لا يوجد مستخدمون</TableCell></TableRow>
               ) : dbUsers.map((u) => (
-                <TableRow key={u._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                <TableRow key={u._id} className="border-b border-border hover:bg-muted transition-colors">
                   <TableCell className="font-semibold text-sm">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 flex items-center justify-center text-xs">
@@ -1348,8 +1534,14 @@ export function AdminPage() {
                   <TableCell className="text-center text-sm">{u.paymentCount || 0}</TableCell>
                   <TableCell className="text-center text-sm font-semibold text-neon-cyan">{(u.xp || 0).toLocaleString()}</TableCell>
                   <TableCell className="text-center">
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u._id)}
-                      className="h-7 w-7 hover:bg-red-500/10"><Trash2 className="h-3.5 w-3.5 text-red-400" /></Button>
+                    <div className="flex items-center justify-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openGiftModal(u)}
+                        className="h-7 w-7 hover:bg-purple-500/10" title="إهداء دورة">
+                        <Gift className="h-3.5 w-3.5 text-purple-400" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u._id)}
+                        className="h-7 w-7 hover:bg-red-500/10"><Trash2 className="h-3.5 w-3.5 text-red-400" /></Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1382,6 +1574,10 @@ export function AdminPage() {
                 <p className="text-sm font-semibold truncate">{u.name || 'بدون اسم'}</p>
                 <p className="text-xs text-muted-foreground" dir="ltr">{u.phone}</p>
               </div>
+              <Button variant="ghost" size="icon" onClick={() => openGiftModal(u)}
+                className="h-7 w-7 hover:bg-purple-500/10 shrink-0" title="إهداء دورة">
+                <Gift className="h-3.5 w-3.5 text-purple-400" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u._id)}
                 className="h-7 w-7 hover:bg-red-500/10 shrink-0"><Trash2 className="h-3.5 w-3.5 text-red-400" /></Button>
             </div>
@@ -1404,8 +1600,139 @@ export function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Gift Course Modal */}
+      <AnimatePresence>
+        {giftModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => { if (!giftSending) setGiftModalOpen(false) }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="glass-card border border-purple-500/30 w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-purple-500/20 bg-gradient-to-l from-purple-500/10 to-cyan-500/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
+                    <Gift className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground">إهداء دورة</h3>
+                    <p className="text-xs text-muted-foreground">
+                      إهداء دورة للمستخدم: <span className="text-purple-400 font-semibold">{giftTargetUser?.name || giftTargetUser?.phone}</span>
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setGiftModalOpen(false)} disabled={giftSending}
+                    className="mr-auto h-8 w-8 hover:bg-white/10">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Course List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ scrollbarWidth: 'thin' }}>
+                {courses.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">لا توجد دورات متاحة</div>
+                ) : courses.filter(c => c.published).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">لا توجد دورات منشورة</div>
+                ) : (
+                  courses.filter(c => c.published).map(course => {
+                    const isSelected = giftSelectedCourses.has(course._id)
+                    return (
+                      <button
+                        key={course._id}
+                        onClick={() => toggleGiftCourse(course._id)}
+                        className={`w-full text-right p-3 rounded-xl border transition-all flex items-center gap-3 ${
+                          isSelected
+                            ? 'border-purple-500/50 bg-purple-500/10'
+                            : 'border-border bg-background/30 hover:bg-background/50'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                          isSelected
+                            ? 'bg-purple-500/30 border-purple-500/50'
+                            : 'bg-white/5 border-white/10'
+                        }`}>
+                          {isSelected ? (
+                            <CheckCircle2 className="h-4 w-4 text-purple-400" />
+                          ) : (
+                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate">{course.titleAr || course.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-muted-foreground">{course.instructorName}</span>
+                            <span className="text-[10px] text-muted-foreground">·</span>
+                            <span className="text-[10px] text-muted-foreground">{course.price === 0 ? 'مجانية' : `${course.price.toLocaleString()} ر.ي`}</span>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Gift className="h-4 w-4 text-purple-400 shrink-0" />
+                        )}
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Result Message */}
+              {giftResult && (
+                <div className="px-5 py-3 bg-purple-500/10 border-t border-purple-500/20">
+                  <p className="text-sm text-purple-300 text-center">{giftResult}</p>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="p-4 border-t border-purple-500/20 flex items-center gap-3">
+                <div className="flex-1 text-xs text-muted-foreground">
+                  {giftSelectedCourses.size > 0 ? (
+                    <span className="text-purple-400 font-semibold">تم اختيار {giftSelectedCourses.size} دورة</span>
+                  ) : (
+                    'اختر دورة واحدة أو أكثر'
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setGiftModalOpen(false)}
+                  disabled={giftSending}
+                  className="text-xs"
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  onClick={handleGiftCourses}
+                  disabled={giftSending || giftSelectedCourses.size === 0}
+                  className="bg-gradient-to-l from-purple-500 to-cyan-500 text-white text-xs gap-2 hover:opacity-90"
+                >
+                  {giftSending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Gift className="h-3.5 w-3.5" />
+                  )}
+                  تأكيد الإهداء
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
+
+  // Helper: get course name for a payment
+  const getPaymentCourseName = useCallback((payment: ApiPayment) => {
+    if (payment.courseName) return payment.courseName
+    return courseNameMap.get(payment.courseId) || ''
+  }, [courseNameMap])
 
   const renderPayments = () => (
     <motion.div key="payments" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
@@ -1427,7 +1754,7 @@ export function AdminPage() {
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">معلقة</p>
           <p className="text-xl sm:text-2xl font-black text-neon-orange mt-1">
-            {payments.filter(p => p.status === 'pending').length}
+            {pendingPayments.length}
           </p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} whileHover={cardHover} className="glass-card p-4 sm:p-5">
@@ -1436,7 +1763,7 @@ export function AdminPage() {
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">مقبولة</p>
           <p className="text-xl sm:text-2xl font-black text-neon-green mt-1">
-            {payments.filter(p => p.status === 'approved').length}
+            {approvedPayments.length}
           </p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }} whileHover={cardHover} className="glass-card p-4 sm:p-5">
@@ -1445,7 +1772,7 @@ export function AdminPage() {
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">مرفوضة</p>
           <p className="text-xl sm:text-2xl font-black text-red-400 mt-1">
-            {payments.filter(p => p.status === 'rejected').length}
+            {rejectedPayments.length}
           </p>
         </motion.div>
       </div>
@@ -1459,7 +1786,7 @@ export function AdminPage() {
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               paymentFilter === f
                 ? 'bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30'
-                : 'text-muted-foreground hover:bg-white/5 border border-transparent'
+                : 'text-muted-foreground hover:bg-muted border border-transparent'
             }`}
           >
             {f === 'all' ? 'الكل' : f === 'pending' ? 'معلقة' : f === 'approved' ? 'مقبولة' : 'مرفوضة'}
@@ -1468,14 +1795,14 @@ export function AdminPage() {
       </div>
 
       {/* Payments List */}
-      {payments.filter(p => paymentFilter === 'all' || p.status === paymentFilter).length === 0 ? (
+      {filteredPayments.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
           <p className="text-muted-foreground">لا توجد مدفوعات {paymentFilter !== 'all' ? 'بهذه الحالة' : 'بعد'}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {payments.filter(p => paymentFilter === 'all' || p.status === paymentFilter).map((payment) => (
+          {filteredPayments.map((payment) => (
             <motion.div key={payment._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               className={`glass-card p-4 space-y-3 transition-all ${
                 payment.status === 'pending' ? 'border-l-4 border-neon-orange' :
@@ -1489,7 +1816,29 @@ export function AdminPage() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{payment.userName || payment.userId}</p>
-                    <p className="text-xs text-muted-foreground" dir="ltr">{payment.userPhone || ''}</p>
+                    {payment.userPhone && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(payment.userPhone!)
+                          } catch {
+                            const ta = document.createElement('textarea')
+                            ta.value = payment.userPhone!
+                            ta.style.cssText = 'position:fixed;left:-9999px'
+                            document.body.appendChild(ta)
+                            ta.select()
+                            document.execCommand('copy')
+                            document.body.removeChild(ta)
+                          }
+                        }}
+                        className="text-xs text-neon-cyan hover:underline cursor-pointer flex items-center gap-1"
+                        dir="ltr"
+                        title="انقر للنسخ"
+                      >
+                        {payment.userPhone}
+                        <Copy className="h-2.5 w-2.5 opacity-50" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1505,17 +1854,52 @@ export function AdminPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap bg-white/5 p-2.5 rounded-lg">
-                <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> {payment.walletName}</span>
-                <span dir="ltr">{payment.walletPhone}</span>
+              {/* Course name - prominent display */}
+              {(() => {
+                const courseName = getPaymentCourseName(payment)
+                return courseName ? (
+                  <div className="flex items-center gap-2 bg-neon-purple/5 border border-neon-purple/15 p-2.5 rounded-lg">
+                    <BookOpen className="h-4 w-4 text-neon-purple shrink-0" />
+                    <span className="text-sm font-bold text-neon-purple">{courseName}</span>
+                    <span className="text-xs text-muted-foreground mr-auto">الدورة المشترك بها</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-muted/30 border border-border p-2.5 rounded-lg">
+                    <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground">رقم الدورة: <span dir="ltr" className="font-mono">{payment.courseId?.slice(-8) || '—'}</span></span>
+                  </div>
+                )
+              })()}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap bg-muted/50 p-2.5 rounded-lg">
+                {payment.walletName && (
+                  <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> {payment.walletName}</span>
+                )}
+                {payment.walletPhone && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(payment.walletPhone)
+                      } catch {
+                        const ta = document.createElement('textarea')
+                        ta.value = payment.walletPhone
+                        ta.style.cssText = 'position:fixed;left:-9999px'
+                        document.body.appendChild(ta)
+                        ta.select()
+                        document.execCommand('copy')
+                        document.body.removeChild(ta)
+                      }
+                    }}
+                    className="flex items-center gap-1 text-neon-cyan hover:underline cursor-pointer"
+                    dir="ltr"
+                    title="انقر للنسخ"
+                  >
+                    {payment.walletPhone}
+                    <Copy className="h-2.5 w-2.5 opacity-50" />
+                  </button>
+                )}
                 <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(payment.createdAt).toLocaleDateString('ar')}</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {payment.courseName && (
-                  <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[9px]">
-                    <BookOpen className="h-2.5 w-2.5 ml-0.5" /> {payment.courseName}
-                  </Badge>
-                )}
                 {payment.screenshotUrl && (
                   <button onClick={() => setScreenshotView(payment.screenshotUrl!)}
                     className="text-xs text-neon-cyan hover:underline flex items-center gap-1 px-2 py-0.5 rounded bg-neon-cyan/5 hover:bg-neon-cyan/10 transition-colors">
@@ -1526,13 +1910,41 @@ export function AdminPage() {
               {payment.status === 'pending' && (
                 <motion.div className="flex gap-2 pt-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button onClick={() => handleApprovePayment(payment._id, 'approved')}
+                    <Button onClick={() => setAdminConfirmAction({
+                      type: 'approve',
+                      title: 'تأكيد قبول الدفع',
+                      message: `هل أنت متأكد من قبول دفعة "${payment.userName || 'المستخدم'}" بمبلغ ${payment.amount?.toLocaleString() || 0} ر.ي${payment.courseName ? ` لدورة "${payment.courseName}"` : ''}؟`,
+                      details: 'سيتم تفعيل وصول المستخدم للدورة وإرسال إشعار بالموافقة.',
+                      confirmLabel: 'تأكيد القبول',
+                      showNoteInput: true,
+                      notePlaceholder: 'ملاحظة اختيارية للمستخدم...',
+                      onConfirm: async (note) => {
+                        setAdminConfirmLoading(true)
+                        await handleApprovePayment(payment._id, 'approved', note)
+                        setAdminConfirmLoading(false)
+                        setAdminConfirmAction(null)
+                      },
+                    })}
                       className="bg-neon-green/15 text-neon-green border border-neon-green/30 hover:bg-neon-green/25 h-9 text-xs gap-1">
                       <CheckCircle2 className="h-3.5 w-3.5" /> قبول
                     </Button>
                   </motion.div>
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button onClick={() => handleApprovePayment(payment._id, 'rejected')}
+                    <Button onClick={() => setAdminConfirmAction({
+                      type: 'reject',
+                      title: 'تأكيد رفض الدفع',
+                      message: `هل أنت متأكد من رفض دفعة "${payment.userName || 'المستخدم'}" بمبلغ ${payment.amount?.toLocaleString() || 0} ر.ي${payment.courseName ? ` لدورة "${payment.courseName}"` : ''}؟`,
+                      details: 'سيتم إرسال إشعار بالرفض للمستخدم.',
+                      confirmLabel: 'تأكيد الرفض',
+                      showNoteInput: true,
+                      notePlaceholder: 'سبب الرفض (اختياري)...',
+                      onConfirm: async (note) => {
+                        setAdminConfirmLoading(true)
+                        await handleApprovePayment(payment._id, 'rejected', note)
+                        setAdminConfirmLoading(false)
+                        setAdminConfirmAction(null)
+                      },
+                    })}
                       className="bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 h-9 text-xs gap-1">
                       <X className="h-3.5 w-3.5" /> رفض
                     </Button>
@@ -1540,7 +1952,7 @@ export function AdminPage() {
                 </motion.div>
               )}
               {payment.adminNote && (
-                <p className="text-xs text-muted-foreground bg-white/5 p-2 rounded-lg">ملاحظة: {payment.adminNote}</p>
+                <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-lg">ملاحظة: {payment.adminNote}</p>
               )}
             </motion.div>
           ))}
@@ -1565,46 +1977,294 @@ export function AdminPage() {
     </motion.div>
   )
 
-  const renderNotifications = () => (
-    <motion.div key="notifications" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.3 }} className="space-y-6">
+  const renderNotifications = () => {
+    // Notification type config
+    const typeConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: typeof Bell }> = {
+      payment: { label: 'مدفوعات', color: 'text-amber-400', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/20', icon: CreditCard },
+      gift: { label: 'هدايا', color: 'text-pink-400', bgColor: 'bg-pink-500/10', borderColor: 'border-pink-500/20', icon: Gift },
+      community: { label: 'مجتمع', color: 'text-green-400', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/20', icon: MessageSquare },
+      simulation: { label: 'محاكاة', color: 'text-red-400', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/20', icon: Activity },
+      enrollment: { label: 'تسجيل', color: 'text-blue-400', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/20', icon: BookOpen },
+      achievement: { label: 'إنجاز', color: 'text-purple-400', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/20', icon: Star },
+      success: { label: 'نجاح', color: 'text-emerald-400', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/20', icon: CheckCircle2 },
+      warning: { label: 'تحذير', color: 'text-amber-400', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/20', icon: AlertCircle },
+      info: { label: 'معلومات', color: 'text-cyan-400', bgColor: 'bg-cyan-500/10', borderColor: 'border-cyan-500/20', icon: Info },
+      system: { label: 'نظام', color: 'text-slate-400', bgColor: 'bg-slate-500/10', borderColor: 'border-slate-500/20', icon: Settings },
+    }
 
-      <div>
-        <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
-          <Bell className="h-6 w-6 text-neon-cyan" /> الإشعارات
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">إرسال إشعارات للمستخدمين</p>
-      </div>
+    function getTypeConfig(type: string) {
+      return typeConfig[type] || typeConfig.info
+    }
 
-      <motion.div className="glass-card p-5 gradient-border">
-        <h2 className="text-base font-bold flex items-center gap-2 mb-4">
-          <Send className="h-5 w-5 text-neon-cyan" /> إرسال إشعار عام
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1.5 block">العنوان</label>
-            <Input value={notifTitle} onChange={(e) => setNotifTitle(e.target.value)} placeholder="عنوان الإشعار..."
-              className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1.5 block">الرسالة</label>
-            <Textarea value={notifMessage} onChange={(e) => setNotifMessage(e.target.value)} placeholder="نص الإشعار..." rows={4}
-              className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none" />
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-neon-orange/5 border border-neon-orange/20">
-            <AlertCircle className="h-4 w-4 text-neon-orange shrink-0" />
-            <span className="text-xs text-neon-orange">سيتم إرسال هذا الإشعار لجميع المستخدمين</span>
-          </div>
-          <Button onClick={handleSendNotif} disabled={sendingNotif || !notifTitle.trim() || !notifMessage.trim()}
-            className="w-full bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 transition-all h-10">
-            {sendingNotif ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (<><Send className="h-4 w-4 ml-2" /> إرسال الإشعار لجميع المستخدمين</>)}
-          </Button>
+    function timeAgo(timestamp: number): string {
+      const diff = Date.now() - timestamp
+      const seconds = Math.floor(diff / 1000)
+      const minutes = Math.floor(seconds / 60)
+      const hours = Math.floor(minutes / 60)
+      const days = Math.floor(hours / 24)
+      if (seconds < 60) return 'الآن'
+      if (minutes < 60) return `منذ ${minutes} دقيقة`
+      if (hours < 24) return `منذ ${hours} ساعة`
+      if (days < 7) return `منذ ${days} يوم`
+      return new Date(timestamp).toLocaleDateString('ar', { month: 'short', day: 'numeric' })
+    }
+
+    const filteredNotifs = adminNotifFilter === 'all'
+      ? adminNotifications
+      : adminNotifFilter === 'unread'
+        ? adminNotifications.filter(n => !n.read)
+        : adminNotifications.filter(n => n.type === adminNotifFilter)
+
+    const handleMarkRead = async (id: string) => {
+      markNotificationRead(id)
+      if (authToken) {
+        try {
+          await fetch('/api/notifications', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+            body: JSON.stringify({ notificationId: id }),
+          })
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    const handleMarkAllRead = async () => {
+      markAllNotificationsRead()
+      if (authToken) {
+        try {
+          await fetch('/api/notifications', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+            body: JSON.stringify({ markAllRead: true }),
+          })
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    const handleDeleteNotif = async (id: string) => {
+      deleteNotification(id)
+      if (authToken) {
+        try {
+          await fetch(`/api/notifications?id=${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${authToken}` },
+          })
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    const handleClearAll = async () => {
+      clearAllNotifications()
+      if (authToken) {
+        try {
+          await fetch('/api/notifications?clearAll=true', {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${authToken}` },
+          })
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    return (
+      <motion.div key="notifications" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.3 }} className="space-y-6">
+
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
+            <Bell className="h-6 w-6 text-neon-cyan" /> الإشعارات
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">إدارة واستقبال الإشعارات</p>
         </div>
+
+        {/* ─── Push Notification Permission ─── */}
+        <motion.div className="glass-card p-4 gradient-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center">
+                <Bell className="w-5 h-5 text-neon-cyan" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">الإشعارات الفورية</p>
+                {permission === 'granted' && isSubscribed ? (
+                  <p className="text-[11px] text-green-400">مفعّلة - ستتلقى إشعارات صوتية حتى عند إغلاق التطبيق</p>
+                ) : permission === 'denied' ? (
+                  <p className="text-[11px] text-red-400">محظورة - فعّلها من إعدادات المتصفح</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">غير مفعّلة - اضغط لتفعيل الإشعارات الصوتية</p>
+                )}
+              </div>
+            </div>
+            {!(permission === 'granted' && isSubscribed) && permission !== 'denied' && (
+              <Button
+                onClick={requestPermissionAndSubscribe}
+                disabled={isSettingUp}
+                className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 h-9 text-xs"
+              >
+                {isSettingUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'تفعيل'}
+              </Button>
+            )}
+            {permission === 'granted' && isSubscribed && (
+              <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />
+            )}
+          </div>
+        </motion.div>
+
+        {/* ─── Admin Notification Inbox ─── */}
+        <motion.div className="glass-card p-5 gradient-border">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold flex items-center gap-2">
+              <Bell className="h-5 w-5 text-neon-cyan" /> إشعارات الوارد
+              {unreadCount > 0 && (
+                <Badge className="bg-red-500/15 text-red-400 border border-red-500/25 text-[9px] h-5 min-w-[20px] flex items-center justify-center">
+                  {unreadCount}
+                </Badge>
+              )}
+            </h2>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={handleMarkAllRead}
+                  className="text-[10px] text-neon-cyan hover:text-neon-cyan h-7 px-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 ml-1" /> تحديد الكل
+                </Button>
+              )}
+              {adminNotifications.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={handleClearAll}
+                  className="text-[10px] text-red-400 hover:text-red-400 h-7 px-2">
+                  <Trash2 className="h-3.5 w-3.5 ml-1" /> حذف الكل
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Filter tabs */}
+          <div className="flex gap-1.5 overflow-x-auto pb-3 mb-3 scrollbar-none">
+            {[
+              { id: 'all', label: 'الكل', count: adminNotifications.length },
+              { id: 'unread', label: 'غير مقروء', count: unreadCount },
+              ...Object.entries(unreadByCategory).map(([type, count]) => {
+                const config = getTypeConfig(type)
+                return { id: type, label: config.label, count: count as number }
+              }),
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setAdminNotifFilter(cat.id)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium whitespace-nowrap transition-all ${
+                  adminNotifFilter === cat.id
+                    ? 'bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/25'
+                    : 'bg-muted/30 text-muted-foreground border border-transparent hover:bg-muted/50'
+                }`}
+              >
+                {cat.label}
+                {cat.count > 0 && (
+                  <span className={`min-w-[16px] h-4 rounded-full text-[8px] font-bold flex items-center justify-center px-1 ${
+                    adminNotifFilter === cat.id ? 'bg-neon-cyan/20 text-neon-cyan' : 'bg-muted/50 text-muted-foreground'
+                  }`}>
+                    {cat.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Notifications list */}
+          <ScrollArea className="max-h-[400px]">
+            {filteredNotifs.length === 0 ? (
+              <div className="text-center py-8">
+                <Bell className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">لا توجد إشعارات</p>
+                <p className="text-[10px] text-muted-foreground/50 mt-1">ستظهر هنا الإشعارات الواردة</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <AnimatePresence mode="popLayout">
+                  {filteredNotifs.slice(0, 30).map(n => {
+                    const config = getTypeConfig(n.type)
+                    const NotifIcon = config.icon
+                    return (
+                      <motion.div
+                        key={n.id}
+                        layout
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -30, height: 0 }}
+                        className={`relative group rounded-xl transition-all ${
+                          !n.read
+                            ? `bg-gradient-to-l ${config.bgColor} border ${config.borderColor}`
+                            : 'bg-muted/10 border border-transparent'
+                        }`}
+                      >
+                        {!n.read && (
+                          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-l-full bg-gradient-to-b from-neon-cyan to-neon-purple" />
+                        )}
+                        <div
+                          className="flex items-start gap-3 p-3 cursor-pointer hover:bg-muted/10 transition-colors rounded-xl"
+                          onClick={() => { if (!n.read) handleMarkRead(n.id) }}
+                        >
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${config.bgColor} border ${config.borderColor} flex items-center justify-center`}>
+                            <NotifIcon className={`w-3.5 h-3.5 ${config.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className={`text-xs font-bold ${!n.read ? 'text-foreground' : 'text-foreground/50'}`}>
+                                {n.title}
+                              </p>
+                              <Badge className={`text-[8px] px-1.5 py-0 ${config.bgColor} ${config.color} border ${config.borderColor}`}>
+                                {config.label}
+                              </Badge>
+                            </div>
+                            <p className={`text-[11px] leading-5 line-clamp-2 ${!n.read ? 'text-foreground/60' : 'text-foreground/30'}`}>
+                              {n.message}
+                            </p>
+                            <p className="text-[9px] text-muted-foreground/40 mt-1">{timeAgo(n.timestamp)}</p>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteNotif(n.id) }}
+                            className="flex-shrink-0 w-6 h-6 rounded-lg hover:bg-red-500/20 flex items-center justify-center text-muted-foreground/40 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </AnimatePresence>
+              </div>
+            )}
+          </ScrollArea>
+        </motion.div>
+
+        {/* ─── Send Broadcast Notification ─── */}
+        <motion.div className="glass-card p-5 gradient-border">
+          <h2 className="text-base font-bold flex items-center gap-2 mb-4">
+            <Send className="h-5 w-5 text-neon-cyan" /> إرسال إشعار عام
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">العنوان</label>
+              <Input value={notifTitle} onChange={(e) => setNotifTitle(e.target.value)} placeholder="عنوان الإشعار..."
+                className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">الرسالة</label>
+              <Textarea value={notifMessage} onChange={(e) => setNotifMessage(e.target.value)} placeholder="نص الإشعار..." rows={4}
+                className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
+            </div>
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-neon-orange/5 border border-neon-orange/20">
+              <AlertCircle className="h-4 w-4 text-neon-orange shrink-0" />
+              <span className="text-xs text-neon-orange">سيتم إرسال هذا الإشعار لجميع المستخدمين مع إشعار فوري (Push)</span>
+            </div>
+            <Button onClick={handleSendNotif} disabled={sendingNotif || !notifTitle.trim() || !notifMessage.trim()}
+              className="w-full bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 transition-all h-10">
+              {sendingNotif ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (<><Send className="h-4 w-4 ml-2" /> إرسال الإشعار لجميع المستخدمين</>)}
+            </Button>
+          </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
-  )
+    )
+  }
 
   const renderActivityLogs = () => (
     <motion.div key="activity-logs" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
@@ -1633,7 +2293,7 @@ export function AdminPage() {
               'payment_rejected': { label: 'رفض دفع', color: 'text-red-400 bg-red-500/10 border-red-500/20', icon: X },
               'course_created': { label: 'إنشاء دورة', color: 'text-neon-purple bg-neon-purple/10 border-neon-purple/20', icon: Plus },
             }
-            const actionInfo = actionLabels[log.action] || { label: log.action, color: 'text-slate-400 bg-white/5 border-white/10', icon: Activity }
+            const actionInfo = actionLabels[log.action] || { label: log.action, color: 'text-slate-400 bg-muted/50 border-border', icon: Activity }
 
             return (
               <motion.div key={log._id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.03 }}
@@ -1781,7 +2441,7 @@ export function AdminPage() {
                   value={dbConfirmPassword}
                   onChange={(e) => setDbConfirmPassword(e.target.value)}
                   placeholder='اكتب "تأكيد" هنا...'
-                  className="bg-white/5 border-red-500/20 focus:border-red-500/40 text-sm h-10"
+                  className="bg-muted/50 border-red-500/20 focus:border-red-500/40 text-sm h-10"
                   dir="rtl"
                 />
               </div>
@@ -1813,8 +2473,18 @@ export function AdminPage() {
 
   // No loading screen - admin dashboard shows immediately
 
+  const renderSettings = () => (
+    <SettingsSection
+      privacyText={privacyText}
+      aboutText={aboutText}
+      settingsLoading={settingsLoading}
+      settingsSaving={settingsSaving}
+      onSaveSettings={handleSaveSettings}
+    />
+  )
+
   return (
-    <div dir="rtl" className="min-h-screen bg-[#060810] flex">
+    <div dir="rtl" className="min-h-screen bg-background flex">
 
       {/* Error Toast */}
       <AnimatePresence>
@@ -1825,6 +2495,17 @@ export function AdminPage() {
             {error}
             <Button variant="ghost" size="icon" className="h-6 w-6 ml-2" onClick={() => setError('')}><X className="h-3 w-3" /></Button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Admin Confirm Action Modal */}
+      <AnimatePresence>
+        {adminConfirmAction && (
+          <ConfirmActionModal
+            action={adminConfirmAction}
+            onCancel={() => setAdminConfirmAction(null)}
+            loading={adminConfirmLoading}
+          />
         )}
       </AnimatePresence>
 
@@ -1849,7 +2530,7 @@ export function AdminPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setScreenshotView(null)}
-                className="absolute top-3 left-3 z-10 h-9 w-9 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                className="absolute top-3 left-3 z-10 h-9 w-9 rounded-full bg-black/60 hover:bg-black/80 text-foreground"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -1864,13 +2545,13 @@ export function AdminPage() {
       </AnimatePresence>
 
       {/* ═══════════ DESKTOP SIDEBAR (Right side, RTL) ═══════════ */}
-      <aside className="hidden lg:flex w-[260px] shrink-0 flex-col fixed right-0 top-0 bottom-0 bg-[#060810] border-l border-med-border z-40">
+      <aside className="hidden lg:flex w-[260px] shrink-0 flex-col fixed right-0 top-0 bottom-0 bg-sidebar border-l border-sidebar-border z-40">
         {sidebarContent}
       </aside>
 
       {/* ═══════════ MOBILE SIDEBAR (Sheet from right) ═══════════ */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="right" className="w-[280px] bg-[#060810] border-l border-med-border p-0">
+        <SheetContent side="right" className="w-[280px] bg-sidebar border-l border-sidebar-border p-0">
           <SheetTitle className="sr-only">القائمة الجانبية</SheetTitle>
           <SheetDescription className="sr-only">قائمة التنقل الإدارية</SheetDescription>
           {sidebarContent}
@@ -1878,20 +2559,21 @@ export function AdminPage() {
       </Sheet>
 
       {/* ═══════════ MOBILE TOP HEADER ═══════════ */}
-      <header className="lg:hidden fixed top-0 right-0 left-0 h-14 bg-[#060810]/95 backdrop-blur-xl border-b border-med-border z-30 flex items-center justify-between px-3">
+      <header className="lg:hidden fixed top-0 right-0 left-0 h-14 bg-sidebar/95 backdrop-blur-xl border-b border-med-border z-30 flex items-center justify-between px-3">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-9 w-9 hover:bg-white/10">
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-9 w-9 hover:bg-muted">
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-cyan-400" />
             <span className="text-sm font-bold bg-gradient-to-l from-cyan-300 to-cyan-500 bg-clip-text text-transparent">
-              MedAI Admin
+              أكاديمية نبض
             </span>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={handleRefreshAll} className="h-9 w-9 hover:bg-white/10">
+          <NotificationBell />
+          <Button variant="ghost" size="icon" onClick={handleRefreshAll} className="h-9 w-9 hover:bg-muted">
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
           </Button>
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-neon-green/5 border border-neon-green/10">
@@ -1913,6 +2595,29 @@ export function AdminPage() {
                   <div className="w-1.5 h-1.5 rounded-full bg-neon-green mr-1 animate-pulse" /> النظام يعمل
                 </Badge>
               </div>
+              <div className="flex items-center gap-3">
+                {/* Push Notification Status */}
+                {permission === 'granted' && isSubscribed ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-[10px] text-green-400 font-medium">الإشعارات الفورية مفعّلة</span>
+                  </div>
+                ) : permission === 'denied' ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <span className="text-[10px] text-red-400 font-medium">الإشعارات محظورة</span>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={requestPermissionAndSubscribe}
+                    disabled={isSettingUp}
+                    className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 h-8 text-[11px] gap-1.5"
+                  >
+                    {isSettingUp ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+                    تفعيل الإشعارات الفورية
+                  </Button>
+                )}
+                <NotificationBell />
+              </div>
             </div>
 
             {/* Section Content */}
@@ -1925,6 +2630,9 @@ export function AdminPage() {
               {activeSection === 'notifications' && renderNotifications()}
               {activeSection === 'activity-logs' && renderActivityLogs()}
               {activeSection === 'database' && renderDatabase()}
+              {activeSection === 'simulation' && <SimulationManagementSection />}
+              {activeSection === 'community' && <CommunityManagementSection />}
+              {activeSection === 'settings' && renderSettings()}
             </AnimatePresence>
           </motion.div>
         </div>
@@ -1940,6 +2648,8 @@ function PaymentMethodsManager({ methods, onRefresh }: { methods: ApiPaymentMeth
   const [editing, setEditing] = useState<ApiPaymentMethod | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ type: 'محفظة إلكترونية', name: '', accountNumber: '', accountName: '', instructions: '', active: true })
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
 
   const resetForm = () => {
     setForm({ type: 'محفظة إلكترونية', name: '', accountNumber: '', accountName: '', instructions: '', active: true })
@@ -1975,16 +2685,27 @@ function PaymentMethodsManager({ methods, onRefresh }: { methods: ApiPaymentMeth
     setSaving(false)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('حذف طريقة الدفع هذه؟')) return
-    try {
-      const res = await fetch('/api/admin/payment-methods', {
-        method: 'DELETE', headers: getAuthHeaders(),
-        body: JSON.stringify({ methodId: id }),
-      })
-      const data = await res.json()
-      if (data.success) onRefresh()
-    } catch { /* ignore */ }
+  const handleDelete = (id: string, name: string) => {
+    setConfirmAction({
+      type: 'delete',
+      title: 'حذف طريقة الدفع',
+      message: 'هل أنت متأكد من حذف طريقة الدفع هذه؟',
+      details: `سيتم حذف "${name}" نهائياً.`,
+      confirmLabel: 'حذف طريقة الدفع',
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const res = await fetch('/api/admin/payment-methods', {
+            method: 'DELETE', headers: getAuthHeaders(),
+            body: JSON.stringify({ methodId: id }),
+          })
+          const data = await res.json()
+          if (data.success) onRefresh()
+        } catch { /* ignore */ }
+        setConfirmLoading(false)
+        setConfirmAction(null)
+      },
+    })
   }
 
   return (
@@ -2016,10 +2737,10 @@ function PaymentMethodsManager({ methods, onRefresh }: { methods: ApiPaymentMeth
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">النوع</label>
                 <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                  <SelectTrigger className="bg-white/5 border-white/10 h-9 text-sm">
+                  <SelectTrigger className="bg-muted/50 border-border h-9 text-sm">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-med-card border-neon-cyan/20">
+                  <SelectContent className="bg-med-card">
                     <SelectItem value="محفظة إلكترونية">محفظة إلكترونية</SelectItem>
                     <SelectItem value="تحويل بنكي">تحويل بنكي</SelectItem>
                     <SelectItem value="أخرى">أخرى</SelectItem>
@@ -2029,7 +2750,7 @@ function PaymentMethodsManager({ methods, onRefresh }: { methods: ApiPaymentMeth
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">الاسم *</label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+                  className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
               </div>
             </div>
 
@@ -2037,24 +2758,24 @@ function PaymentMethodsManager({ methods, onRefresh }: { methods: ApiPaymentMeth
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">رقم الحساب *</label>
                 <Input value={form.accountNumber} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
-                  className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
+                  className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" dir="ltr" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">اسم الحساب</label>
                 <Input value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })}
-                  className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm h-9" />
+                  className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" />
               </div>
             </div>
 
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">التعليمات</label>
               <Textarea value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-                rows={3} className="bg-white/5 border-white/10 focus:border-neon-cyan/50 text-sm resize-none" />
+                rows={3} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" />
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                className="rounded border-white/20 bg-white/5 text-neon-cyan focus:ring-neon-cyan/30" />
+                className="rounded border-border bg-muted/50 text-neon-cyan focus:ring-neon-cyan/30" />
               <span className="text-xs text-muted-foreground">مفعّلة</span>
             </label>
 
@@ -2064,7 +2785,7 @@ function PaymentMethodsManager({ methods, onRefresh }: { methods: ApiPaymentMeth
                 <Save className="h-4 w-4 ml-1" />
                 {saving ? 'جارٍ الحفظ...' : editing ? 'حفظ التعديلات' : 'إضافة'}
               </Button>
-              <Button variant="ghost" onClick={resetForm} className="text-muted-foreground hover:text-white h-9">إلغاء</Button>
+              <Button variant="ghost" onClick={resetForm} className="text-muted-foreground hover:text-foreground h-9">إلغاء</Button>
             </div>
           </motion.div>
         )}
@@ -2100,18 +2821,18 @@ function PaymentMethodsManager({ methods, onRefresh }: { methods: ApiPaymentMeth
                 </div>
               </div>
               <div className="space-y-1.5 text-xs text-muted-foreground">
-                <p>رقم الحساب: <span className="text-white font-mono" dir="ltr">{method.accountNumber}</span></p>
-                {method.accountName && <p>اسم الحساب: <span className="text-white">{method.accountName}</span></p>}
+                <p>رقم الحساب: <span className="text-foreground font-mono" dir="ltr">{method.accountNumber}</span></p>
+                {method.accountName && <p>اسم الحساب: <span className="text-foreground">{method.accountName}</span></p>}
               </div>
               {method.instructions && (
-                <p className="text-xs text-muted-foreground bg-white/5 p-2 rounded-lg">{method.instructions}</p>
+                <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-lg">{method.instructions}</p>
               )}
               <div className="flex gap-2 pt-1">
                 <Button variant="ghost" size="sm" onClick={() => startEdit(method)}
                   className="h-7 text-xs hover:bg-neon-cyan/10 text-neon-cyan">
                   <Edit3 className="h-3 w-3 ml-1" /> تعديل
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(method._id)}
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(method._id, method.name)}
                   className="h-7 text-xs hover:bg-red-500/10 text-red-400">
                   <Trash2 className="h-3 w-3 ml-1" /> حذف
                 </Button>
@@ -2120,6 +2841,1023 @@ function PaymentMethodsManager({ methods, onRefresh }: { methods: ApiPaymentMeth
           ))}
         </div>
       )}
+      {/* Confirm Action Modal */}
+      <AnimatePresence>
+        {confirmAction && (
+          <ConfirmActionModal
+            action={confirmAction}
+            onCancel={() => setConfirmAction(null)}
+            loading={confirmLoading}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  )
+}
+
+// ─── Settings Section Render Function ──────────────────────
+
+function SettingsSection({ privacyText, aboutText, settingsLoading, settingsSaving, onSaveSettings }: {
+  privacyText: string
+  aboutText: string
+  settingsLoading: boolean
+  settingsSaving: boolean
+  onSaveSettings: (key: 'privacy' | 'about', text: string) => void
+}) {
+  const [localPrivacy, setLocalPrivacy] = useState(privacyText)
+  const [localAbout, setLocalAbout] = useState(aboutText)
+
+  useEffect(() => { setLocalPrivacy(privacyText) }, [privacyText])
+  useEffect(() => { setLocalAbout(aboutText) }, [aboutText])
+
+  if (settingsLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-neon-cyan" />
+        <span className="mr-3 text-muted-foreground">جارٍ تحميل الإعدادات...</span>
+      </div>
+    )
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      {/* Privacy Policy */}
+      <div className="glass-card p-5 space-y-4 border border-neon-green/15">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-neon-green/10 border border-neon-green/20 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-neon-green" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">سياسة الخصوصية</h3>
+            <p className="text-xs text-muted-foreground">النص الذي يظهر للمستخدمين عند الضغط على الخصوصية</p>
+          </div>
+        </div>
+        <Textarea
+          value={localPrivacy}
+          onChange={(e) => setLocalPrivacy(e.target.value)}
+          rows={8}
+          className="bg-muted/50 border-border focus:border-neon-green/30 text-sm resize-none"
+          dir="rtl"
+          placeholder="اكتب نص سياسة الخصوصية هنا..."
+        />
+        <div className="flex justify-end">
+          <Button
+            onClick={() => onSaveSettings('privacy', localPrivacy)}
+            disabled={settingsSaving || localPrivacy === privacyText}
+            className="bg-neon-green/15 text-neon-green border border-neon-green/30 hover:bg-neon-green/25 h-9"
+          >
+            {settingsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 ml-1" />}
+            حفظ الخصوصية
+          </Button>
+        </div>
+      </div>
+
+      {/* About App */}
+      <div className="glass-card p-5 space-y-4 border border-neon-cyan/15">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center">
+            <Info className="h-5 w-5 text-neon-cyan" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">حول التطبيق</h3>
+            <p className="text-xs text-muted-foreground">النص الذي يظهر للمستخدمين عند الضغط على حول التطبيق</p>
+          </div>
+        </div>
+        <Textarea
+          value={localAbout}
+          onChange={(e) => setLocalAbout(e.target.value)}
+          rows={8}
+          className="bg-muted/50 border-border focus:border-neon-cyan/30 text-sm resize-none"
+          dir="rtl"
+          placeholder="اكتب نص حول التطبيق هنا..."
+        />
+        <div className="flex justify-end">
+          <Button
+            onClick={() => onSaveSettings('about', localAbout)}
+            disabled={settingsSaving || localAbout === aboutText}
+            className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 h-9"
+          >
+            {settingsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 ml-1" />}
+            حفظ حول التطبيق
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Simulation Management Section ────────────────────────
+
+function SimulationManagementSection() {
+  const { simulationCases, updateSimulationCases } = useAppStore()
+  const [localCases, setLocalCases] = useState(simulationCases)
+  const [showForm, setShowForm] = useState(false)
+  const [editingCase, setEditingCase] = useState<any>(null)
+  const [form, setForm] = useState({
+    titleAr: '', title: '', specialty: 'emergency', difficulty: 'medium' as 'easy' | 'medium' | 'hard' | 'expert',
+    duration: 15, scenario: '', symptoms: '', vitalsHr: 80, vitalsBp: '120/80', vitalsSpo2: 98, vitalsTemp: 37.0, vitalsRr: 16,
+    isLocked: false,
+  })
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+
+  // Only sync from store on initial mount, not on every re-render
+  // This prevents local toggle changes from being overwritten
+
+  const resetForm = () => {
+    setForm({ titleAr: '', title: '', specialty: 'emergency', difficulty: 'medium', duration: 15, scenario: '', symptoms: '', vitalsHr: 80, vitalsBp: '120/80', vitalsSpo2: 98, vitalsTemp: 37.0, vitalsRr: 16, isLocked: false })
+    setShowForm(false)
+    setEditingCase(null)
+  }
+
+  const handleSave = () => {
+    if (!form.titleAr) return
+    const symptomsList = form.symptoms.split('،').map(s => s.trim()).filter(Boolean)
+    const newCase = {
+      id: editingCase?.id || `sim-${Date.now()}`,
+      titleAr: form.titleAr,
+      title: form.title || form.titleAr,
+      specialty: form.specialty,
+      difficulty: form.difficulty,
+      duration: form.duration,
+      scenario: form.scenario,
+      symptoms: symptomsList,
+      vitals: { hr: form.vitalsHr, bp: form.vitalsBp, spo2: form.vitalsSpo2, temp: form.vitalsTemp, rr: form.vitalsRr },
+      isLocked: form.isLocked,
+    }
+    if (editingCase) {
+      setLocalCases(prev => {
+        const updated = prev.map(c => c.id === editingCase.id ? newCase : c)
+        updateSimulationCases(updated)
+        return updated
+      })
+    } else {
+      setLocalCases(prev => {
+        const updated = [...prev, newCase]
+        updateSimulationCases(updated)
+        return updated
+      })
+    }
+    resetForm()
+  }
+
+  const handleDelete = (id: string, title: string) => {
+    setConfirmAction({
+      type: 'delete',
+      title: 'حذف حالة المحاكاة',
+      message: 'هل أنت متأكد من حذف حالة المحاكاة؟',
+      details: `سيتم حذف "${title}" نهائياً.`,
+      confirmLabel: 'حذف الحالة',
+      onConfirm: () => {
+        const updated = localCases.filter(c => c.id !== id)
+        setLocalCases(updated)
+        updateSimulationCases(updated)
+        setConfirmAction(null)
+      },
+    })
+  }
+
+  const handleToggleLock = (simCase: any) => {
+    const updated = localCases.map(c => c.id === simCase.id ? { ...c, isLocked: !c.isLocked } : c)
+    setLocalCases(updated)
+    updateSimulationCases(updated)
+  }
+
+  const startEdit = (simCase: any) => {
+    setEditingCase(simCase)
+    setForm({
+      titleAr: simCase?.titleAr ?? '', title: simCase?.title ?? '', specialty: simCase?.specialty ?? 'emergency', difficulty: simCase?.difficulty ?? 'medium',
+      duration: simCase?.duration ?? 15, scenario: simCase?.scenario ?? '', symptoms: (simCase?.symptoms ?? []).join('،'),
+      vitalsHr: simCase?.vitals?.hr ?? 80, vitalsBp: simCase?.vitals?.bp ?? '120/80', vitalsSpo2: simCase?.vitals?.spo2 ?? 98,
+      vitalsTemp: simCase?.vitals?.temp ?? 37, vitalsRr: simCase?.vitals?.rr ?? 16, isLocked: simCase?.isLocked ?? false,
+    })
+    setShowForm(true)
+  }
+
+  const difficultyLabels: Record<string, string> = { easy: 'سهل', medium: 'متوسط', hard: 'صعب', expert: 'خبير' }
+  const specialtyLabels: Record<string, string> = { emergency: 'طوارئ', neurology: 'أعصاب', icu: 'عناية مركزة', internal: 'باطني', cardiology: 'قلب', surgery: 'جراحة' }
+
+  return (
+    <motion.div key="simulation" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }} className="space-y-6">
+      <div>
+        <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
+          <FlaskConical className="h-6 w-6 text-neon-cyan" /> إدارة المحاكاة
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">إدارة حالات المحاكاة السريرية</p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button onClick={() => { resetForm(); setShowForm(true) }} disabled={showForm}
+          className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 transition-all h-9">
+          <Plus className="h-4 w-4 ml-1" /> إضافة حالة جديدة
+        </Button>
+        <Badge className="bg-neon-green/10 text-neon-green border-neon-green/20">{localCases.length} حالة</Badge>
+      </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="glass-card p-4 sm:p-5 space-y-4 border border-neon-green/20">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold flex items-center gap-2"><Edit3 className="h-4 w-4 text-neon-green" />{editingCase ? 'تعديل حالة' : 'إضافة حالة جديدة'}</h4>
+              <Button variant="ghost" size="icon" onClick={resetForm} className="h-7 w-7 hover:bg-red-500/10"><X className="h-4 w-4 text-red-400" /></Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><label className="text-xs text-muted-foreground mb-1 block">العنوان بالعربي *</label><Input value={form.titleAr} onChange={e => setForm({...form, titleAr: e.target.value})} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" /></div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">العنوان بالإنجليزي</label><Input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" dir="ltr" /></div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">التخصص</label>
+                <Select value={form.specialty} onValueChange={v => setForm({...form, specialty: v})}>
+                  <SelectTrigger className="bg-muted/50 border-border h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-med-card"><SelectItem value="emergency">طوارئ</SelectItem><SelectItem value="cardiology">قلب</SelectItem><SelectItem value="neurology">أعصاب</SelectItem><SelectItem value="icu">عناية مركزة</SelectItem><SelectItem value="internal">باطني</SelectItem><SelectItem value="surgery">جراحة</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">الصعوبة</label>
+                <Select value={form.difficulty} onValueChange={v => setForm({...form, difficulty: v as any})}>
+                  <SelectTrigger className="bg-muted/50 border-border h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-med-card"><SelectItem value="easy">سهل</SelectItem><SelectItem value="medium">متوسط</SelectItem><SelectItem value="hard">صعب</SelectItem><SelectItem value="expert">خبير</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">المدة (دقيقة)</label><Input type="number" value={form.duration} onChange={e => setForm({...form, duration: parseInt(e.target.value) || 0})} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" /></div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">مقفلة؟</label><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.isLocked} onChange={e => setForm({...form, isLocked: e.target.checked})} className="rounded border-border bg-muted/50 text-neon-cyan focus:ring-neon-cyan/30" /><span className="text-xs text-muted-foreground">حالة مميزة</span></label></div>
+            </div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">السيناريو</label><Textarea value={form.scenario} onChange={e => setForm({...form, scenario: e.target.value})} rows={3} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none" /></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">الأعراض (مفصولة بفاصلة عربية)</label><Input value={form.symptoms} onChange={e => setForm({...form, symptoms: e.target.value})} className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm h-9" /></div>
+            <div className="grid grid-cols-5 gap-2">
+              <div><label className="text-[10px] text-muted-foreground block">HR</label><Input type="number" value={form.vitalsHr} onChange={e => setForm({...form, vitalsHr: parseInt(e.target.value) || 0})} className="bg-muted/50 border-border text-xs h-8" /></div>
+              <div><label className="text-[10px] text-muted-foreground block">BP</label><Input value={form.vitalsBp} onChange={e => setForm({...form, vitalsBp: e.target.value})} className="bg-muted/50 border-border text-xs h-8" /></div>
+              <div><label className="text-[10px] text-muted-foreground block">SpO2</label><Input type="number" value={form.vitalsSpo2} onChange={e => setForm({...form, vitalsSpo2: parseInt(e.target.value) || 0})} className="bg-muted/50 border-border text-xs h-8" /></div>
+              <div><label className="text-[10px] text-muted-foreground block">Temp</label><Input type="number" step="0.1" value={form.vitalsTemp} onChange={e => setForm({...form, vitalsTemp: parseFloat(e.target.value) || 0})} className="bg-muted/50 border-border text-xs h-8" /></div>
+              <div><label className="text-[10px] text-muted-foreground block">RR</label><Input type="number" value={form.vitalsRr} onChange={e => setForm({...form, vitalsRr: parseInt(e.target.value) || 0})} className="bg-muted/50 border-border text-xs h-8" /></div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button onClick={handleSave} disabled={!form.titleAr} className="bg-neon-green/15 text-neon-green border border-neon-green/30 hover:bg-neon-green/25 transition-all h-9"><Save className="h-4 w-4 ml-1" />{editingCase ? 'حفظ التعديلات' : 'إضافة الحالة'}</Button>
+              <Button variant="ghost" onClick={resetForm} className="text-muted-foreground hover:text-foreground h-9">إلغاء</Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {localCases.length === 0 ? (
+        <div className="glass-card p-12 text-center"><FlaskConical className="h-12 w-12 mx-auto mb-4 opacity-30 text-muted-foreground" /><p className="text-muted-foreground">لا توجد حالات محاكاة بعد</p></div>
+      ) : (
+        <div className="space-y-3">
+          {localCases.map((simCase, idx) => (
+            <motion.div key={simCase.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
+              className="glass-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-neon-green/10 border border-neon-green/20 flex items-center justify-center shrink-0">
+                  <FlaskConical className="h-4 w-4 text-neon-green" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold truncate">{simCase.titleAr}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Badge className="text-[9px] bg-neon-cyan/10 text-neon-cyan border-neon-cyan/20">{specialtyLabels[simCase?.specialty] || simCase?.specialty || 'طوارئ'}</Badge>
+                    <Badge className="text-[9px] bg-neon-orange/10 text-neon-orange border-neon-orange/20">{difficultyLabels[simCase?.difficulty] || simCase?.difficulty || 'متوسط'}</Badge>
+                    <span className="text-[10px] text-muted-foreground">{simCase.duration} د</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => handleToggleLock(simCase)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                    simCase.isLocked
+                      ? 'bg-neon-purple/10 text-neon-purple border-neon-purple/20 hover:bg-neon-purple/20'
+                      : 'bg-neon-green/10 text-neon-green border-neon-green/20 hover:bg-neon-green/20'
+                  }`}
+                >
+                  <div className={`w-7 h-4 rounded-full relative transition-colors ${simCase.isLocked ? 'bg-neon-purple/40' : 'bg-neon-green/40'}`}>
+                    <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${simCase.isLocked ? 'right-0.5 bg-neon-purple' : 'left-0.5 bg-neon-green'}`} />
+                  </div>
+                  {simCase.isLocked ? 'مقفلة' : 'مفتوحة'}
+                </button>
+                <Button variant="ghost" size="sm" onClick={() => startEdit(simCase)} className="h-7 text-xs hover:bg-neon-cyan/10 text-neon-cyan"><Edit3 className="h-3 w-3 ml-1" /> تعديل</Button>
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(simCase.id, simCase.titleAr)} className="h-7 text-xs hover:bg-red-500/10 text-red-400"><Trash2 className="h-3 w-3 ml-1" /> حذف</Button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+      {/* Confirm Action Modal */}
+      <AnimatePresence>
+        {confirmAction && (
+          <ConfirmActionModal
+            action={confirmAction}
+            onCancel={() => setConfirmAction(null)}
+            loading={confirmLoading}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+// ─── Confirm Action Modal ─────────────────────────────────
+
+interface ConfirmAction {
+  type: 'delete' | 'approve' | 'reject' | 'warning'
+  title: string
+  message: string
+  details?: string
+  confirmLabel: string
+  onConfirm: (note?: string) => void
+  showNoteInput?: boolean
+  notePlaceholder?: string
+}
+
+function ConfirmActionModal({ action, onCancel, loading }: { action: ConfirmAction; onCancel: () => void; loading: boolean }) {
+  const [note, setNote] = useState('')
+
+  // Reset note when action changes
+  useEffect(() => { setNote('') }, [action])
+
+  const iconConfig = {
+    delete: { icon: Trash2, color: 'text-red-400', bg: 'bg-red-500/20', border: 'border-red-500/30', btnBg: 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25' },
+    reject: { icon: X, color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30', btnBg: 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25' },
+    approve: { icon: CheckCircle2, color: 'text-neon-green', bg: 'bg-neon-green/20', border: 'border-neon-green/30', btnBg: 'bg-neon-green/15 text-neon-green border-neon-green/30 hover:bg-neon-green/25' },
+    warning: { icon: AlertCircle, color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30', btnBg: 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25' },
+  }
+
+  const config = iconConfig[action.type]
+  const IconComp = config.icon
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.85, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+        className="glass-card p-6 max-w-md w-full border border-white/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Icon */}
+        <div className="text-center mb-4">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.1 }}
+            className={`w-14 h-14 rounded-2xl ${config.bg} ${config.border} border flex items-center justify-center mx-auto mb-3`}
+          >
+            <IconComp className={`h-7 w-7 ${config.color}`} />
+          </motion.div>
+          <h3 className="text-lg font-bold">{action.title}</h3>
+          <p className="text-sm text-muted-foreground mt-1">{action.message}</p>
+        </div>
+
+        {/* Details */}
+        {action.details && (
+          <div className="p-3 rounded-lg bg-muted/50 border border-border mb-4">
+            <p className="text-xs text-muted-foreground">{action.details}</p>
+          </div>
+        )}
+
+        {/* Note Input */}
+        {action.showNoteInput && (
+          <div className="mb-4">
+            <label className="text-xs text-muted-foreground mb-1.5 block">ملاحظة (اختياري)</label>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={action.notePlaceholder || 'أضف ملاحظة هنا...'}
+              rows={2}
+              className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none"
+            />
+          </div>
+        )}
+
+        {/* Buttons */}
+        <div className="flex gap-2">
+          <Button
+            onClick={() => action.onConfirm(note || undefined)}
+            disabled={loading}
+            className={`flex-1 border ${config.btnBg} h-10 transition-all`}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : action.confirmLabel}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 h-10"
+          >
+            إلغاء
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ─── Community Management Section ─────────────────────────
+
+function CommunityManagementSection() {
+  const [apiGroups, setApiGroups] = useState<any[]>([])
+  const [apiPosts, setApiPosts] = useState<any[]>([])
+  const [joinRequests, setJoinRequests] = useState<any[]>([])
+  const [totalPosts, setTotalPosts] = useState(0)
+  const [dataLoading, setDataLoading] = useState(true)
+  const [showGroupForm, setShowGroupForm] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<any>(null)
+  const [groupForm, setGroupForm] = useState({ nameAr: '', name: '', icon: '📚', category: 'general', description: '' })
+  const [broadcastMsg, setBroadcastMsg] = useState('')
+  const [sending, setSending] = useState(false)
+  const [groupSaving, setGroupSaving] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(null)
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [editPostContent, setEditPostContent] = useState('')
+  const [editPostSaving, setEditPostSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState<'groups' | 'posts' | 'requests'>('groups')
+
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/community', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.success) {
+        setApiGroups(data.groups || [])
+        setApiPosts(data.posts || [])
+        setTotalPosts(data.totalPosts || 0)
+        setJoinRequests(data.joinRequests || [])
+      }
+    } catch (err) {
+      console.error('Fetch community data error:', err)
+    } finally {
+      setDataLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const resetGroupForm = () => {
+    setGroupForm({ nameAr: '', name: '', icon: '📚', category: 'general', description: '' })
+    setShowGroupForm(false)
+    setEditingGroup(null)
+  }
+
+  const handleSaveGroup = async () => {
+    if (!groupForm.nameAr) return
+    setGroupSaving(true)
+    try {
+      if (editingGroup) {
+        const res = await fetch('/api/admin/community', {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            action: 'updateGroup',
+            groupId: editingGroup.id,
+            name: groupForm.name || groupForm.nameAr,
+            nameAr: groupForm.nameAr,
+            icon: groupForm.icon,
+            category: groupForm.category,
+            description: groupForm.description,
+          }),
+        })
+        const data = await res.json()
+        if (data.success) await fetchData()
+      } else {
+        const res = await fetch('/api/community/groups', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            name: groupForm.name || groupForm.nameAr,
+            nameAr: groupForm.nameAr,
+            icon: groupForm.icon,
+            category: groupForm.category,
+            description: groupForm.description,
+          }),
+        })
+        const data = await res.json()
+        if (data.success) await fetchData()
+      }
+    } catch (err) {
+      console.error('Save group error:', err)
+    }
+    resetGroupForm()
+    setGroupSaving(false)
+  }
+
+  const handleDeleteGroup = (id: string, name: string) => {
+    setConfirmAction({
+      type: 'delete',
+      title: 'حذف المجموعة',
+      message: 'هل أنت متأكد من حذف هذه المجموعة؟',
+      details: `سيتم حذف مجموعة "${name}" وجميع طلبات الانضمام المرتبطة بها نهائياً.`,
+      confirmLabel: 'حذف المجموعة',
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const res = await fetch('/api/admin/community', {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ action: 'deleteGroup', groupId: id }),
+          })
+          const data = await res.json()
+          if (data.success) await fetchData()
+        } catch (err) {
+          console.error('Delete group error:', err)
+        }
+        setConfirmLoading(false)
+        setConfirmAction(null)
+      },
+    })
+  }
+
+  const startEditGroup = (group: any) => {
+    setEditingGroup(group)
+    setGroupForm({
+      nameAr: group.nameAr,
+      name: group.name,
+      icon: group.icon || '📚',
+      category: group.category || 'general',
+      description: group.description || '',
+    })
+    setShowGroupForm(true)
+  }
+
+  const handleBroadcast = async () => {
+    if (!broadcastMsg.trim()) return
+    setSending(true)
+    try {
+      const res = await fetch('/api/admin/community', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ action: 'broadcast', message: broadcastMsg.trim() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setBroadcastMsg('')
+        await fetchData()
+      }
+    } catch (err) {
+      console.error('Broadcast error:', err)
+    }
+    setSending(false)
+  }
+
+  const handleDeletePost = (postId: string, author: string) => {
+    setConfirmAction({
+      type: 'delete',
+      title: 'حذف المنشور',
+      message: 'هل أنت متأكد من حذف هذا المنشور؟',
+      details: `سيتم حذف منشور "${author}" وجميع التعليقات المرتبطة به نهائياً.`,
+      confirmLabel: 'حذف المنشور',
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const res = await fetch('/api/admin/community', {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ action: 'deletePost', postId }),
+          })
+          const data = await res.json()
+          if (data.success) {
+            await fetchData()
+            setExpandedPostId(null)
+            setEditingPostId(null)
+          }
+        } catch (err) {
+          console.error('Delete post error:', err)
+        }
+        setConfirmLoading(false)
+        setConfirmAction(null)
+      },
+    })
+  }
+
+  const handleEditPost = (post: any) => {
+    setEditingPostId(post.id)
+    setEditPostContent(post.content)
+  }
+
+  const handleSaveEditPost = async (postId: string) => {
+    if (!editPostContent.trim()) return
+    setEditPostSaving(true)
+    try {
+      const res = await fetch('/api/admin/community', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ action: 'editPost', postId, content: editPostContent.trim() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        await fetchData()
+        setEditingPostId(null)
+        setEditPostContent('')
+      }
+    } catch (err) {
+      console.error('Edit post error:', err)
+    }
+    setEditPostSaving(false)
+  }
+
+  const handleManageJoinRequest = (requestId: string, actionType: 'approve' | 'reject', userName: string, groupName: string) => {
+    setConfirmAction({
+      type: actionType === 'approve' ? 'approve' : 'reject',
+      title: actionType === 'approve' ? 'قبول طلب الانضمام' : 'رفض طلب الانضمام',
+      message: actionType === 'approve'
+        ? 'هل تريد قبول طلب انضمام هذا المستخدم؟'
+        : 'هل تريد رفض طلب انضمام هذا المستخدم؟',
+      details: actionType === 'approve'
+        ? `سيتم قبول "${userName}" في مجموعة "${groupName}" وسيتمكن من النشر والتعليق.`
+        : `سيتم رفض طلب انضمام "${userName}" إلى مجموعة "${groupName}".`,
+      confirmLabel: actionType === 'approve' ? 'قبول الطلب' : 'رفض الطلب',
+      showNoteInput: actionType === 'reject',
+      notePlaceholder: 'سبب الرفض (اختياري)...',
+      onConfirm: async (note?: string) => {
+        setConfirmLoading(true)
+        try {
+          const res = await fetch('/api/admin/community', {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              action: 'manageJoinRequest',
+              requestId,
+              requestAction: actionType,
+              note: note || '',
+            }),
+          })
+          const data = await res.json()
+          if (data.success) await fetchData()
+        } catch (err) {
+          console.error('Manage join request error:', err)
+        }
+        setConfirmLoading(false)
+        setConfirmAction(null)
+      },
+    })
+  }
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr)
+      const diff = Date.now() - date.getTime()
+      const minutes = Math.floor(diff / 60000)
+      const hours = Math.floor(diff / 3600000)
+      const days = Math.floor(diff / 86400000)
+      if (minutes < 1) return 'الآن'
+      if (minutes < 60) return `منذ ${minutes} دقيقة`
+      if (hours < 24) return `منذ ${hours} ساعة`
+      return `منذ ${days} يوم`
+    } catch {
+      return ''
+    }
+  }
+
+  const totalPendingRequests = joinRequests.filter(r => r.status === 'pending').length
+
+  return (
+    <motion.div key="community" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }} className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
+            <MessageSquare className="h-6 w-6 text-neon-purple" /> إدارة المجتمع
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">إدارة مجموعات المجتمع والمنشورات وطلبات الانضمام</p>
+        </div>
+        <Button onClick={fetchData} variant="ghost" className="text-muted-foreground hover:text-foreground h-8 text-xs">
+          <RefreshCw className="h-4 w-4 ml-1" /> تحديث
+        </Button>
+      </div>
+
+      {/* Confirm Action Modal */}
+      <AnimatePresence>
+        {confirmAction && (
+          <ConfirmActionModal
+            action={confirmAction}
+            onCancel={() => setConfirmAction(null)}
+            loading={confirmLoading}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { title: 'المجموعات', value: String(apiGroups.length), icon: Users, color: 'text-neon-purple', bg: 'bg-neon-purple/10', border: 'border-neon-purple/20' },
+          { title: 'المنشورات', value: String(totalPosts), icon: MessageSquare, color: 'text-neon-cyan', bg: 'bg-neon-cyan/10', border: 'border-neon-cyan/20' },
+          { title: 'طلبات الانضمام', value: String(totalPendingRequests), icon: UserPlus, color: 'text-neon-orange', bg: 'bg-neon-orange/10', border: 'border-neon-orange/20' },
+          { title: 'إجمالي الأعضاء', value: String(apiGroups.reduce((s: number, g: any) => s + (g.members || 0), 0)), icon: Users, color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
+        ].map((item, idx) => (
+          <motion.div key={idx} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
+            className="glass-card p-4">
+            <div className={`rounded-lg p-2 ${item.bg} ${item.border} border inline-block mb-2`}>
+              <item.icon className={`h-4 w-4 ${item.color}`} />
+            </div>
+            <p className="text-xs text-muted-foreground">{item.title}</p>
+            <p className="text-xl font-black neon-text mt-0.5">{item.value}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {[
+          { id: 'groups' as const, label: 'المجموعات', icon: Users },
+          { id: 'posts' as const, label: 'المنشورات', icon: MessageSquare },
+          { id: 'requests' as const, label: 'طلبات الانضمام', icon: UserPlus, badge: totalPendingRequests },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === tab.id
+                ? 'bg-neon-purple/15 text-neon-purple border border-neon-purple/30'
+                : 'text-muted-foreground hover:bg-muted border border-transparent'
+            }`}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+            {tab.badge ? (
+              <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[9px] h-5 min-w-[20px] flex items-center justify-center">
+                {tab.badge}
+              </Badge>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      {dataLoading ? (
+        <div className="glass-card p-8 text-center">
+          <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin text-neon-purple" />
+          <p className="text-sm text-muted-foreground">جاري تحميل البيانات...</p>
+        </div>
+      ) : (
+        <>
+          {/* ──── Groups Tab ──── */}
+          {activeTab === 'groups' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold flex items-center gap-2"><Users className="h-4 w-4 text-neon-purple" /> المجموعات ({apiGroups.length})</h2>
+                <Button onClick={() => { resetGroupForm(); setShowGroupForm(true) }} disabled={showGroupForm}
+                  className="bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 transition-all h-8 text-xs">
+                  <Plus className="h-3 w-3 ml-1" /> إضافة مجموعة
+                </Button>
+              </div>
+
+              <AnimatePresence>
+                {showGroupForm && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                    className="glass-card p-4 space-y-3 border border-neon-purple/20">
+                    <h4 className="text-sm font-bold">{editingGroup ? 'تعديل المجموعة' : 'إضافة مجموعة جديدة'}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div><label className="text-xs text-muted-foreground mb-1 block">الاسم بالعربي *</label><Input value={groupForm.nameAr} onChange={e => setGroupForm({...groupForm, nameAr: e.target.value})} className="bg-muted/50 border-border text-sm h-9" /></div>
+                      <div><label className="text-xs text-muted-foreground mb-1 block">الاسم بالإنجليزي</label><Input value={groupForm.name} onChange={e => setGroupForm({...groupForm, name: e.target.value})} className="bg-muted/50 border-border text-sm h-9" dir="ltr" /></div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div><label className="text-xs text-muted-foreground mb-1 block">الأيقونة (إيموجي)</label><Input value={groupForm.icon} onChange={e => setGroupForm({...groupForm, icon: e.target.value})} className="bg-muted/50 border-border text-sm h-9" /></div>
+                      <div><label className="text-xs text-muted-foreground mb-1 block">التصنيف</label><Input value={groupForm.category} onChange={e => setGroupForm({...groupForm, category: e.target.value})} className="bg-muted/50 border-border text-sm h-9" dir="ltr" /></div>
+                    </div>
+                    <div><label className="text-xs text-muted-foreground mb-1 block">الوصف</label><Input value={groupForm.description} onChange={e => setGroupForm({...groupForm, description: e.target.value})} className="bg-muted/50 border-border text-sm h-9" /></div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleSaveGroup} disabled={!groupForm.nameAr || groupSaving} className="bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 h-8 text-xs">
+                        {groupSaving ? <Loader2 className="h-3 w-3 animate-spin ml-1" /> : <Save className="h-3 w-3 ml-1" />}
+                        {editingGroup ? 'حفظ' : 'إضافة'}
+                      </Button>
+                      <Button variant="ghost" onClick={resetGroupForm} className="text-muted-foreground hover:text-foreground h-8 text-xs">إلغاء</Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {apiGroups.length === 0 ? (
+                <div className="glass-card p-8 text-center"><Users className="h-10 w-10 mx-auto mb-3 opacity-30 text-muted-foreground" /><p className="text-sm text-muted-foreground">لا توجد مجموعات بعد</p></div>
+              ) : (
+                <div className="space-y-2">
+                  {apiGroups.map((group: any, idx: number) => (
+                    <motion.div key={group.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
+                      className="glass-card p-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{group.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold truncate">{group.nameAr}</p>
+                            {group.pendingRequests > 0 && (
+                              <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[8px] h-4 px-1.5">
+                                {group.pendingRequests} طلب
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">{group.members.toLocaleString('ar-EG')} عضو · {group.category}</p>
+                          {group.description && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{group.description}</p>}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="ghost" size="sm" onClick={() => startEditGroup(group)} className="h-7 text-xs hover:bg-neon-purple/10 text-neon-purple"><Edit3 className="h-3 w-3 ml-1" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteGroup(group.id, group.nameAr)} className="h-7 text-xs hover:bg-red-500/10 text-red-400"><Trash2 className="h-3 w-3 ml-1" /></Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+
+              {/* Broadcast Message */}
+              <div className="glass-card p-4 border border-neon-orange/20">
+                <h3 className="text-sm font-bold flex items-center gap-2 mb-3"><Send className="h-4 w-4 text-neon-orange" /> بث رسالة للمجتمع</h3>
+                <Textarea value={broadcastMsg} onChange={e => setBroadcastMsg(e.target.value)} placeholder="اكتب رسالة للبث لجميع أعضاء المجتمع..." rows={3}
+                  className="bg-muted/50 border-border focus:border-neon-orange/50 text-sm resize-none mb-3" />
+                <Button onClick={handleBroadcast} disabled={!broadcastMsg.trim() || sending}
+                  className="bg-neon-orange/15 text-neon-orange border border-neon-orange/30 hover:bg-neon-orange/25 transition-all h-9 w-full">
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4 ml-2" /> بث الرسالة</>}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ──── Posts Tab ──── */}
+          {activeTab === 'posts' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              <h2 className="text-base font-bold flex items-center gap-2"><MessageSquare className="h-4 w-4 text-neon-cyan" /> أحدث المنشورات ({totalPosts})</h2>
+              {apiPosts.length === 0 ? (
+                <div className="glass-card p-8 text-center"><MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30 text-muted-foreground" /><p className="text-sm text-muted-foreground">لا توجد منشورات بعد</p></div>
+              ) : (
+                <div className="space-y-3">
+                  {apiPosts.map((post: any) => (
+                    <motion.div key={post.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      className="glass-card p-4">
+                      {/* Post Header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neon-purple/20 to-neon-cyan/20 flex items-center justify-center text-xs font-bold shrink-0">
+                            {post.author?.charAt(0) || '؟'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-bold">{post.author}</span>
+                              {post.category === 'announcement' && (
+                                <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/25 text-[8px] h-4">إعلان</Badge>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">{formatDate(post.createdAt)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditPost(post)} className="h-7 text-xs hover:bg-neon-cyan/10 text-neon-cyan">
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeletePost(post.id, post.author)} className="h-7 text-xs hover:bg-red-500/10 text-red-400">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Post Content - Full, not truncated */}
+                      {editingPostId === post.id ? (
+                        <div className="mb-3 space-y-2">
+                          <Textarea
+                            value={editPostContent}
+                            onChange={(e) => setEditPostContent(e.target.value)}
+                            rows={4}
+                            className="bg-muted/50 border-border focus:border-neon-cyan/50 text-sm resize-none"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleSaveEditPost(post.id)}
+                              disabled={!editPostContent.trim() || editPostSaving}
+                              className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 h-7 text-xs"
+                            >
+                              {editPostSaving ? <Loader2 className="h-3 w-3 animate-spin ml-1" /> : <Save className="h-3 w-3 ml-1" />}
+                              حفظ
+                            </Button>
+                            <Button variant="ghost" onClick={() => setEditingPostId(null)} className="h-7 text-xs">إلغاء</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-7 whitespace-pre-line mb-3">{post.content}</p>
+                      )}
+
+                      {/* Tags */}
+                      {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {post.tags.map((tag: string, i: number) => (
+                            <Badge key={i} variant="outline" className="text-[9px] bg-neon-cyan/5 text-neon-cyan border-neon-cyan/15">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Post Stats + Expand Comments */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] text-muted-foreground">❤️ {post.likes}</span>
+                          <span className="text-[10px] text-muted-foreground">💬 {post.comments}</span>
+                        </div>
+                        {post.comments > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setExpandedPostId(expandedPostId === post.id ? null : post.id)}
+                            className="h-6 text-[10px] hover:bg-neon-cyan/10 text-neon-cyan"
+                          >
+                            <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${expandedPostId === post.id ? 'rotate-180' : ''}`} />
+                            {expandedPostId === post.id ? 'إخفاء التعليقات' : `عرض التعليقات (${post.comments})`}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Expandable Comments */}
+                      <AnimatePresence>
+                        {expandedPostId === post.id && post.commentsList && post.commentsList.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-3 pt-3 border-t border-border space-y-2 max-h-64 overflow-y-auto">
+                              {post.commentsList.map((comment: any) => (
+                                <div key={comment.id} className="flex gap-2 p-2 rounded-lg bg-muted/20">
+                                  <div className="w-6 h-6 rounded-full bg-neon-purple/10 flex items-center justify-center text-[9px] font-bold text-neon-purple shrink-0">
+                                    {comment.authorName?.charAt(0) || '؟'}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-semibold">{comment.authorName}</span>
+                                      <span className="text-[9px] text-muted-foreground">{formatDate(comment.createdAt)}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{comment.content}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ──── Join Requests Tab ──── */}
+          {activeTab === 'requests' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              <h2 className="text-base font-bold flex items-center gap-2"><UserPlus className="h-4 w-4 text-neon-orange" /> طلبات الانضمام المعلقة ({totalPendingRequests})</h2>
+              {joinRequests.length === 0 ? (
+                <div className="glass-card p-8 text-center">
+                  <UserPlus className="h-10 w-10 mx-auto mb-3 opacity-30 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">لا توجد طلبات انضمام معلقة</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {joinRequests.map((req: any, idx: number) => (
+                    <motion.div key={req.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
+                      className="glass-card p-4 border-l-4 border-neon-orange">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-orange/20 to-neon-purple/20 flex items-center justify-center text-sm font-bold shrink-0">
+                          {req.userName?.charAt(0) || '؟'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold">{req.userName}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            يطلب الانضمام إلى <span className="text-neon-purple font-semibold">{req.groupName}</span>
+                          </p>
+                          {req.userPhone && (
+                            <p className="text-[10px] text-muted-foreground" dir="ltr">{req.userPhone}</p>
+                          )}
+                          <p className="text-[9px] text-muted-foreground mt-0.5">{formatDate(req.createdAt)}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleManageJoinRequest(req.id, 'approve', req.userName, req.groupName)}
+                            className="h-8 text-xs hover:bg-neon-green/10 text-neon-green border border-neon-green/20"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 ml-1" /> قبول
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleManageJoinRequest(req.id, 'reject', req.userName, req.groupName)}
+                            className="h-8 text-xs hover:bg-red-500/10 text-red-400 border border-red-500/20"
+                          >
+                            <X className="h-3.5 w-3.5 ml-1" /> رفض
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </>
+      )}
+    </motion.div>
   )
 }

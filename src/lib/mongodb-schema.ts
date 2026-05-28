@@ -182,10 +182,14 @@ export interface MongoNotification {
   userId: ObjectId
   title: string
   message: string
-  type: 'info' | 'success' | 'warning' | 'achievement'
+  type: 'info' | 'success' | 'warning' | 'achievement' | 'payment' | 'gift' | 'community' | 'simulation' | 'enrollment' | 'system'
+  category: string
+  icon: string
   read: boolean
+  link?: string
   actionUrl?: string
   createdAt: Date
+  updatedAt?: Date
 }
 
 // ============================================

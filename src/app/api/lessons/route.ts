@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     }
 
     const courseStrId = course._id.toString()
-    const isCourseFree = course.price === 0 || !course.isPremium
+    const isCourseFree = course.price === 0
     let isEnrolled = isCourseFree // Free courses = auto enrolled
 
     // Check enrollment status if user is authenticated
@@ -57,9 +57,13 @@ export async function GET(req: NextRequest) {
     }
 
     if (userId && !isCourseFree) {
-      // Check if user has an enrollment record - search with all possible courseId formats
+      // Check if user has an enrollment record - search with all possible userId/courseId formats
+      const ObjectId = (await import('mongodb')).ObjectId
+      const userIdQueries: any[] = [userId]
+      try { if (ObjectId.isValid(userId)) userIdQueries.push(new ObjectId(userId)) } catch {}
+      
       const enrollment = await db.collection('enrollments').findOne({
-        userId,
+        userId: { $in: userIdQueries },
         courseId: { $in: [courseId, courseStrId] },
       })
       if (enrollment) {
@@ -69,7 +73,7 @@ export async function GET(req: NextRequest) {
       // Also check if there's an approved payment for this course
       if (!isEnrolled) {
         const approvedPayment = await db.collection('payments').findOne({
-          userId,
+          userId: { $in: userIdQueries },
           courseId: { $in: [courseId, courseStrId] },
           status: 'approved',
         })
@@ -92,8 +96,12 @@ export async function GET(req: NextRequest) {
 
     // Auto-enroll for free courses when user is authenticated
     if (userId && isCourseFree) {
+      const ObjectId2 = (await import('mongodb')).ObjectId
+      const userIdQueries2: any[] = [userId]
+      try { if (ObjectId2.isValid(userId)) userIdQueries2.push(new ObjectId2(userId)) } catch {}
+      
       const existing = await db.collection('enrollments').findOne({
-        userId,
+        userId: { $in: userIdQueries2 },
         courseId: { $in: [courseId, courseStrId] },
       })
       if (!existing) {
@@ -113,8 +121,12 @@ export async function GET(req: NextRequest) {
     // Get enrollment details for progress info
     let enrollmentProgress: any = null
     if (userId) {
+      const ObjectId3 = (await import('mongodb')).ObjectId
+      const userIdQueries3: any[] = [userId]
+      try { if (ObjectId3.isValid(userId)) userIdQueries3.push(new ObjectId3(userId)) } catch {}
+      
       enrollmentProgress = await db.collection('enrollments').findOne({
-        userId,
+        userId: { $in: userIdQueries3 },
         courseId: { $in: [courseId, courseStrId] },
       })
     }

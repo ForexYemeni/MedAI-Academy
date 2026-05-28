@@ -1,13 +1,17 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home, BookOpen, Brain, Activity, Play, HelpCircle, Users, User,
-  Menu, X, Search, Bell, Globe, ChevronRight, Sparkles, LogOut, Settings, Award, MessageSquare, Eye, EyeOff, Lock, Phone, UserPlus, Shield, Heart, Sun, Moon
+  Menu, X, Search, Bell, Globe, ChevronRight, Sparkles, LogOut, Settings, Award, MessageSquare, Eye, EyeOff, Lock, Phone, UserPlus, Shield, Heart, Sun, Moon, CreditCard, AlertTriangle, RefreshCw
 } from 'lucide-react'
 import { useAppStore, type PageId } from '@/store/app-store'
 import { useTheme } from '@/components/med/layout/theme-provider'
+import { OfflineIndicator, OfflineFloatingIndicator } from '@/components/med/layout/offline-indicator'
+import { NotificationBell, NotificationToastContainer } from '@/components/med/layout/notification-center'
+import { PushNotificationProvider } from '@/components/med/layout/push-notification-provider'
+import { useOffline } from '@/hooks/use-offline'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -18,16 +22,28 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 // Lazy load page components
 import dynamic from 'next/dynamic'
 
-const HomePage = dynamic(() => import('@/components/med/pages/home-page').then(m => ({ default: m.HomePage })), { ssr: false })
-const CoursesPage = dynamic(() => import('@/components/med/pages/courses-page').then(m => ({ default: m.CoursesPage })), { ssr: false })
-const CourseViewerPage = dynamic(() => import('@/components/med/pages/course-viewer-page').then(m => ({ default: m.CourseViewerPage })), { ssr: false })
-const AITutorPage = dynamic(() => import('@/components/med/pages/ai-tutor-page').then(m => ({ default: m.AITutorPage })), { ssr: false })
-const SimulationPage = dynamic(() => import('@/components/med/pages/simulation-page').then(m => ({ default: m.SimulationPage })), { ssr: false })
-const ShortsPage = dynamic(() => import('@/components/med/pages/shorts-page').then(m => ({ default: m.ShortsPage })), { ssr: false })
-const QuizzesPage = dynamic(() => import('@/components/med/pages/quizzes-page').then(m => ({ default: m.QuizzesPage })), { ssr: false })
-const CommunityPage = dynamic(() => import('@/components/med/pages/community-page').then(m => ({ default: m.CommunityPage })), { ssr: false })
-const ProfilePage = dynamic(() => import('@/components/med/pages/profile-page').then(m => ({ default: m.ProfilePage })), { ssr: false })
-const AdminPage = dynamic(() => import('@/components/med/pages/admin-page').then(m => ({ default: m.AdminPage })), { ssr: false })
+function PageLoading() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]" dir="rtl">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+      </div>
+    </div>
+  )
+}
+
+const HomePage = dynamic(() => import('@/components/med/pages/home-page').then(m => ({ default: m.HomePage })), { ssr: false, loading: () => <PageLoading /> })
+const CoursesPage = dynamic(() => import('@/components/med/pages/courses-page').then(m => ({ default: m.CoursesPage })), { ssr: false, loading: () => <PageLoading /> })
+const CourseViewerPage = dynamic(() => import('@/components/med/pages/course-viewer-page').then(m => ({ default: m.CourseViewerPage })), { ssr: false, loading: () => <PageLoading /> })
+const AITutorPage = dynamic(() => import('@/components/med/pages/ai-tutor-page').then(m => ({ default: m.AITutorPage })), { ssr: false, loading: () => <PageLoading /> })
+const SimulationPage = dynamic(() => import('@/components/med/pages/simulation-page').then(m => ({ default: m.SimulationPage })), { ssr: false, loading: () => <PageLoading /> })
+const ShortsPage = dynamic(() => import('@/components/med/pages/shorts-page').then(m => ({ default: m.ShortsPage })), { ssr: false, loading: () => <PageLoading /> })
+const QuizzesPage = dynamic(() => import('@/components/med/pages/quizzes-page').then(m => ({ default: m.QuizzesPage })), { ssr: false, loading: () => <PageLoading /> })
+const CommunityPage = dynamic(() => import('@/components/med/pages/community-page').then(m => ({ default: m.CommunityPage })), { ssr: false, loading: () => <PageLoading /> })
+const ProfilePage = dynamic(() => import('@/components/med/pages/profile-page').then(m => ({ default: m.ProfilePage })), { ssr: false, loading: () => <PageLoading /> })
+const AdminPage = dynamic(() => import('@/components/med/pages/admin-page').then(m => ({ default: m.AdminPage })), { ssr: false, loading: () => <PageLoading /> })
+const MySubscriptionsPage = dynamic(() => import('@/components/med/pages/my-subscriptions-page').then(m => ({ default: m.MySubscriptionsPage })), { ssr: false, loading: () => <PageLoading /> })
 
 const NAV_ITEMS: Array<{
   id: PageId
@@ -41,35 +57,46 @@ const NAV_ITEMS: Array<{
   { id: 'ai-tutor', label: 'المساعد AI', icon: Brain, color: 'text-purple-400' },
   { id: 'simulation', label: 'المحاكاة', icon: Activity, color: 'text-red-400' },
   { id: 'quizzes', label: 'الاختبارات', icon: HelpCircle, color: 'text-amber-400' },
-  { id: 'community', label: 'المجتمع', icon: Users, color: 'text-green-400', badge: 5 },
+  { id: 'community', label: 'المجتمع', icon: Users, color: 'text-green-400' },
+  { id: 'subscriptions', label: 'اشتراكاتي', icon: CreditCard, color: 'text-neon-green' },
   { id: 'profile', label: 'حسابي', icon: User, color: 'text-emerald-400' },
 ]
 
-const BOTTOM_NAV_ITEMS = NAV_ITEMS.slice(0, 5)
+const BOTTOM_NAV_ITEMS: Array<typeof NAV_ITEMS[0]> = [
+  NAV_ITEMS[0], // الرئيسية
+  NAV_ITEMS[1], // الدورات
+  NAV_ITEMS[2], // المساعد AI
+  NAV_ITEMS[5], // المجتمع
+  NAV_ITEMS[7], // حسابي
+]
 
 function Logo() {
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <div className="relative">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-          <Activity className="w-5 h-5 text-white" />
-        </div>
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-[#060810] animate-pulse" />
+        <img
+          src="/icons/icon-96x96.png"
+          alt="أكاديمية نبض"
+          className="w-10 h-10 rounded-xl shadow-lg shadow-cyan-500/20"
+        />
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-background animate-pulse" />
       </div>
       <div>
         <h1 className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-          MedAI
+          أكاديمية نبض
         </h1>
-        <p className="text-[10px] text-muted-foreground -mt-0.5">Academy</p>
       </div>
     </div>
   )
 }
 
 function Sidebar() {
-  const { activePage, setActivePage, user, notifications, courseProgress } = useAppStore()
+  const activePage = useAppStore(s => s.activePage)
+  const setActivePage = useAppStore(s => s.setActivePage)
+  const user = useAppStore(s => s.user)
+  const courseProgress = useAppStore(s => s.courseProgress)
   const { theme, toggleTheme } = useTheme()
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = useAppStore(s => s.unreadNotificationCount)
 
   // Professional stats instead of XP/Coins
   const enrolledCourses = courseProgress.length
@@ -91,12 +118,13 @@ function Sidebar() {
           {/* Theme toggle */}
           <motion.button
             onClick={toggleTheme}
-            className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all"
+            className="w-8 h-8 rounded-lg bg-muted/50 border border-border flex items-center justify-center hover:bg-muted transition-all"
             whileTap={{ scale: 0.9 }}
             title={theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </motion.button>
+          <NotificationBell />
         </div>
       </div>
 
@@ -125,7 +153,7 @@ function Sidebar() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 relative group ${
                   isActive 
                     ? 'bg-primary/10 text-primary' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
                 whileHover={{ x: -4 }}
                 whileTap={{ scale: 0.98 }}
@@ -165,149 +193,12 @@ function Sidebar() {
   )
 }
 
-function NotificationDropdown() {
-  const { notifications, markNotificationRead, markAllNotificationsRead, authToken } = useAppStore()
-  const [dbNotifications, setDbNotifications] = useState(notifications)
-  const [loading, setLoading] = useState(false)
-
-  // Fetch real notifications from API
-  const fetchNotifications = useCallback(async () => {
-    if (!authToken) return
-    try {
-      const res = await fetch('/api/notifications', {
-        headers: { Authorization: `Bearer ${authToken}` }
-      })
-      const data = await res.json()
-      if (data.success && data.notifications) {
-        const mapped = data.notifications.map((n: any) => ({
-          id: n._id || n.id,
-          title: n.title || '',
-          message: n.message || '',
-          type: n.type || 'info',
-          read: n.read || false,
-          timestamp: new Date(n.createdAt).getTime(),
-          link: n.link || '',
-        }))
-        setDbNotifications(mapped)
-      }
-    } catch (e) { /* fallback to store notifications */ }
-  }, [authToken])
-
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    const doFetch = async () => {
-      if (!authToken) return
-      try {
-        const res = await fetch('/api/notifications', {
-          headers: { Authorization: `Bearer ${authToken}` }
-        })
-        const data = await res.json()
-        if (data.success && data.notifications) {
-          const mapped = data.notifications.map((n: any) => ({
-            id: n._id || n.id,
-            title: n.title || '',
-            message: n.message || '',
-            type: n.type || 'info',
-            read: n.read || false,
-            timestamp: new Date(n.createdAt).getTime(),
-            link: n.link || '',
-          }))
-          setDbNotifications(mapped)
-        }
-      } catch (e) { /* fallback */ }
-    }
-    doFetch()
-    const interval = setInterval(doFetch, 30000)
-    return () => clearInterval(interval)
-  }, [authToken])
-
-  const handleMarkRead = async (id: string) => {
-    markNotificationRead(id)
-    setDbNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-    if (authToken) {
-      try {
-        await fetch('/api/notifications', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-          body: JSON.stringify({ notificationId: id }),
-        })
-      } catch (e) { /* ignore */ }
-    }
-  }
-
-  const handleMarkAllRead = async () => {
-    markAllNotificationsRead()
-    setDbNotifications(prev => prev.map(n => ({ ...n, read: true })))
-    if (authToken) {
-      try {
-        await fetch('/api/notifications', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-          body: JSON.stringify({ markAllRead: true }),
-        })
-      } catch (e) { /* ignore */ }
-    }
-  }
-
-  const allNotifs = [...dbNotifications]
-  const unreadCount = allNotifs.filter(n => !n.read).length
-  const displayNotifs = allNotifs.slice(0, 10)
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative hover:bg-white/5">
-          <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 bg-[#111827] border-med-border" align="end">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold">الإشعارات</h3>
-            {unreadCount > 0 && (
-              <button onClick={handleMarkAllRead} className="text-[10px] text-neon-cyan hover:underline">
-                تحديد الكل كمقروء
-              </button>
-            )}
-          </div>
-          {displayNotifs.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-xs">لا توجد إشعارات</p>
-            </div>
-          ) : displayNotifs.map(n => (
-            <button
-              key={n.id}
-              onClick={() => !n.read && handleMarkRead(n.id)}
-              className={`w-full text-right p-2.5 rounded-lg transition-colors ${n.read ? 'opacity-50' : 'glass-card hover:bg-white/5 cursor-pointer'} ${!n.read ? 'border-r-2 border-neon-cyan' : ''}`}
-            >
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${
-                  n.type === 'success' ? 'bg-neon-green' : n.type === 'warning' ? 'bg-neon-orange' : 'bg-neon-cyan'
-                }`} />
-                <p className="text-xs font-medium">{n.title}</p>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-0.5 mr-4">{n.message}</p>
-              <p className="text-[9px] text-muted-foreground/50 mt-1 mr-4">
-                {new Date(n.timestamp).toLocaleDateString('ar', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </button>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 function MobileHeader() {
-  const { user, notifications, setActivePage } = useAppStore()
+  const user = useAppStore(s => s.user)
+  const notifications = useAppStore(s => s.notifications)
+  const setActivePage = useAppStore(s => s.setActivePage)
   const { theme, toggleTheme } = useTheme()
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = useAppStore(s => s.unreadNotificationCount)
 
   return (
     <div className="lg:hidden sticky top-0 z-50 glass-strong">
@@ -315,7 +206,7 @@ function MobileHeader() {
         <div className="flex items-center gap-3">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-foreground hover:bg-white/5">
+              <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted">
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>
@@ -329,11 +220,13 @@ function MobileHeader() {
             </SheetContent>
           </Sheet>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
-              <Activity className="w-3.5 h-3.5 text-white" />
-            </div>
+            <img
+              src="/icons/icon-96x96.png"
+              alt="أكاديمية نبض"
+              className="w-7 h-7 rounded-lg"
+            />
             <span className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-              MedAI
+              أكاديمية نبض
             </span>
           </div>
         </div>
@@ -342,17 +235,17 @@ function MobileHeader() {
           {/* Theme toggle */}
           <motion.button
             onClick={toggleTheme}
-            className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all"
+            className="w-8 h-8 rounded-lg bg-muted/30 border border-border flex items-center justify-center hover:bg-muted/50 transition-all"
             whileTap={{ scale: 0.9 }}
             title={theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </motion.button>
-          <NotificationDropdown />
+          <NotificationBell />
           <Button 
             variant="ghost" 
             size="icon" 
-            className="hover:bg-white/5"
+            className="hover:bg-muted"
             onClick={() => setActivePage('profile')}
           >
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-xs font-bold">
@@ -366,7 +259,10 @@ function MobileHeader() {
 }
 
 function MobileNavContent() {
-  const { activePage, setActivePage, user, courseProgress } = useAppStore()
+  const activePage = useAppStore(s => s.activePage)
+  const setActivePage = useAppStore(s => s.setActivePage)
+  const user = useAppStore(s => s.user)
+  const courseProgress = useAppStore(s => s.courseProgress)
   const { theme, toggleTheme } = useTheme()
 
   const enrolledCourses = courseProgress.length
@@ -410,7 +306,7 @@ function MobileNavContent() {
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all ${
                   isActive 
                     ? 'bg-primary/10 text-primary' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
                 <item.icon className={`w-5 h-5 ${isActive ? item.color : ''}`} />
@@ -429,7 +325,7 @@ function MobileNavContent() {
       <div className="p-3 border-t border-sidebar-border space-y-2">
         <button
           onClick={toggleTheme}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-all"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
         >
           {theme === 'dark' ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
           <span className="flex-1 text-right">{theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}</span>
@@ -449,7 +345,8 @@ function MobileNavContent() {
 }
 
 function BottomNav() {
-  const { activePage, setActivePage } = useAppStore()
+  const activePage = useAppStore(s => s.activePage)
+  const setActivePage = useAppStore(s => s.setActivePage)
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-sidebar-border">
@@ -486,8 +383,44 @@ function BottomNav() {
   )
 }
 
+// ─── Error Boundary ────────────────────────────────────────────
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ErrorBoundary]', error, info)
+  }
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback
+      return (
+        <div className="flex flex-col items-center justify-center p-8 text-center" dir="rtl">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-400" />
+          </div>
+          <h3 className="text-lg font-bold text-foreground mb-2">حدث خطأ غير متوقع</h3>
+          <p className="text-sm text-muted-foreground mb-4">{this.state.error?.message || 'يرجى تحديث الصفحة'}</p>
+          <Button onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload() }} className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20">
+            تحديث الصفحة
+          </Button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function PageRenderer() {
-  const { activePage, user } = useAppStore()
+  const activePage = useAppStore(s => s.activePage)
+  const user = useAppStore(s => s.user)
 
   const pages: Record<PageId, React.ComponentType> = {
     home: HomePage,
@@ -499,6 +432,7 @@ function PageRenderer() {
     quizzes: QuizzesPage,
     community: CommunityPage,
     profile: ProfilePage,
+    subscriptions: MySubscriptionsPage,
     auth: HomePage,
     admin: AdminPage,
   }
@@ -506,18 +440,20 @@ function PageRenderer() {
   const PageComponent = pages[activePage] || HomePage
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={activePage}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="h-full"
-      >
-        <PageComponent />
-      </motion.div>
-    </AnimatePresence>
+    <ErrorBoundary>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activePage}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="h-full"
+        >
+          <PageComponent />
+        </motion.div>
+      </AnimatePresence>
+    </ErrorBoundary>
   )
 }
 
@@ -525,7 +461,7 @@ function PageRenderer() {
 // Change Password Modal
 // =============================================
 function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
-  const { authToken } = useAppStore()
+  const authToken = useAppStore(s => s.authToken)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -607,7 +543,7 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
           >
             <Shield className="w-8 h-8 text-white" />
           </motion.div>
-          <h2 className="text-xl font-black text-white">تغيير كلمة المرور</h2>
+          <h2 className="text-xl font-black text-foreground">تغيير كلمة المرور</h2>
           <p className="text-sm text-amber-400 mt-1">يجب تغيير كلمة المرور الافتراضية قبل المتابعة</p>
         </div>
 
@@ -631,13 +567,13 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border border-amber-500/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
+                className="w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border border-amber-500/15 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
                 dir="ltr"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -653,13 +589,13 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="6 أحرف على الأقل"
-                className="w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border border-amber-500/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
+                className="w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border border-amber-500/15 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
                 dir="ltr"
               />
               <button
                 type="button"
                 onClick={() => setShowNew(!showNew)}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -674,7 +610,7 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-amber-500/15 text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
+              className="w-full h-11 px-4 rounded-xl bg-med-card/80 border border-amber-500/15 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-amber-500/40 text-sm"
               dir="ltr"
             />
           </div>
@@ -702,7 +638,10 @@ function ChangePasswordModal({ onComplete }: { onComplete: () => void }) {
 // Auth Screen (Login + Register)
 // =============================================
 function AuthScreen() {
-  const { setIsLoggedIn, updateUser, setAuthToken, setMustChangePassword } = useAppStore()
+  const setIsLoggedIn = useAppStore(s => s.setIsLoggedIn)
+  const updateUser = useAppStore(s => s.updateUser)
+  const setAuthToken = useAppStore(s => s.setAuthToken)
+  const setMustChangePassword = useAppStore(s => s.setMustChangePassword)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [authName, setAuthName] = useState('')
   const [authPhone, setAuthPhone] = useState('')
@@ -771,6 +710,41 @@ function AuthScreen() {
           localStorage.setItem('medai-user', JSON.stringify(newUser))
           localStorage.setItem('medai-auth', 'true')
           localStorage.setItem('medai-token', token)
+        }
+
+        // Fetch user's course progress from server for persistence
+        if (user.role !== 'admin') {
+          fetch('/api/enrollment/progress?all=true', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then(r => r.json())
+            .then(progressData => {
+              if (progressData.success && progressData.enrollments) {
+                const serverProgress = progressData.enrollments.map((e: any) => ({
+                  courseId: e.courseId,
+                  completedLessons: e.completedLessons || [],
+                  lastAccessedLessonId: e.lastAccessedLesson || null,
+                  progress: e.progress || 0,
+                  lastAccessedAt: e.updatedAt ? new Date(e.updatedAt).getTime() : Date.now(),
+                }))
+                const localProgress = useAppStore.getState().courseProgress
+                const mergedProgress = [...serverProgress]
+                localProgress.forEach(lp => {
+                  const existing = mergedProgress.find((mp: any) => mp.courseId === lp.courseId)
+                  if (!existing) {
+                    mergedProgress.push(lp)
+                  } else if (lp.completedLessons.length > existing.completedLessons.length) {
+                    const idx = mergedProgress.indexOf(existing)
+                    mergedProgress[idx] = lp
+                  }
+                })
+                useAppStore.setState({ courseProgress: mergedProgress })
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('medai-progress', JSON.stringify(mergedProgress))
+                }
+              }
+            })
+            .catch(() => {})
         }
       } else {
         setAuthError(data.error || 'حدث خطأ في تسجيل الدخول')
@@ -890,17 +864,21 @@ function AuthScreen() {
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ delay: 0.3, type: 'spring', stiffness: 200, damping: 15 }}
-            className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-cyan-500/30 relative"
+            className="w-20 h-20 rounded-2xl mx-auto mb-4 shadow-lg shadow-cyan-500/30 relative overflow-hidden"
           >
-            <Heart className="w-10 h-10 text-white" />
+            <img
+              src="/icons/icon-192x192.png"
+              alt="أكاديمية نبض"
+              className="w-full h-full object-cover rounded-2xl"
+            />
             <motion.div
-              className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-400 to-purple-500"
+              className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-400/30 to-purple-500/30"
               animate={{ opacity: [0, 0.5, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
             />
           </motion.div>
           <h1 className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-            MedAI Academy
+            أكاديمية نبض
           </h1>
           <p className="text-sm text-muted-foreground mt-2">منصة التعليم الطبي الذكي</p>
         </motion.div>
@@ -917,7 +895,7 @@ function AuthScreen() {
             className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 relative overflow-hidden ${
               authMode === 'login'
                 ? 'bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 shadow-[0_0_20px_rgba(0,245,255,0.1)]'
-                : 'text-muted-foreground hover:text-white border border-transparent hover:border-white/10'
+                : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
             }`}
           >
             {authMode === 'login' && (
@@ -936,7 +914,7 @@ function AuthScreen() {
             className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 relative overflow-hidden ${
               authMode === 'register'
                 ? 'bg-neon-purple/15 text-neon-purple border border-neon-purple/30 shadow-[0_0_20px_rgba(139,92,246,0.1)]'
-                : 'text-muted-foreground hover:text-white border border-transparent hover:border-white/10'
+                : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-border'
             }`}
           >
             {authMode === 'register' && (
@@ -995,7 +973,7 @@ function AuthScreen() {
                     onFocus={() => setFocusedField('name')}
                     onBlur={() => setFocusedField(null)}
                     placeholder="أدخل اسمك الكامل"
-                    className={`w-full h-11 px-4 rounded-xl bg-med-card/80 border text-white placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
+                    className={`w-full h-11 px-4 rounded-xl bg-med-card/80 border text-foreground placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
                       focusedField === 'name' ? 'border-neon-purple/50 shadow-[0_0_15px_rgba(139,92,246,0.15)]' : 'border-neon-purple/15'
                     }`}
                   />
@@ -1018,7 +996,7 @@ function AuthScreen() {
                 onFocus={() => setFocusedField('phone')}
                 onBlur={() => setFocusedField(null)}
                 placeholder="7XXXXXXXX"
-                className={`w-full h-11 px-4 rounded-xl bg-med-card/80 border text-white placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
+                className={`w-full h-11 px-4 rounded-xl bg-med-card/80 border text-foreground placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
                   focusedField === 'phone' ? 'border-neon-cyan/50 shadow-[0_0_15px_rgba(0,245,255,0.15)]' : 'border-neon-cyan/15'
                 }`}
                 dir="ltr"
@@ -1047,7 +1025,7 @@ function AuthScreen() {
                 onFocus={() => setFocusedField('password')}
                 onBlur={() => setFocusedField(null)}
                 placeholder="••••••••"
-                className={`w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border text-white placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
+                className={`w-full h-11 px-4 pl-10 rounded-xl bg-med-card/80 border text-foreground placeholder:text-muted-foreground/50 focus:outline-none text-sm transition-all duration-300 ${
                   focusedField === 'password' ? 'border-neon-cyan/50 shadow-[0_0_15px_rgba(0,245,255,0.15)]' : 'border-neon-cyan/15'
                 }`}
                 dir="ltr"
@@ -1055,7 +1033,7 @@ function AuthScreen() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -1104,61 +1082,86 @@ function AuthScreen() {
 // Main App Shell
 // =============================================
 export default function AppShell() {
-  const { isLoggedIn, mustChangePassword, setMustChangePassword, user, activePage } = useAppStore()
+  const isLoggedIn = useAppStore(s => s.isLoggedIn)
+  const mustChangePassword = useAppStore(s => s.mustChangePassword)
+  const setMustChangePassword = useAppStore(s => s.setMustChangePassword)
+  const user = useAppStore(s => s.user)
+  const activePage = useAppStore(s => s.activePage)
+  const setIsOnline = useAppStore(s => s.setIsOnline)
+  const setWasOffline = useAppStore(s => s.setWasOffline)
+  const cachedLessons = useAppStore(s => s.cachedLessons)
+  const offline = useOffline()
 
-  // Show change password modal if admin must change password
-  if (isLoggedIn && mustChangePassword) {
-    return (
-      <>
-        <ChangePasswordModal
-          onComplete={() => {
-            setMustChangePassword(false)
-          }}
-        />
-        <div className="min-h-screen bg-background" dir="rtl" />
-      </>
-    )
-  }
-
-  // Show auth screen if not logged in
-  if (!isLoggedIn) {
-    return <AuthScreen />
-  }
-
-  // Admin always sees the admin panel - no access to user interface
-  if (user.role === 'admin') {
-    return (
-      <div className="min-h-screen bg-background text-foreground" dir="rtl">
-        <AdminPage />
-      </div>
-    )
-  }
+  // Sync offline status to store
+  useEffect(() => {
+    setIsOnline(offline.isOnline)
+    if (!offline.isOnline) setWasOffline(true)
+  }, [offline.isOnline, setIsOnline, setWasOffline])
 
   return (
-    <div className="min-h-screen bg-background text-foreground" dir="rtl">
-      <Sidebar />
+    <PushNotificationProvider>
+      {/* Show change password modal if admin must change password */}
+      {isLoggedIn && mustChangePassword && (
+        <>
+          <ChangePasswordModal
+            onComplete={() => {
+              setMustChangePassword(false)
+            }}
+          />
+          <div className="min-h-screen bg-background" dir="rtl" />
+        </>
+      )}
 
-      <div className="lg:mr-[260px] flex flex-col min-h-screen">
-        <MobileHeader />
+      {/* Show auth screen if not logged in */}
+      {!isLoggedIn && <AuthScreen />}
 
-        <main className="flex-1 pb-20 lg:pb-4">
-          <PageRenderer />
-        </main>
-      </div>
+      {/* Admin always sees the admin panel - no access to user interface */}
+      {isLoggedIn && !mustChangePassword && user.role === 'admin' && (
+        <ErrorBoundary>
+          <div className="min-h-screen bg-background text-foreground" dir="rtl">
+            <NotificationToastContainer />
+            <AdminPage />
+          </div>
+        </ErrorBoundary>
+      )}
 
-      <BottomNav />
+      {/* Regular user interface */}
+      {isLoggedIn && !mustChangePassword && user.role !== 'admin' && (
+        <ErrorBoundary>
+          <div className="min-h-screen bg-background text-foreground" dir="rtl">
+            {/* Offline Status Indicators */}
+            <OfflineIndicator isOnline={offline.isOnline} wasOffline={offline.wasOffline} cachedLessonsCount={offline.cachedLessonsCount} />
+            <OfflineFloatingIndicator isOnline={offline.isOnline} />
 
-      {/* AI Floating Button */}
-      <motion.button
-        className="fixed bottom-24 lg:bottom-6 left-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 shadow-lg shadow-cyan-500/25 flex items-center justify-center group"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => useAppStore.getState().setActivePage('ai-tutor')}
-      >
-        <Brain className="w-6 h-6 text-white" />
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-background animate-pulse" />
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 animate-ping opacity-20" />
-      </motion.button>
-    </div>
+            {/* Toast Notification Container */}
+            <NotificationToastContainer />
+
+            <Sidebar />
+
+            <div className="lg:mr-[260px] flex flex-col min-h-screen">
+              <MobileHeader />
+
+              <main className="flex-1 pb-20 lg:pb-4">
+                <PageRenderer />
+              </main>
+            </div>
+
+            <BottomNav />
+
+            {/* AI Floating Button */}
+            <motion.button
+              className="fixed bottom-24 lg:bottom-6 left-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 shadow-lg shadow-cyan-500/25 flex items-center justify-center group"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => useAppStore.getState().setActivePage('ai-tutor')}
+            >
+              <Brain className="w-6 h-6 text-white" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-background animate-pulse" />
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 animate-ping opacity-20" />
+            </motion.button>
+          </div>
+        </ErrorBoundary>
+      )}
+    </PushNotificationProvider>
   )
 }

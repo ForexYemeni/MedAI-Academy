@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const MEDICAL_SYSTEM_PROMPT = `أنت مساعد طبي ذكي متخصص في التعليم الطبي لمنصة MedAI Academy. أنت تتحدث العربية بشكل أساسي.
+const MEDICAL_SYSTEM_PROMPT = `أنت مساعد طبي ذكي متخصص في التعليم الطبي لمنصة أكاديمية نبض. أنت تتحدث العربية بشكل أساسي.
 
 دورك:
 - مساعدة الطلاب في فهم المفاهيم الطبية بشكل مبسط وواضح

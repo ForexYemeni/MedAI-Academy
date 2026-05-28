@@ -228,7 +228,7 @@ export function SubscriptionPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   billingPeriod === 'monthly'
                     ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30'
-                    : 'text-muted-foreground hover:text-white'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 شهري
@@ -238,7 +238,7 @@ export function SubscriptionPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all relative ${
                   billingPeriod === 'yearly'
                     ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30'
-                    : 'text-muted-foreground hover:text-white'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 سنوي
@@ -303,7 +303,7 @@ export function SubscriptionPage() {
                       {plan.id === 'premium' && <Crown className={`w-6 h-6 ${plan.textAccent}`} />}
                       {plan.id === 'instructor' && <Star className={`w-6 h-6 ${plan.textAccent}`} />}
                     </div>
-                    <h3 className="text-lg font-bold text-white">{plan.name}</h3>
+                    <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
                     <p className="text-xs text-muted-foreground">{plan.nameEn}</p>
                     <div className="mt-3">
                       <span className={`text-4xl font-black ${plan.textAccent}`} style={{ textShadow: `0 0 20px ${plan.accentColor}40` }}>
@@ -328,12 +328,12 @@ export function SubscriptionPage() {
                         <div className={`w-5 h-5 rounded-full ${plan.bgAccent} flex items-center justify-center shrink-0`}>
                           <Check className={`w-3 h-3 ${plan.textAccent}`} />
                         </div>
-                        <span className="text-sm text-white/90">{feature.label}</span>
+                        <span className="text-sm text-foreground/90">{feature.label}</span>
                       </motion.div>
                     ))}
                     {plan.notIncluded.map((feature, fi) => (
                       <div key={fi} className="flex items-center gap-2.5 opacity-40">
-                        <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                        <div className="w-5 h-5 rounded-full bg-muted/30 flex items-center justify-center shrink-0">
                           <X className="w-3 h-3 text-muted-foreground" />
                         </div>
                         <span className="text-sm text-muted-foreground">{feature}</span>
@@ -366,7 +366,7 @@ export function SubscriptionPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px]">
                 <thead>
-                  <tr className="border-b border-white/5">
+                  <tr className="border-b border-border">
                     <th className="text-right p-4 text-sm font-semibold text-muted-foreground">الميزة</th>
                     <th className="p-4 text-center">
                       <div className="text-sm font-bold text-neon-blue">مجاني</div>
@@ -387,12 +387,12 @@ export function SubscriptionPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: fi * 0.03 }}
-                      className="border-b border-white/3 hover:bg-white/2 transition-colors"
+                      className="border-b border-border hover:bg-muted/20 transition-colors"
                     >
-                      <td className="p-3.5 text-sm text-white/80">{feature.label}</td>
+                      <td className="p-3.5 text-sm text-foreground/80">{feature.label}</td>
                       <td className="p-3.5 text-center text-sm text-muted-foreground">{feature.free}</td>
-                      <td className="p-3.5 text-center text-sm text-white/90 bg-neon-cyan/3">{feature.premium}</td>
-                      <td className="p-3.5 text-center text-sm text-white/90">{feature.instructor}</td>
+                      <td className="p-3.5 text-center text-sm text-foreground/90 bg-neon-cyan/3">{feature.premium}</td>
+                      <td className="p-3.5 text-center text-sm text-foreground/90">{feature.instructor}</td>
                     </motion.tr>
                   ))}
                 </tbody>
@@ -415,9 +415,9 @@ export function SubscriptionPage() {
                 <AccordionItem
                   key={i}
                   value={`faq-${i}`}
-                  className="border-b border-white/5 last:border-0"
+                  className="border-b border-border last:border-0"
                 >
-                  <AccordionTrigger className="text-right hover:no-underline hover:bg-white/3 px-4 py-3.5 transition-colors text-sm font-semibold text-white [&>svg]:mr-auto [&>svg]:ml-0">
+                  <AccordionTrigger className="text-right hover:no-underline hover:bg-muted/20 px-4 py-3.5 transition-colors text-sm font-semibold text-foreground [&>svg]:mr-auto [&>svg]:ml-0">
                     {faq.question}
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-4 text-sm text-muted-foreground leading-relaxed">
@@ -450,7 +450,7 @@ export function SubscriptionPage() {
                   {trust.icon}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">{trust.label}</h3>
+                  <h3 className="text-sm font-bold text-foreground">{trust.label}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">{trust.desc}</p>
                 </div>
               </motion.div>
@@ -485,7 +485,7 @@ export function SubscriptionPage() {
               ابدأ رحلتك الطبية اليوم
             </h2>
             <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
-              انضم لأكثر من 50,000 طالب وطبيب يثقون في MedAI Academy لتطوير مهاراتهم الطبية
+              انضم لأكثر من 50,000 طالب وطبيب يثقون في أكاديمية نبض لتطوير مهاراتهم الطبية
             </p>
             <Button className="bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold text-base h-12 px-8 rounded-xl hover:shadow-[0_0_30px_rgba(0,245,255,0.4)] transition-all">
               <Crown className="w-5 h-5 ml-2" />
