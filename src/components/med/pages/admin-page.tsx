@@ -188,7 +188,7 @@ function getLevelColor(level: string) {
 
 // ─── Sidebar Config ─────────────────────────────────────────
 
-type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database' | 'simulation' | 'community' | 'settings'
+type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database' | 'simulation' | 'community' | 'quizzes' | 'settings'
 
 const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'نظرة عامة', icon: Activity },
@@ -198,6 +198,7 @@ const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[]
   { id: 'payment-methods', label: 'طرق الدفع', icon: Wallet },
   { id: 'simulation', label: 'المحاكاة', icon: FlaskConical },
   { id: 'community', label: 'المجتمع', icon: MessageSquare },
+  { id: 'quizzes', label: 'الاختبارات', icon: HelpCircle },
   { id: 'notifications', label: 'الإشعارات', icon: Bell },
   { id: 'activity-logs', label: 'سجل العمليات', icon: FileText },
   { id: 'database', label: 'قاعدة البيانات', icon: Shield },
@@ -2737,6 +2738,7 @@ export function AdminPage() {
               {activeSection === 'database' && renderDatabase()}
               {activeSection === 'simulation' && <SimulationManagementSection />}
               {activeSection === 'community' && <CommunityManagementSection />}
+              {activeSection === 'quizzes' && <QuizManagementSection />}
               {activeSection === 'settings' && renderSettings()}
             </AnimatePresence>
           </motion.div>
@@ -3962,6 +3964,722 @@ function CommunityManagementSection() {
             </motion.div>
           )}
         </>
+      )}
+    </motion.div>
+  )
+}
+
+// ─── Quiz Management Section ────────────────────────────────
+
+interface ApiQuizQuestion {
+  id: string
+  question: string
+  questionAr: string
+  options: string[]
+  optionsAr: string[]
+  correctIndex: number
+  explanation: string
+  explanationAr: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  category: string
+  active: boolean
+  createdAt: string
+}
+
+const QUIZ_CATEGORIES = [
+  { value: 'emergency', label: 'الطوارئ', icon: '🚑' },
+  { value: 'cardiology', label: 'القلب', icon: '❤️' },
+  { value: 'neurology', label: 'الأعصاب', icon: '🧠' },
+  { value: 'pediatrics', label: 'الأطفال', icon: '👶' },
+  { value: 'surgery', label: 'الجراحة', icon: '🔪' },
+  { value: 'internal', label: 'الباطنة', icon: '🩺' },
+  { value: 'radiology', label: 'الأشعة', icon: '🔬' },
+  { value: 'pharmacology', label: 'الأدوية', icon: '💊' },
+  { value: 'icu', label: 'العناية المركزة', icon: '🏥' },
+  { value: 'general', label: 'عام', icon: '📚' },
+]
+
+const DIFFICULTY_CONFIG = {
+  easy: { label: 'سهل', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' },
+  medium: { label: 'متوسط', color: 'bg-amber-500/15 text-amber-400 border-amber-500/25' },
+  hard: { label: 'صعب', color: 'bg-red-500/15 text-red-400 border-red-500/25' },
+}
+
+function QuizManagementSection() {
+  const [questions, setQuestions] = useState<ApiQuizQuestion[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingQuestion, setEditingQuestion] = useState<ApiQuizQuestion | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState<'questions' | 'leaderboard'>('questions')
+  const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [quizStats, setQuizStats] = useState<any>(null)
+  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+
+  const [form, setForm] = useState({
+    questionAr: '',
+    question: '',
+    option1: '',
+    option2: '',
+    option3: '',
+    option4: '',
+    correctIndex: 0,
+    explanationAr: '',
+    explanation: '',
+    difficulty: 'medium' as 'easy' | 'medium' | 'hard',
+    category: 'emergency',
+    active: true,
+  })
+
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/quizzes', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.questions) {
+        setQuestions(data.questions)
+      }
+    } catch (err) {
+      console.error('Fetch quizzes error:', err)
+    } finally {
+      setDataLoading(false)
+    }
+  }, [])
+
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      const [lbRes, statsRes] = await Promise.all([
+        fetch('/api/quizzes/results?type=leaderboard&limit=20', { headers: getAuthHeaders() }),
+        fetch('/api/quizzes/results?type=stats', { headers: getAuthHeaders() }),
+      ])
+      const lbData = await lbRes.json()
+      const statsData = await statsRes.json()
+      if (lbData.leaderboard) setLeaderboard(lbData.leaderboard)
+      if (statsData.totalResults !== undefined) setQuizStats(statsData)
+    } catch (err) {
+      console.error('Fetch leaderboard error:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+    fetchLeaderboard()
+  }, [fetchData, fetchLeaderboard])
+
+  const resetForm = () => {
+    setForm({
+      questionAr: '', question: '', option1: '', option2: '', option3: '', option4: '',
+      correctIndex: 0, explanationAr: '', explanation: '', difficulty: 'medium', category: 'emergency', active: true,
+    })
+    setShowForm(false)
+    setEditingQuestion(null)
+  }
+
+  const startEdit = (q: ApiQuizQuestion) => {
+    setForm({
+      questionAr: q.questionAr || q.question,
+      question: q.question,
+      option1: q.optionsAr?.[0] || q.options?.[0] || '',
+      option2: q.optionsAr?.[1] || q.options?.[1] || '',
+      option3: q.optionsAr?.[2] || q.options?.[2] || '',
+      option4: q.optionsAr?.[3] || q.options?.[3] || '',
+      correctIndex: q.correctIndex,
+      explanationAr: q.explanationAr || q.explanation || '',
+      explanation: q.explanation || '',
+      difficulty: q.difficulty,
+      category: q.category,
+      active: q.active !== false,
+    })
+    setEditingQuestion(q)
+    setShowForm(true)
+  }
+
+  const handleSave = async () => {
+    if (!form.questionAr || !form.option1 || !form.option2) return
+    setSaving(true)
+    try {
+      const payload = {
+        questionAr: form.questionAr,
+        question: form.question || form.questionAr,
+        optionsAr: [form.option1, form.option2, form.option3, form.option4].filter(Boolean),
+        options: [form.option1, form.option2, form.option3, form.option4].filter(Boolean),
+        correctIndex: form.correctIndex,
+        explanationAr: form.explanationAr,
+        explanation: form.explanation || form.explanationAr,
+        difficulty: form.difficulty,
+        category: form.category,
+        active: form.active,
+      }
+
+      if (editingQuestion) {
+        const res = await fetch('/api/quizzes', {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ id: editingQuestion.id, ...payload }),
+        })
+        const data = await res.json()
+        if (data.success) { resetForm(); await fetchData() }
+      } else {
+        const res = await fetch('/api/quizzes', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+        if (data.success) { resetForm(); await fetchData() }
+      }
+    } catch (err) {
+      console.error('Save quiz error:', err)
+    }
+    setSaving(false)
+  }
+
+  const handleDelete = (id: string, questionText: string) => {
+    setConfirmAction({
+      type: 'delete',
+      title: 'حذف السؤال',
+      message: 'هل أنت متأكد من حذف هذا السؤال؟',
+      details: `سيتم حذف "${questionText.substring(0, 50)}..." نهائياً.`,
+      confirmLabel: 'حذف السؤال',
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const res = await fetch(`/api/quizzes?id=${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+          })
+          const data = await res.json()
+          if (data.success) await fetchData()
+        } catch (err) {
+          console.error('Delete quiz error:', err)
+        }
+        setConfirmLoading(false)
+        setConfirmAction(null)
+      },
+    })
+  }
+
+  const handleToggleActive = async (q: ApiQuizQuestion) => {
+    try {
+      await fetch('/api/quizzes', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: q.id, active: !q.active }),
+      })
+      await fetchData()
+    } catch (err) {
+      console.error('Toggle active error:', err)
+    }
+  }
+
+  const filteredQuestions = useMemo(() => {
+    return questions.filter(q => {
+      if (filterCategory !== 'all' && q.category !== filterCategory) return false
+      if (filterDifficulty !== 'all' && q.difficulty !== filterDifficulty) return false
+      return true
+    })
+  }, [questions, filterCategory, filterDifficulty])
+
+  const categoryStats = useMemo(() => {
+    const stats: Record<string, number> = {}
+    questions.forEach(q => { stats[q.category] = (stats[q.category] || 0) + 1 })
+    return stats
+  }, [questions])
+
+  const difficultyStats = useMemo(() => {
+    const stats: Record<string, number> = { easy: 0, medium: 0, hard: 0 }
+    questions.forEach(q => { stats[q.difficulty] = (stats[q.difficulty] || 0) + 1 })
+    return stats
+  }, [questions])
+
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-neon-cyan" />
+      </div>
+    )
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      {/* Confirmation Dialog */}
+      <AnimatePresence>
+        {confirmAction && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => !confirmLoading && setConfirmAction(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card p-6 max-w-sm w-full"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-red-400 mb-2">{confirmAction.title}</h3>
+              <p className="text-sm text-muted-foreground mb-1">{confirmAction.message}</p>
+              <p className="text-xs text-muted-foreground/70 mb-4">{confirmAction.details}</p>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setConfirmAction(null)} disabled={confirmLoading} className="flex-1">إلغاء</Button>
+                <Button size="sm" onClick={confirmAction.onConfirm} disabled={confirmLoading}
+                  className="flex-1 bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30">
+                  {confirmLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : confirmAction.confirmLabel}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
+              <HelpCircle className="h-5 w-5 text-amber-400" />
+            </div>
+            إدارة الاختبارات
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">إضافة وتعديل أسئلة الاختبارات ومتابعة المتصدرين</p>
+        </div>
+        <Button onClick={() => { resetForm(); setShowForm(true) }}
+          className="bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold">
+          <Plus className="h-4 w-4 ml-1" />
+          إضافة سؤال
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          className="glass-card p-4 border border-neon-cyan/15">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-neon-cyan/15 flex items-center justify-center">
+              <HelpCircle className="h-4 w-4 text-neon-cyan" />
+            </div>
+            <span className="text-xs text-muted-foreground">إجمالي الأسئلة</span>
+          </div>
+          <p className="text-2xl font-black text-neon-cyan">{questions.length}</p>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="glass-card p-4 border border-emerald-500/15">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            </div>
+            <span className="text-xs text-muted-foreground">أسئلة نشطة</span>
+          </div>
+          <p className="text-2xl font-black text-emerald-400">{questions.filter(q => q.active !== false).length}</p>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          className="glass-card p-4 border border-neon-purple/15">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-neon-purple/15 flex items-center justify-center">
+              <Layers className="h-4 w-4 text-neon-purple" />
+            </div>
+            <span className="text-xs text-muted-foreground">التصنيفات</span>
+          </div>
+          <p className="text-2xl font-black text-neon-purple">{Object.keys(categoryStats).length}</p>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="glass-card p-4 border border-amber-500/15">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+              <Trophy className="h-4 w-4 text-amber-400" />
+            </div>
+            <span className="text-xs text-muted-foreground">محاولات الاختبار</span>
+          </div>
+          <p className="text-2xl font-black text-amber-400">{quizStats?.totalResults || 0}</p>
+        </motion.div>
+      </div>
+
+      {/* Difficulty Distribution */}
+      <div className="glass-card p-4">
+        <p className="text-xs text-muted-foreground mb-3 font-semibold">توزيع الصعوبة</p>
+        <div className="flex gap-3">
+          {(['easy', 'medium', 'hard'] as const).map(d => {
+            const config = DIFFICULTY_CONFIG[d]
+            const count = difficultyStats[d]
+            const pct = questions.length > 0 ? Math.round((count / questions.length) * 100) : 0
+            return (
+              <div key={d} className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <Badge className={`${config.color} border text-[10px]`}>{config.label}</Badge>
+                  <span className="text-[10px] text-muted-foreground">{count} ({pct}%)</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.8, delay: 0.3 }}
+                    className={`h-full rounded-full ${d === 'easy' ? 'bg-emerald-400' : d === 'medium' ? 'bg-amber-400' : 'bg-red-400'}`}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-border pb-0">
+        {[
+          { id: 'questions' as const, label: 'الأسئلة', icon: HelpCircle, count: filteredQuestions.length },
+          { id: 'leaderboard' as const, label: 'المتصدرين', icon: Trophy, count: leaderboard.length },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all ${
+              activeTab === tab.id
+                ? 'border-neon-cyan text-neon-cyan'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+            <Badge className="text-[9px] h-5 min-w-[20px] flex items-center justify-center bg-muted/30 text-muted-foreground border-0">
+              {tab.count}
+            </Badge>
+          </button>
+        ))}
+      </div>
+
+      {/* ──── Questions Tab ──── */}
+      {activeTab === 'questions' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          {/* Add/Edit Form */}
+          <AnimatePresence>
+            {showForm && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="glass-card p-5 border border-neon-cyan/20 space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-bold flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-neon-cyan/15 flex items-center justify-center">
+                        {editingQuestion ? <Edit3 className="h-3.5 w-3.5 text-neon-cyan" /> : <Plus className="h-3.5 w-3.5 text-neon-cyan" />}
+                      </div>
+                      {editingQuestion ? 'تعديل السؤال' : 'إضافة سؤال جديد'}
+                    </h3>
+                    <Button variant="ghost" size="sm" onClick={resetForm} className="h-7 w-7 p-0">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">نص السؤال *</label>
+                    <Textarea
+                      value={form.questionAr}
+                      onChange={e => setForm(prev => ({ ...prev, questionAr: e.target.value }))}
+                      placeholder="أدخل نص السؤال بالعربية..."
+                      className="min-h-[80px] bg-muted/20 border-border"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الخيارات * (حدد الإجابة الصحيحة)</label>
+                    <div className="space-y-2">
+                      {[0, 1, 2, 3].map(idx => {
+                        const key = `option${idx + 1}` as 'option1' | 'option2' | 'option3' | 'option4'
+                        const isCorrect = form.correctIndex === idx
+                        return (
+                          <div key={idx} className="flex items-center gap-2">
+                            <button
+                              onClick={() => setForm(prev => ({ ...prev, correctIndex: idx }))}
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all shrink-0 ${
+                                isCorrect
+                                  ? 'bg-neon-green/20 border-2 border-neon-green/50 text-neon-green'
+                                  : 'bg-muted/30 border-2 border-border text-muted-foreground hover:border-neon-green/30'
+                              }`}
+                            >
+                              {isCorrect ? <CheckCircle2 className="h-4 w-4" /> : String.fromCharCode(1571 + idx)}
+                            </button>
+                            <Input
+                              value={form[key]}
+                              onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                              placeholder={`الخيار ${idx + 1}${idx < 2 ? ' *' : ''}`}
+                              className={`bg-muted/20 ${isCorrect ? 'border-neon-green/30' : 'border-border'}`}
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">اضغط على الدائرة بجانب الخيار لتحديد الإجابة الصحيحة</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الشرح</label>
+                    <Textarea
+                      value={form.explanationAr}
+                      onChange={e => setForm(prev => ({ ...prev, explanationAr: e.target.value }))}
+                      placeholder="شرح الإجابة الصحيحة..."
+                      className="min-h-[60px] bg-muted/20 border-border"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">التصنيف *</label>
+                      <Select value={form.category} onValueChange={v => setForm(prev => ({ ...prev, category: v }))}>
+                        <SelectTrigger className="bg-muted/20 border-border h-9 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {QUIZ_CATEGORIES.map(cat => (
+                            <SelectItem key={cat.value} value={cat.value}>{cat.icon} {cat.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الصعوبة</label>
+                      <Select value={form.difficulty} onValueChange={v => setForm(prev => ({ ...prev, difficulty: v as any }))}>
+                        <SelectTrigger className="bg-muted/20 border-border h-9 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="easy">سهل</SelectItem>
+                          <SelectItem value="medium">متوسط</SelectItem>
+                          <SelectItem value="hard">صعب</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الحالة</label>
+                      <button
+                        onClick={() => setForm(prev => ({ ...prev, active: !prev.active }))}
+                        className={`w-full h-9 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
+                          form.active
+                            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                            : 'bg-red-500/10 border-red-500/25 text-red-400'
+                        }`}
+                      >
+                        {form.active ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                        {form.active ? 'نشط' : 'معطل'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="ghost" onClick={resetForm} className="flex-1 h-9">إلغاء</Button>
+                    <Button
+                      onClick={handleSave}
+                      disabled={saving || !form.questionAr || !form.option1 || !form.option2}
+                      className="flex-1 h-9 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold"
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingQuestion ? 'حفظ التعديلات' : 'إضافة السؤال'}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Filters */}
+          <div className="flex gap-2 flex-wrap">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[140px] h-8 text-xs bg-muted/20 border-border"><SelectValue placeholder="التصنيف" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع التصنيفات</SelectItem>
+                {QUIZ_CATEGORIES.map(cat => (
+                  <SelectItem key={cat.value} value={cat.value}>{cat.icon} {cat.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
+              <SelectTrigger className="w-[120px] h-8 text-xs bg-muted/20 border-border"><SelectValue placeholder="الصعوبة" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="easy">سهل</SelectItem>
+                <SelectItem value="medium">متوسط</SelectItem>
+                <SelectItem value="hard">صعب</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Questions List */}
+          {filteredQuestions.length === 0 ? (
+            <div className="glass-card p-12 text-center">
+              <HelpCircle className="h-12 w-12 mx-auto mb-4 opacity-20 text-muted-foreground" />
+              <h3 className="text-base font-bold text-muted-foreground mb-1">لا توجد أسئلة</h3>
+              <p className="text-sm text-muted-foreground/60">ابدأ بإضافة أسئلة للاختبارات</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredQuestions.map((q, idx) => {
+                const catInfo = QUIZ_CATEGORIES.find(c => c.value === q.category)
+                const diffConfig = DIFFICULTY_CONFIG[q.difficulty]
+                return (
+                  <motion.div
+                    key={q.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.03 }}
+                    className={`glass-card p-4 border-l-4 ${q.active !== false ? 'border-l-neon-cyan' : 'border-l-red-400/50 opacity-60'}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/15 to-orange-500/15 flex items-center justify-center text-xs font-bold text-amber-400 shrink-0 mt-0.5">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground leading-7 line-clamp-2">{q.questionAr || q.question}</p>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {(q.optionsAr || q.options || []).map((opt: string, oi: number) => (
+                            <span
+                              key={oi}
+                              className={`text-[10px] px-2 py-0.5 rounded-md ${
+                                oi === q.correctIndex
+                                  ? 'bg-neon-green/15 text-neon-green border border-neon-green/25 font-bold'
+                                  : 'bg-muted/30 text-muted-foreground border border-border'
+                              }`}
+                            >
+                              {oi === q.correctIndex && '✓ '}{opt}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge className={`${diffConfig.color} border text-[9px]`}>{diffConfig.label}</Badge>
+                          <Badge className="bg-muted/30 text-muted-foreground border border-border text-[9px]">
+                            {catInfo?.icon} {catInfo?.label}
+                          </Badge>
+                          {q.explanationAr && (
+                            <span className="text-[9px] text-muted-foreground/50 flex items-center gap-0.5">
+                              <Info className="h-2.5 w-2.5" /> شرح
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleToggleActive(q)}
+                          className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all ${
+                            q.active !== false ? 'hover:bg-emerald-500/10 text-emerald-400' : 'hover:bg-red-500/10 text-red-400'
+                          }`}
+                          title={q.active !== false ? 'تعطيل' : 'تفعيل'}
+                        >
+                          {q.active !== false ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                        </button>
+                        <button onClick={() => startEdit(q)}
+                          className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-neon-cyan/10 text-neon-cyan transition-all" title="تعديل">
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(q.id, q.questionAr || q.question)}
+                          className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-red-500/10 text-red-400 transition-all" title="حذف">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* ──── Leaderboard Tab ──── */}
+      {activeTab === 'leaderboard' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          {quizStats && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="glass-card p-4 text-center border border-amber-500/15">
+                <Trophy className="h-6 w-6 text-amber-400 mx-auto mb-2" />
+                <p className="text-lg font-black text-amber-400">{quizStats.totalResults}</p>
+                <p className="text-[10px] text-muted-foreground">إجمالي المحاولات</p>
+              </div>
+              <div className="glass-card p-4 text-center border border-neon-cyan/15">
+                <Target className="h-6 w-6 text-neon-cyan mx-auto mb-2" />
+                <p className="text-lg font-black text-neon-cyan">{quizStats.avgScore}%</p>
+                <p className="text-[10px] text-muted-foreground">متوسط النتائج</p>
+              </div>
+              <div className="glass-card p-4 text-center border border-neon-purple/15">
+                <Zap className="h-6 w-6 text-neon-purple mx-auto mb-2" />
+                <p className="text-lg font-black text-neon-purple">{quizStats.totalXpEarned?.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">XP مكتسبة</p>
+              </div>
+            </div>
+          )}
+
+          {leaderboard.length === 0 ? (
+            <div className="glass-card p-12 text-center">
+              <Trophy className="h-12 w-12 mx-auto mb-4 opacity-20 text-muted-foreground" />
+              <h3 className="text-base font-bold text-muted-foreground mb-1">لا توجد نتائج بعد</h3>
+              <p className="text-sm text-muted-foreground/60">ستظهر نتائج الاختبارات هنا بعد أن يبدأ المستخدمون بالاختبار</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {leaderboard.length >= 1 && (
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {leaderboard.slice(0, 3).map((entry: any, idx: number) => {
+                    const medals = ['🥇', '🥈', '🥉']
+                    const gradients = [
+                      'from-amber-500/15 to-yellow-500/10 border-amber-500/25',
+                      'from-gray-400/15 to-gray-500/10 border-gray-400/25',
+                      'from-orange-600/15 to-amber-700/10 border-orange-600/25',
+                    ]
+                    return (
+                      <motion.div
+                        key={entry.userId || idx}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.15 }}
+                        className={`glass-card p-4 text-center border bg-gradient-to-b ${gradients[idx]}`}
+                      >
+                        <div className="text-3xl mb-2">{medals[idx]}</div>
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neon-cyan/20 to-neon-purple/20 flex items-center justify-center mx-auto mb-2">
+                          <span className="text-lg font-bold">{entry.name?.charAt(0) || '؟'}</span>
+                        </div>
+                        <p className="text-sm font-bold line-clamp-1">{entry.name}</p>
+                        {entry.specialty && <p className="text-[9px] text-muted-foreground">{entry.specialty}</p>}
+                        <div className="mt-2 flex items-center justify-center gap-2">
+                          <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-[10px]">
+                            <Trophy className="h-2.5 w-2.5 ml-0.5" /> {entry.score}%
+                          </Badge>
+                          <span className="text-[9px] text-muted-foreground">{entry.totalQuizzes} اختبار</span>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {leaderboard.length > 3 && (
+                <div className="glass-card overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-right text-[10px]">#</TableHead>
+                        <TableHead className="text-right text-[10px]">المستخدم</TableHead>
+                        <TableHead className="text-right text-[10px]">التخصص</TableHead>
+                        <TableHead className="text-right text-[10px]">النتيجة</TableHead>
+                        <TableHead className="text-right text-[10px]">الاختبارات</TableHead>
+                        <TableHead className="text-right text-[10px]">XP</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {leaderboard.slice(3).map((entry: any) => (
+                        <TableRow key={entry.userId} className="border-border">
+                          <TableCell className="text-xs font-bold text-muted-foreground">{entry.rank}</TableCell>
+                          <TableCell className="text-xs font-semibold">{entry.name}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{entry.specialty || '-'}</TableCell>
+                          <TableCell>
+                            <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[9px]">{entry.score}%</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{entry.totalQuizzes}</TableCell>
+                          <TableCell className="text-xs text-neon-cyan">{entry.xp?.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
       )}
     </motion.div>
   )

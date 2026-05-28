@@ -162,3 +162,35 @@ Stage Summary:
 - Both "Next Lesson" button and sidebar lesson clicks trigger scroll-to-top
 - Professional smooth transition animation already in place
 - Deployed to: https://nabd-academy.vercel.app/
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix quiz duplication in user account + Add professional quizzes management section in admin account with leaderboard
+
+Work Log:
+- Investigated quiz system: found only 3 hardcoded default questions in store, generateQuestions() repeated them to fill modes needing 5-20 questions → caused duplication
+- Created /api/quizzes API route (GET/POST/PUT/DELETE) with MongoDB for full CRUD quiz management
+- Created /api/quizzes/results API route (GET/POST) for saving quiz results and leaderboard
+- Added setQuizQuestions action to Zustand store for dynamic question loading
+- Modified quizzes-page.tsx to fetch questions from API on mount instead of using hardcoded defaults
+- Fixed generateQuestions to NOT repeat/duplicate questions - uses only available unique questions
+- Added quiz result saving to API after each quiz completion (XP, coins, mode, score)
+- Added 'quizzes' to AdminSection type and sidebar navigation
+- Created QuizManagementSection component with:
+  * Stats cards (total questions, active questions, categories, quiz attempts)
+  * Difficulty distribution bar chart
+  * Professional question form with: Arabic question text, 4 options with correct answer selector, explanation, category (10 medical categories), difficulty, active toggle
+  * Questions list with: number, text, options preview (correct highlighted), difficulty badge, category badge, edit/delete/toggle actions
+  * Filter by category and difficulty
+  * Leaderboard tab with: top 3 podium (🥇🥈🥉), stats summary, full ranking table
+  * Confirmation dialog for delete
+  * Professional animations and glass-card design
+- Build successful, deployed to Vercel production
+
+Stage Summary:
+- Quiz duplication FIXED: questions are no longer repeated, only unique questions used
+- Quiz questions now fetched from MongoDB API instead of hardcoded defaults
+- Admin can add/edit/delete/toggle quiz questions professionally
+- Quiz results saved to DB and leaderboard shows top users
+- Deployed to: https://nabd-academy.vercel.app/

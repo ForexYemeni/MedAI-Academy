@@ -279,6 +279,7 @@ export function QuizzesPage() {
     setCurrentQuizIndex,
     setQuizScore,
     setQuizActive,
+    setQuizQuestions,
     user,
     updateUser,
   } = useAppStore()
@@ -299,6 +300,35 @@ export function QuizzesPage() {
   const [answerFlash, setAnswerFlash] = useState<'correct' | 'wrong' | null>(null)
   const [activeQuestions, setActiveQuestions] = useState<typeof quizQuestions>([])
 
+  // ─── Fetch quiz questions from API ────────────────────
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (token) headers['Authorization'] = `Bearer ${token}`
+        
+        const res = await fetch('/api/quizzes', { headers })
+        const data = await res.json()
+        if (data.questions && data.questions.length > 0) {
+          const mapped = data.questions.map((q: any) => ({
+            id: q.id,
+            question: q.questionAr || q.question,
+            options: q.optionsAr || q.options,
+            correctIndex: q.correctIndex,
+            explanation: q.explanationAr || q.explanation,
+            difficulty: q.difficulty,
+            category: q.category,
+          }))
+          setQuizQuestions(mapped)
+        }
+      } catch (err) {
+        console.log('Using default quiz questions')
+      }
+    }
+    fetchQuestions()
+  }, [setQuizQuestions])
+
   // ─── Generate Questions for Mode ───────────────────────
   const generateQuestions = useCallback(
     (mode: QuizMode) => {
@@ -306,13 +336,10 @@ export function QuizzesPage() {
       if (!modeConfig) return []
 
       const shuffled = [...quizQuestions].sort(() => Math.random() - 0.5)
-      // If we need more questions than available, repeat
       const count = modeConfig.questionCount
-      let result = shuffled.slice(0, count)
-      while (result.length < count) {
-        result = [...result, ...shuffled]
-      }
-      return result.slice(0, count)
+      // Use only available questions without repeating/duplicating
+      const available = shuffled.slice(0, Math.min(count, shuffled.length))
+      return available
     },
     [quizQuestions]
   )
@@ -344,7 +371,7 @@ export function QuizzesPage() {
         setPhase('active')
       }
     },
-    [generateQuestions, setCurrentQuizIndex, setQuizScore, setQuizActive]
+    [generateQuestions, setCurrentQuizIndex, setQuizScore, setQuizActive, quizQuestions]
   )
 
   // ─── Timer Effect (Timed Mode) ─────────────────────────
@@ -429,6 +456,24 @@ export function QuizzesPage() {
         xp: user.xp + xpEarned,
         coins: user.coins + coinsEarned,
       })
+
+      // Save quiz result to API
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        if (token) {
+          fetch('/api/quizzes/results', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              quizMode: selectedMode,
+              correct: finalScore,
+              total: activeQuestions.length,
+              xpEarned,
+              coinsEarned,
+            }),
+          }).catch(() => {})
+        }
+      } catch {}
 
       setQuizActive(false)
       setPhase('results')

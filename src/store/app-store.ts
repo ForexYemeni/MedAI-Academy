@@ -266,6 +266,7 @@ interface AppState {
   setCurrentQuizIndex: (index: number) => void
   setQuizScore: (score: number) => void
   setQuizActive: (active: boolean) => void
+  setQuizQuestions: (questions: QuizQuestion[]) => void
   
   // Shorts
   shorts: ShortVideo[]
@@ -460,6 +461,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentQuizIndex: (index) => set({ currentQuizIndex: index }),
   setQuizScore: (score) => set({ quizScore: score }),
   setQuizActive: (active) => set({ quizActive: active }),
+  setQuizQuestions: (questions) => set({ quizQuestions: questions }),
 
   // Shorts
   shorts: [],
