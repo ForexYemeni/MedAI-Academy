@@ -7,7 +7,8 @@ import {
   Play, FileText, HelpCircle, Activity, Zap, ChevronLeft,
   Star, Users, Crown, GraduationCap, Sparkles, Award,
   Menu, X, Brain, Target, Lightbulb, ChevronDown,
-  CreditCard, Loader2, Image as ImageIcon
+  CreditCard, Loader2, Image as ImageIcon, Wallet,
+  Shield, ArrowLeft, Gift
 } from 'lucide-react'
 import { useAppStore, type Lesson, type Course } from '@/store/app-store'
 import { useOffline } from '@/hooks/use-offline'
@@ -479,6 +480,261 @@ interface PaymentMethod {
   active?: boolean
 }
 
+// ─── Payment Wall Overlay (Professional Paywall) ────────────
+function PaymentWallOverlay({ 
+  course, 
+  lockedLessonCount, 
+  completedFreeCount, 
+  totalFreeCount,
+  onSubscribe 
+}: { 
+  course: Course
+  lockedLessonCount: number
+  completedFreeCount: number
+  totalFreeCount: number
+  onSubscribe: () => void 
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="min-h-[60vh] flex items-center justify-center p-4"
+      dir="rtl"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+        className="w-full max-w-2xl"
+      >
+        {/* Main Card */}
+        <div className="glass-card overflow-hidden border border-neon-cyan/20">
+          {/* Top Gradient Banner */}
+          <div className="relative bg-gradient-to-l from-neon-cyan/20 via-neon-purple/15 to-neon-cyan/10 p-8 pb-6 overflow-hidden">
+            {/* Decorative circles */}
+            <div className="absolute -top-12 -left-12 w-40 h-40 bg-neon-cyan/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-neon-purple/10 rounded-full blur-3xl" />
+            
+            <div className="relative text-center">
+              {/* Lock Icon with Pulse */}
+              <motion.div
+                animate={{ 
+                  boxShadow: [
+                    '0 0 0 0 rgba(0,245,255,0.3)', 
+                    '0 0 0 20px rgba(0,245,255,0)',
+                    '0 0 0 0 rgba(0,245,255,0.3)'
+                  ] 
+                }}
+                transition={{ repeat: Infinity, duration: 2.5 }}
+                className="w-20 h-20 rounded-2xl bg-gradient-to-br from-neon-cyan/20 to-neon-purple/20 border border-neon-cyan/30 flex items-center justify-center mx-auto mb-5"
+              >
+                <Lock className="w-9 h-9 text-neon-cyan" />
+              </motion.div>
+              
+              <h2 className="text-2xl font-black text-foreground mb-2">
+                أكملت الدروس المجانية!
+              </h2>
+              <p className="text-foreground/70 text-sm leading-7">
+                أحسنت! لقد أكملت جميع الدروس المجانية المتاحة. لمتابعة التعلم والوصول إلى بقية الدروس، يرجى الاشتراك في الدورة.
+              </p>
+            </div>
+          </div>
+          
+          {/* Stats Row */}
+          <div className="grid grid-cols-3 gap-3 p-5">
+            <div className="text-center p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1.5" />
+              <p className="text-lg font-black text-emerald-400">{completedFreeCount}</p>
+              <p className="text-[10px] text-emerald-400/70">درس مجاني مكتمل</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <Lock className="w-5 h-5 text-amber-400 mx-auto mb-1.5" />
+              <p className="text-lg font-black text-amber-400">{lockedLessonCount}</p>
+              <p className="text-[10px] text-amber-400/70">درس مدفوع مقفل</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20">
+              <BookOpen className="w-5 h-5 text-neon-cyan mx-auto mb-1.5" />
+              <p className="text-lg font-black text-neon-cyan">{course.lessons || (completedFreeCount + lockedLessonCount)}</p>
+              <p className="text-[10px] text-neon-cyan/70">إجمالي الدروس</p>
+            </div>
+          </div>
+          
+          {/* Course Info */}
+          <div className="px-5 pb-4">
+            <div className="p-4 rounded-xl bg-muted/30 border border-border">
+              <div className="flex items-center gap-3 mb-3">
+                {course.isPremium && (
+                  <div className="w-8 h-8 rounded-lg bg-yellow-500/15 flex items-center justify-center">
+                    <Crown className="w-4 h-4 text-yellow-400" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h3 className="font-bold text-foreground text-sm">{course.titleAr}</h3>
+                  <p className="text-xs text-muted-foreground">{course.instructor}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-neon-cyan/60" />
+                  <span className="text-xs text-muted-foreground">وصول مدى الحياة</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-neon-cyan/60" />
+                  <span className="text-2xl font-black text-neon-cyan">{course.price.toLocaleString()} <span className="text-sm font-bold">ر.ي</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Benefits */}
+          <div className="px-5 pb-4">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { icon: Play, text: 'جميع الفيديوهات التعليمية', color: 'text-blue-400' },
+                { icon: FileText, text: 'المحتوى الكامل لكل درس', color: 'text-emerald-400' },
+                { icon: HelpCircle, text: 'الاختبارات والتمارين', color: 'text-amber-400' },
+                { icon: Award, text: 'شهادة إتمام الدورة', color: 'text-purple-400' },
+              ].map((benefit, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + i * 0.1 }}
+                  className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/20"
+                >
+                  <benefit.icon className={`w-4 h-4 ${benefit.color} flex-shrink-0`} />
+                  <span className="text-xs text-foreground/70">{benefit.text}</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          
+          {/* CTA Button */}
+          <div className="p-5 pt-2">
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button
+                onClick={onSubscribe}
+                className="w-full h-14 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-black text-lg hover:shadow-[0_0_40px_rgba(0,245,255,0.4)] transition-all"
+              >
+                <CreditCard className="w-5 h-5 ml-2" />
+                اشترك الآن - {course.price.toLocaleString()} ر.ي
+              </Button>
+            </motion.div>
+            <p className="text-center text-[11px] text-muted-foreground/60 mt-3">
+              سيتم مراجعة الدفع وتفعيل الدورة خلال 24 ساعة
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ─── Pending Payment Overlay ───────────────────────────────
+function PendingPaymentOverlay({ course }: { course: Course }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="min-h-[60vh] flex items-center justify-center p-4"
+      dir="rtl"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+        className="w-full max-w-lg"
+      >
+        <div className="glass-card overflow-hidden border border-amber-500/20">
+          {/* Top Gradient Banner */}
+          <div className="relative bg-gradient-to-l from-amber-500/15 via-orange-500/10 to-amber-500/5 p-8 pb-6 overflow-hidden">
+            <div className="absolute -top-12 -left-12 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl" />
+            <div className="relative text-center">
+              {/* Clock Icon with Pulse */}
+              <motion.div
+                animate={{ 
+                  boxShadow: [
+                    '0 0 0 0 rgba(245,158,11,0.3)', 
+                    '0 0 0 20px rgba(245,158,11,0)',
+                    '0 0 0 0 rgba(245,158,11,0.3)'
+                  ] 
+                }}
+                transition={{ repeat: Infinity, duration: 2.5 }}
+                className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center mx-auto mb-5"
+              >
+                <Clock className="w-9 h-9 text-amber-400" />
+              </motion.div>
+              
+              <h2 className="text-2xl font-black text-foreground mb-2">
+                طلب الدفع قيد المراجعة
+              </h2>
+              <p className="text-foreground/70 text-sm leading-7">
+                تم استلام طلب الدفع الخاص بك وهو حالياً قيد المراجعة من قبل الإدارة. سيتم تفعيل الدورة بعد الموافقة على الدفع.
+              </p>
+            </div>
+          </div>
+          
+          {/* Course Info */}
+          <div className="p-5">
+            <div className="p-4 rounded-xl bg-muted/30 border border-border">
+              <div className="flex items-center gap-3">
+                {course.isPremium && (
+                  <div className="w-8 h-8 rounded-lg bg-yellow-500/15 flex items-center justify-center">
+                    <Crown className="w-4 h-4 text-yellow-400" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h3 className="font-bold text-foreground text-sm">{course.titleAr}</h3>
+                  <p className="text-xs text-muted-foreground">{course.instructor}</p>
+                </div>
+                <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/25 text-[10px]">
+                  <Clock className="w-2.5 h-2.5 ml-1" />
+                  قيد المراجعة
+                </Badge>
+              </div>
+            </div>
+            
+            {/* Timeline */}
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-neon-green/20 border border-neon-green/30 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-neon-green" />
+                </div>
+                <span className="text-sm text-foreground/80">تم إرسال طلب الدفع</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                  <motion.div
+                    animate={{ opacity: [1, 0.4, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="w-2.5 h-2.5 rounded-full bg-amber-400"
+                  />
+                </div>
+                <span className="text-sm text-amber-400 font-medium">في انتظار مراجعة الإدارة</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-muted/30 border border-border flex items-center justify-center flex-shrink-0">
+                  <Lock className="w-3 h-3 text-muted-foreground" />
+                </div>
+                <span className="text-sm text-muted-foreground">تفعيل الدورة بعد الموافقة</span>
+              </div>
+            </div>
+            
+            <p className="text-center text-[11px] text-muted-foreground/60 mt-5">
+              عادةً ما تتم المراجعة خلال 24 ساعة. ستصل إليك إشعار بعد تفعيل الدورة.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // ─── In-Course Payment Modal ────────────────────────────────
 function InCoursePaymentModal({ course, onClose }: { course: Course; onClose: () => void }) {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
@@ -804,6 +1060,7 @@ export function CourseViewerPage() {
   const [lessonCompleted, setLessonCompleted] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentWallVisible, setPaymentWallVisible] = useState(false)
   
   // Offline support - disabled for now to fix crash
   // const offline = useOffline()
@@ -815,6 +1072,7 @@ export function CourseViewerPage() {
   const [serverProgress, setServerProgress] = useState(0)
   const [apiLessons, setApiLessons] = useState<any[]>([])
   const [apiLoading, setApiLoading] = useState(false)
+  const [hasPendingPayment, setHasPendingPayment] = useState(false)
 
   // Fetch enrollment data from API when course changes
   useEffect(() => {
@@ -895,7 +1153,31 @@ export function CourseViewerPage() {
       setApiLoading(false)
     }
     
+    // Also check for pending payment for this course
+    const checkPendingPayment = async () => {
+      try {
+        const token = authToken || (typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null)
+        if (!token) { setHasPendingPayment(false); return }
+        const res = await fetch('/api/payments', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
+        if (data.success && data.payments) {
+          const hasPending = data.payments.some((p: any) => {
+            const pCourseId = p.courseId?.toString() || ''
+            return pCourseId === activeCourseId && p.status === 'pending'
+          })
+          setHasPendingPayment(hasPending)
+        } else {
+          setHasPendingPayment(false)
+        }
+      } catch {
+        setHasPendingPayment(false)
+      }
+    }
+    
     fetchEnrollment()
+    checkPendingPayment()
   }, [activeCourseId, authToken])
 
   // Get course data
@@ -983,12 +1265,51 @@ export function CourseViewerPage() {
     return isLessonLocked(nextLesson)
   }, [nextLesson, isLessonLocked])
 
+  // Count free and locked lessons for payment wall
+  const freeLessonCount = useMemo(() => {
+    return courseLessons.filter(l => l.isFree).length
+  }, [courseLessons])
+
+  const lockedLessonCount = useMemo(() => {
+    return courseLessons.filter(l => isLessonLocked(l)).length
+  }, [courseLessons, isLessonLocked])
+
+  const completedFreeCount = useMemo(() => {
+    return courseLessons.filter(l => l.isFree && isLessonCompleted(l.id)).length
+  }, [courseLessons, isLessonCompleted])
+
+  const allFreeCompleted = useMemo(() => {
+    const freeLessons = courseLessons.filter(l => l.isFree)
+    return freeLessons.length > 0 && freeLessons.every(l => isLessonCompleted(l.id))
+  }, [courseLessons, isLessonCompleted])
+
+  // Check if current lesson is locked (should show payment wall in content area)
+  const isCurrentLessonLocked = useMemo(() => {
+    if (!currentLesson) return false
+    return isLessonLocked(currentLesson)
+  }, [currentLesson, isLessonLocked])
+
+  // Determine if payment wall should be shown in the content area
+  const shouldShowPaymentWall = useMemo(() => {
+    // Show payment wall if:
+    // 1. The paymentWallVisible flag is set (after completing last free lesson)
+    // 2. OR the current lesson itself is locked
+    // But NOT if the user is enrolled or the course is free/gifted
+    if (serverEnrolled === true || course?.price === 0 || isCourseGifted) return false
+    return paymentWallVisible || isCurrentLessonLocked
+  }, [paymentWallVisible, isCurrentLessonLocked, serverEnrolled, course, isCourseGifted])
+
+  // When payment wall is showing and user has a pending payment, show pending state
+  const showPendingState = shouldShowPaymentWall && hasPendingPayment
+
   const handleLessonClick = (lesson: Lesson) => {
     if (isLessonLocked(lesson)) {
       // Show payment modal instead of doing nothing
       setShowPaymentModal(true)
       return
     }
+    // Hide payment wall when navigating to a free/unlocked lesson
+    setPaymentWallVisible(false)
     setActiveLessonId(lesson.id)
     setLessonCompleted(false)
     setShowCelebration(false)
@@ -1009,16 +1330,27 @@ export function CourseViewerPage() {
     completeLesson(activeCourseId, currentLesson.id)
     setLessonCompleted(true)
     setShowCelebration(true)
-    setTimeout(() => setShowCelebration(false), 3000)
+    
+    // Check if this was the last free lesson and next lesson is paid
+    // If so, show payment wall after celebration
+    if (nextLesson && isLessonLocked(nextLesson)) {
+      setTimeout(() => {
+        setShowCelebration(false)
+        setPaymentWallVisible(true)
+      }, 2000)
+    } else {
+      setTimeout(() => setShowCelebration(false), 3000)
+    }
   }
 
   const handleNextLesson = () => {
     if (nextLesson) {
       if (isLessonLocked(nextLesson)) {
-        // Show payment modal instead of navigating to locked lesson
-        setShowPaymentModal(true)
+        // Show payment wall in content area instead of just the modal
+        setPaymentWallVisible(true)
         return
       }
+      setPaymentWallVisible(false)
       setActiveLessonId(nextLesson.id)
       setLessonCompleted(false)
       setShowCelebration(false)
@@ -1301,8 +1633,29 @@ export function CourseViewerPage() {
                 </div>
               </motion.div>
 
-              {/* Current Lesson Content */}
+              {/* Payment Wall or Current Lesson Content */}
               <AnimatePresence mode="wait">
+                {shouldShowPaymentWall ? (
+                  <motion.div
+                    key={showPendingState ? "pending-wall" : "payment-wall"}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    {showPendingState ? (
+                      <PendingPaymentOverlay course={course} />
+                    ) : (
+                      <PaymentWallOverlay
+                        course={course}
+                        lockedLessonCount={lockedLessonCount}
+                        completedFreeCount={completedFreeCount}
+                        totalFreeCount={freeLessonCount}
+                        onSubscribe={() => setShowPaymentModal(true)}
+                      />
+                    )}
+                  </motion.div>
+                ) : (
                 <motion.div
                   key={currentLesson.id}
                   initial={{ opacity: 0, x: 20 }}
@@ -1501,7 +1854,7 @@ export function CourseViewerPage() {
                         {isNextLessonLocked ? (
                           <>
                             <Lock className="w-4 h-4 ml-2" />
-                            الدرس التالي (مدفوع)
+                            فتح الدروس المدفوعة
                           </>
                         ) : (
                           <>
@@ -1563,6 +1916,7 @@ export function CourseViewerPage() {
                     )}
                   </div>
                 </motion.div>
+                )}
               </AnimatePresence>
             </div>
           </ScrollArea>
