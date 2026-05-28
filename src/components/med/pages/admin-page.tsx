@@ -4007,21 +4007,51 @@ const DIFFICULTY_CONFIG = {
 }
 
 function QuizManagementSection() {
-  const [questions, setQuestions] = useState<ApiQuizQuestion[]>([])
+  // ─── State ────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'sets' | 'questions' | 'leaderboard'>('sets')
   const [dataLoading, setDataLoading] = useState(true)
+
+  // Quiz Sets state
+  const [quizSets, setQuizSets] = useState<any[]>([])
+  const [showSetForm, setShowSetForm] = useState(false)
+  const [editingSet, setEditingSet] = useState<any | null>(null)
+  const [savingSet, setSavingSet] = useState(false)
+
+  // Questions state
+  const [questions, setQuestions] = useState<ApiQuizQuestion[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<ApiQuizQuestion | null>(null)
   const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'questions' | 'leaderboard' | 'categories'>('questions')
-  const [leaderboard, setLeaderboard] = useState<any[]>([])
-  const [quizStats, setQuizStats] = useState<any>(null)
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Leaderboard state
+  const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [quizStats, setQuizStats] = useState<any>(null)
+
+  // Shared
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
-  const [bulkSaving, setBulkSaving] = useState(false)
 
+  // Quiz Set form
+  const [quizSetForm, setQuizSetForm] = useState({
+    titleAr: '',
+    title: '',
+    descriptionAr: '',
+    description: '',
+    category: 'emergency',
+    difficulty: 'medium' as 'easy' | 'medium' | 'hard',
+    questionCount: 5,
+    timeLimit: 0,
+    xpReward: 10,
+    coinReward: 5,
+    icon: '📋',
+    gradient: '',
+    active: true,
+  })
+
+  // Question form
   const [form, setForm] = useState({
     questionAr: '',
     question: '',
@@ -4037,17 +4067,25 @@ function QuizManagementSection() {
     active: true,
   })
 
-  const fetchData = useCallback(async () => {
+  // ─── Data Fetching ────────────────────────────────────────
+
+  const fetchQuizSets = useCallback(async () => {
+    try {
+      const res = await fetch('/api/quizzes/sets', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.sets) setQuizSets(data.sets)
+    } catch (err) {
+      console.error('Fetch quiz sets error:', err)
+    }
+  }, [])
+
+  const fetchQuestions = useCallback(async () => {
     try {
       const res = await fetch('/api/quizzes', { headers: getAuthHeaders() })
       const data = await res.json()
-      if (data.questions) {
-        setQuestions(data.questions)
-      }
+      if (data.questions) setQuestions(data.questions)
     } catch (err) {
       console.error('Fetch quizzes error:', err)
-    } finally {
-      setDataLoading(false)
     }
   }, [])
 
@@ -4066,12 +4104,99 @@ function QuizManagementSection() {
     }
   }, [])
 
-  useEffect(() => {
-    fetchData()
-    fetchLeaderboard()
-  }, [fetchData, fetchLeaderboard])
+  const fetchAllData = useCallback(async () => {
+    setDataLoading(true)
+    await Promise.all([fetchQuizSets(), fetchQuestions(), fetchLeaderboard()])
+    setDataLoading(false)
+  }, [fetchQuizSets, fetchQuestions, fetchLeaderboard])
 
-  const resetForm = () => {
+  useEffect(() => { fetchAllData() }, [fetchAllData])
+
+  // ─── Quiz Set CRUD ────────────────────────────────────────
+
+  const resetQuizSetForm = () => {
+    setQuizSetForm({
+      titleAr: '', title: '', descriptionAr: '', description: '',
+      category: 'emergency', difficulty: 'medium', questionCount: 5,
+      timeLimit: 0, xpReward: 10, coinReward: 5, icon: '📋', gradient: '', active: true,
+    })
+    setShowSetForm(false)
+    setEditingSet(null)
+  }
+
+  const startEditSet = (s: any) => {
+    setQuizSetForm({
+      titleAr: s.titleAr || '', title: s.title || '',
+      descriptionAr: s.descriptionAr || '', description: s.description || '',
+      category: s.category || 'emergency', difficulty: s.difficulty || 'medium',
+      questionCount: s.questionCount || 5, timeLimit: s.timeLimit || 0,
+      xpReward: s.xpReward || 10, coinReward: s.coinReward || 5,
+      icon: s.icon || '📋', gradient: s.gradient || '',
+      active: s.active !== false,
+    })
+    setEditingSet(s)
+    setShowSetForm(true)
+  }
+
+  const handleSaveSet = async () => {
+    if (!quizSetForm.titleAr) return
+    setSavingSet(true)
+    try {
+      const payload = { ...quizSetForm }
+      if (editingSet) {
+        const res = await fetch('/api/quizzes/sets', {
+          method: 'PUT', headers: getAuthHeaders(),
+          body: JSON.stringify({ id: editingSet.id, ...payload }),
+        })
+        const data = await res.json()
+        if (data.success) { resetQuizSetForm(); await fetchQuizSets() }
+      } else {
+        const res = await fetch('/api/quizzes/sets', {
+          method: 'POST', headers: getAuthHeaders(),
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+        if (data.success) { resetQuizSetForm(); await fetchQuizSets() }
+      }
+    } catch (err) { console.error('Save quiz set error:', err) }
+    setSavingSet(false)
+  }
+
+  const handleDeleteSet = (set: any) => {
+    setConfirmAction({
+      type: 'delete',
+      title: 'حذف مجموعة الاختبار',
+      message: 'هل أنت متأكد من حذف مجموعة الاختبار؟',
+      details: `سيتم حذف "${set.titleAr || set.title}" نهائياً.`,
+      confirmLabel: 'حذف المجموعة',
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const res = await fetch(`/api/quizzes/sets?id=${set.id}`, {
+            method: 'DELETE', headers: getAuthHeaders(),
+          })
+          const data = await res.json()
+          if (data.success) await fetchQuizSets()
+        } catch (err) { console.error('Delete quiz set error:', err) }
+        setConfirmLoading(false)
+        setConfirmAction(null)
+      },
+    })
+  }
+
+  const handleToggleSetActive = async (s: any) => {
+    try {
+      await fetch('/api/quizzes/sets', {
+        method: 'PUT', headers: getAuthHeaders(),
+        body: JSON.stringify({ id: s.id, active: !s.active }),
+      })
+      await fetchQuizSets()
+    } catch (err) { console.error('Toggle set active error:', err) }
+  }
+
+  // ─── Question CRUD ────────────────────────────────────────
+
+  const resetQuestionForm = () => {
     setForm({
       questionAr: '', question: '', option1: '', option2: '', option3: '', option4: '',
       correctIndex: 0, explanationAr: '', explanation: '', difficulty: 'medium', category: 'emergency', active: true,
@@ -4080,10 +4205,9 @@ function QuizManagementSection() {
     setEditingQuestion(null)
   }
 
-  const startEdit = (q: ApiQuizQuestion) => {
+  const startEditQuestion = (q: ApiQuizQuestion) => {
     setForm({
-      questionAr: q.questionAr || q.question,
-      question: q.question,
+      questionAr: q.questionAr || q.question, question: q.question,
       option1: q.optionsAr?.[0] || q.options?.[0] || '',
       option2: q.optionsAr?.[1] || q.options?.[1] || '',
       option3: q.optionsAr?.[2] || q.options?.[2] || '',
@@ -4091,120 +4215,74 @@ function QuizManagementSection() {
       correctIndex: q.correctIndex,
       explanationAr: q.explanationAr || q.explanation || '',
       explanation: q.explanation || '',
-      difficulty: q.difficulty,
-      category: q.category,
+      difficulty: q.difficulty, category: q.category,
       active: q.active !== false,
     })
     setEditingQuestion(q)
     setShowForm(true)
   }
 
-  const handleSave = async () => {
+  const handleSaveQuestion = async () => {
     if (!form.questionAr || !form.option1 || !form.option2) return
     setSaving(true)
     try {
       const payload = {
-        questionAr: form.questionAr,
-        question: form.question || form.questionAr,
+        questionAr: form.questionAr, question: form.question || form.questionAr,
         optionsAr: [form.option1, form.option2, form.option3, form.option4].filter(Boolean),
         options: [form.option1, form.option2, form.option3, form.option4].filter(Boolean),
         correctIndex: form.correctIndex,
-        explanationAr: form.explanationAr,
-        explanation: form.explanation || form.explanationAr,
-        difficulty: form.difficulty,
-        category: form.category,
-        active: form.active,
+        explanationAr: form.explanationAr, explanation: form.explanation || form.explanationAr,
+        difficulty: form.difficulty, category: form.category, active: form.active,
       }
-
       if (editingQuestion) {
         const res = await fetch('/api/quizzes', {
-          method: 'PUT',
-          headers: getAuthHeaders(),
+          method: 'PUT', headers: getAuthHeaders(),
           body: JSON.stringify({ id: editingQuestion.id, ...payload }),
         })
         const data = await res.json()
-        if (data.success) { resetForm(); await fetchData() }
+        if (data.success) { resetQuestionForm(); await fetchQuestions() }
       } else {
         const res = await fetch('/api/quizzes', {
-          method: 'POST',
-          headers: getAuthHeaders(),
+          method: 'POST', headers: getAuthHeaders(),
           body: JSON.stringify(payload),
         })
         const data = await res.json()
-        if (data.success) { resetForm(); await fetchData() }
+        if (data.success) { resetQuestionForm(); await fetchQuestions() }
       }
-    } catch (err) {
-      console.error('Save quiz error:', err)
-    }
+    } catch (err) { console.error('Save quiz error:', err) }
     setSaving(false)
   }
 
-  // Bulk add questions from category
-  const handleBulkAdd = async (category: string, count: number) => {
-    setBulkSaving(true)
-    try {
-      for (let i = 0; i < count; i++) {
-        await fetch('/api/quizzes', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            questionAr: `سؤال تجريبي ${i + 1} - ${QUIZ_CATEGORIES.find(c => c.value === category)?.label || category}`,
-            question: `Sample question ${i + 1} - ${category}`,
-            optionsAr: ['الخيار أ', 'الخيار ب', 'الخيار ج', 'الخيار د'],
-            options: ['Option A', 'Option B', 'Option C', 'Option D'],
-            correctIndex: 0,
-            explanationAr: 'هذا شرح تجريبي',
-            explanation: 'Sample explanation',
-            difficulty: (['easy', 'medium', 'hard'] as const)[i % 3],
-            category,
-            active: true,
-          }),
-        })
-      }
-      await fetchData()
-    } catch (err) {
-      console.error('Bulk add error:', err)
-    }
-    setBulkSaving(false)
-  }
-
-  const handleDelete = (id: string, questionText: string) => {
+  const handleDeleteQuestion = (id: string, questionText: string) => {
     setConfirmAction({
-      type: 'delete',
-      title: 'حذف السؤال',
+      type: 'delete', title: 'حذف السؤال',
       message: 'هل أنت متأكد من حذف هذا السؤال؟',
       details: `سيتم حذف "${questionText.substring(0, 50)}..." نهائياً.`,
       confirmLabel: 'حذف السؤال',
       onConfirm: async () => {
         setConfirmLoading(true)
         try {
-          const res = await fetch(`/api/quizzes?id=${id}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders(),
-          })
+          const res = await fetch(`/api/quizzes?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() })
           const data = await res.json()
-          if (data.success) await fetchData()
-        } catch (err) {
-          console.error('Delete quiz error:', err)
-        }
+          if (data.success) await fetchQuestions()
+        } catch (err) { console.error('Delete quiz error:', err) }
         setConfirmLoading(false)
         setConfirmAction(null)
       },
     })
   }
 
-  const handleToggleActive = async (q: ApiQuizQuestion) => {
+  const handleToggleQuestionActive = async (q: ApiQuizQuestion) => {
     try {
       await fetch('/api/quizzes', {
-        method: 'PUT',
-        headers: getAuthHeaders(),
+        method: 'PUT', headers: getAuthHeaders(),
         body: JSON.stringify({ id: q.id, active: !q.active }),
       })
-      await fetchData()
-    } catch (err) {
-      console.error('Toggle active error:', err)
-    }
+      await fetchQuestions()
+    } catch (err) { console.error('Toggle active error:', err) }
   }
+
+  // ─── Computed ─────────────────────────────────────────────
 
   const filteredQuestions = useMemo(() => {
     return questions.filter(q => {
@@ -4230,6 +4308,10 @@ function QuizManagementSection() {
     return stats
   }, [questions])
 
+  const ICON_OPTIONS = ['📋', '🧠', '❤️', '🚑', '🔬', '💊', '🔪', '👶', '🩺', '🏥', '⚡', '🎯', '📖', '🃏', '🏆', '🧪', '💡', '🩻']
+
+  // ─── Loading ──────────────────────────────────────────────
+
   if (dataLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -4241,7 +4323,7 @@ function QuizManagementSection() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      {/* Confirmation Dialog */}
+      {/* ─── Confirmation Dialog ─── */}
       <AnimatePresence>
         {confirmAction && (
           <motion.div
@@ -4277,38 +4359,48 @@ function QuizManagementSection() {
           </div>
           <div>
             <h2 className="text-xl font-bold">إدارة الاختبارات</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">إضافة وتعديل أسئلة الاختبارات ومتابعة المتصدرين</p>
+            <p className="text-xs text-muted-foreground mt-0.5">إدارة مجموعات الاختبارات والأسئلة ومتابعة المتصدرين</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => { fetchData(); fetchLeaderboard(); }}
+            onClick={() => fetchAllData()}
             variant="ghost" size="sm" className="h-9 px-3 text-muted-foreground hover:text-neon-cyan"
           >
             <RefreshCw className="h-4 w-4 ml-1" />
             تحديث
           </Button>
-          <Button onClick={() => { resetForm(); setShowForm(true) }}
-            className="h-9 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold rounded-xl">
-            <Plus className="h-4 w-4 ml-1" />
-            إضافة سؤال
-          </Button>
+          {activeTab === 'sets' && (
+            <Button onClick={() => { resetQuizSetForm(); setShowSetForm(true) }}
+              className="h-9 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold rounded-xl">
+              <Plus className="h-4 w-4 ml-1" />
+              إضافة اختبار
+            </Button>
+          )}
+          {activeTab === 'questions' && (
+            <Button onClick={() => { resetQuestionForm(); setShowForm(true) }}
+              className="h-9 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold rounded-xl">
+              <Plus className="h-4 w-4 ml-1" />
+              إضافة سؤال
+            </Button>
+          )}
         </div>
       </motion.div>
 
       {/* ─── Stats Overview ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { icon: <HelpCircle className="h-5 w-5" />, label: 'إجمالي الأسئلة', value: questions.length, color: 'neon-cyan', border: 'border-neon-cyan/15', bg: 'bg-neon-cyan/10' },
-          { icon: <CheckCircle2 className="h-5 w-5" />, label: 'أسئلة نشطة', value: questions.filter(q => q.active !== false).length, color: 'emerald-400', border: 'border-emerald-500/15', bg: 'bg-emerald-500/10' },
-          { icon: <Layers className="h-5 w-5" />, label: 'التصنيفات', value: Object.keys(categoryStats).length, color: 'neon-purple', border: 'border-neon-purple/15', bg: 'bg-neon-purple/10' },
-          { icon: <Trophy className="h-5 w-5" />, label: 'محاولات الاختبار', value: quizStats?.totalResults || 0, color: 'amber-400', border: 'border-amber-500/15', bg: 'bg-amber-500/10' },
+          { icon: <Layers className="h-5 w-5" />, label: 'مجموعات الاختبار', value: quizSets.length, color: 'text-neon-purple', border: 'border-neon-purple/15', bg: 'bg-neon-purple/10' },
+          { icon: <HelpCircle className="h-5 w-5" />, label: 'إجمالي الأسئلة', value: questions.length, color: 'text-neon-cyan', border: 'border-neon-cyan/15', bg: 'bg-neon-cyan/10' },
+          { icon: <CheckCircle2 className="h-5 w-5" />, label: 'أسئلة نشطة', value: questions.filter(q => q.active !== false).length, color: 'text-emerald-400', border: 'border-emerald-500/15', bg: 'bg-emerald-500/10' },
+          { icon: <Layers className="h-5 w-5" />, label: 'التصنيفات', value: Object.keys(categoryStats).length, color: 'text-amber-400', border: 'border-amber-500/15', bg: 'bg-amber-500/10' },
+          { icon: <Trophy className="h-5 w-5" />, label: 'محاولات الاختبار', value: quizStats?.totalResults || 0, color: 'text-neon-purple', border: 'border-neon-purple/15', bg: 'bg-neon-purple/10' },
         ].map((stat, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
             className={`glass-card p-4 ${stat.border} relative overflow-hidden`}>
             <div className={`absolute top-0 left-0 w-16 h-16 ${stat.bg} rounded-full blur-2xl -translate-x-4 -translate-y-4`} />
             <div className="relative">
-              <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center mb-2 text-${stat.color}`}>
+              <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center mb-2 ${stat.color}`}>
                 {stat.icon}
               </div>
               <p className="text-2xl font-black text-foreground">{stat.value}</p>
@@ -4318,65 +4410,11 @@ function QuizManagementSection() {
         ))}
       </div>
 
-      {/* ─── Difficulty & Category Distribution ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* Difficulty Distribution */}
-        <div className="glass-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-            <BarChart3 className="h-3.5 w-3.5" /> توزيع الصعوبة
-          </p>
-          <div className="space-y-3">
-            {(['easy', 'medium', 'hard'] as const).map(d => {
-              const config = DIFFICULTY_CONFIG[d]
-              const count = difficultyStats[d]
-              const pct = questions.length > 0 ? Math.round((count / questions.length) * 100) : 0
-              return (
-                <div key={d}>
-                  <div className="flex items-center justify-between mb-1">
-                    <Badge className={`${config.color} border text-[10px]`}>{config.label}</Badge>
-                    <span className="text-[10px] text-muted-foreground">{count} سؤال ({pct}%)</span>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-muted/30 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.8, delay: 0.3 }}
-                      className={`h-full rounded-full ${config.barColor}`}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Category Distribution */}
-        <div className="glass-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-            <Layers className="h-3.5 w-3.5" /> توزيع التصنيفات
-          </p>
-          <div className="grid grid-cols-2 gap-2 max-h-[140px] overflow-y-auto">
-            {QUIZ_CATEGORIES.map(cat => {
-              const count = categoryStats[cat.value] || 0
-              return (
-                <div key={cat.value} className={`flex items-center gap-2 rounded-lg p-1.5 ${cat.color} border`}>
-                  <span className="text-sm">{cat.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-semibold truncate">{cat.label}</p>
-                  </div>
-                  <span className="text-[10px] font-bold">{count}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
       {/* ─── Tabs ─── */}
       <div className="flex gap-1 border-b border-border">
         {[
+          { id: 'sets' as const, label: 'الاختبارات', icon: Layers, count: quizSets.length },
           { id: 'questions' as const, label: 'الأسئلة', icon: HelpCircle, count: filteredQuestions.length },
-          { id: 'categories' as const, label: 'حسب التصنيف', icon: Layers, count: Object.keys(categoryStats).length },
           { id: 'leaderboard' as const, label: 'المتصدرين', icon: Trophy, count: leaderboard.length },
         ].map(tab => (
           <button
@@ -4397,10 +4435,295 @@ function QuizManagementSection() {
         ))}
       </div>
 
-      {/* ──── Questions Tab ──── */}
+      {/* ━━━━━━━━━━━━ Quiz Sets Tab ━━━━━━━━━━━━ */}
+      {activeTab === 'sets' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+
+          {/* Add/Edit Set Form */}
+          <AnimatePresence>
+            {showSetForm && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="glass-card p-5 border border-neon-purple/20 space-y-4 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-32 h-32 bg-neon-purple/5 rounded-full blur-3xl" />
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-neon-purple/20 to-neon-cyan/10 flex items-center justify-center">
+                          {editingSet ? <Edit3 className="h-4 w-4 text-neon-purple" /> : <Plus className="h-4 w-4 text-neon-purple" />}
+                        </div>
+                        {editingSet ? 'تعديل مجموعة الاختبار' : 'إضافة مجموعة اختبار جديدة'}
+                      </h3>
+                      <Button variant="ghost" size="sm" onClick={resetQuizSetForm} className="h-7 w-7 p-0">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Title */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">العنوان بالعربي *</label>
+                        <Input value={quizSetForm.titleAr} onChange={e => setQuizSetForm(p => ({ ...p, titleAr: e.target.value }))}
+                          placeholder="مثال: اختبار أمراض القلب" className="bg-muted/20 border-border h-10" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">العنوان بالإنجليزي</label>
+                        <Input value={quizSetForm.title} onChange={e => setQuizSetForm(p => ({ ...p, title: e.target.value }))}
+                          placeholder="e.g. Cardiology Quiz" className="bg-muted/20 border-border h-10" dir="ltr" />
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الوصف بالعربي</label>
+                        <Textarea value={quizSetForm.descriptionAr} onChange={e => setQuizSetForm(p => ({ ...p, descriptionAr: e.target.value }))}
+                          placeholder="وصف مختصر للاختبار..." rows={2} className="bg-muted/20 border-border resize-none" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الوصف بالإنجليزي</label>
+                        <Textarea value={quizSetForm.description} onChange={e => setQuizSetForm(p => ({ ...p, description: e.target.value }))}
+                          placeholder="Quiz description..." rows={2} className="bg-muted/20 border-border resize-none" dir="ltr" />
+                      </div>
+                    </div>
+
+                    {/* Category + Difficulty + Icon */}
+                    <div className="grid grid-cols-3 gap-3 mt-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">التصنيف *</label>
+                        <Select value={quizSetForm.category} onValueChange={v => setQuizSetForm(p => ({ ...p, category: v }))}>
+                          <SelectTrigger className="bg-muted/20 border-border h-9 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {QUIZ_CATEGORIES.map(cat => (
+                              <SelectItem key={cat.value} value={cat.value}>{cat.icon} {cat.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الصعوبة</label>
+                        <Select value={quizSetForm.difficulty} onValueChange={v => setQuizSetForm(p => ({ ...p, difficulty: v as any }))}>
+                          <SelectTrigger className="bg-muted/20 border-border h-9 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="easy">سهل</SelectItem>
+                            <SelectItem value="medium">متوسط</SelectItem>
+                            <SelectItem value="hard">صعب</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الأيقونة</label>
+                        <div className="flex flex-wrap gap-1 bg-muted/20 border rounded-md p-1.5 max-h-9 overflow-hidden">
+                          {ICON_OPTIONS.slice(0, 8).map(ic => (
+                            <button key={ic} type="button" onClick={() => setQuizSetForm(p => ({ ...p, icon: ic }))}
+                              className={`text-sm rounded p-0.5 transition-all ${quizSetForm.icon === ic ? 'bg-neon-purple/20 ring-1 ring-neon-purple/50 scale-110' : 'hover:bg-muted/40'}`}>
+                              {ic}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Numeric Fields */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">عدد الأسئلة</label>
+                        <Input type="number" value={quizSetForm.questionCount} onChange={e => setQuizSetForm(p => ({ ...p, questionCount: parseInt(e.target.value) || 5 }))}
+                          className="bg-muted/20 border-border h-9" min={1} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الوقت (ثانية)</label>
+                        <Input type="number" value={quizSetForm.timeLimit} onChange={e => setQuizSetForm(p => ({ ...p, timeLimit: parseInt(e.target.value) || 0 }))}
+                          className="bg-muted/20 border-border h-9" min={0} placeholder="0 = بدون حد" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">مكافأة XP</label>
+                        <Input type="number" value={quizSetForm.xpReward} onChange={e => setQuizSetForm(p => ({ ...p, xpReward: parseInt(e.target.value) || 10 }))}
+                          className="bg-muted/20 border-border h-9" min={0} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">مكافأة عملات</label>
+                        <Input type="number" value={quizSetForm.coinReward} onChange={e => setQuizSetForm(p => ({ ...p, coinReward: parseInt(e.target.value) || 5 }))}
+                          className="bg-muted/20 border-border h-9" min={0} />
+                      </div>
+                    </div>
+
+                    {/* Active Toggle */}
+                    <div className="mt-3">
+                      <button
+                        onClick={() => setQuizSetForm(p => ({ ...p, active: !p.active }))}
+                        className={`h-9 px-4 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-all ${
+                          quizSetForm.active ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/25 text-red-400'
+                        }`}
+                      >
+                        {quizSetForm.active ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                        {quizSetForm.active ? 'نشط' : 'معطل'}
+                      </button>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-3">
+                      <Button variant="ghost" onClick={resetQuizSetForm} className="flex-1 h-10 rounded-xl">إلغاء</Button>
+                      <Button onClick={handleSaveSet} disabled={savingSet || !quizSetForm.titleAr}
+                        className="flex-1 h-10 bg-gradient-to-l from-neon-purple to-neon-cyan text-white font-bold rounded-xl">
+                        {savingSet ? <Loader2 className="h-4 w-4 animate-spin" /> : editingSet ? 'حفظ التعديلات' : 'إضافة المجموعة'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Quiz Sets List */}
+          {quizSets.length === 0 ? (
+            <div className="glass-card p-12 text-center">
+              <Layers className="h-14 w-14 mx-auto mb-4 opacity-15 text-muted-foreground" />
+              <h3 className="text-base font-bold text-muted-foreground mb-1">لا توجد مجموعات اختبار</h3>
+              <p className="text-sm text-muted-foreground/60">ابدأ بإضافة مجموعات اختبار تظهر للمستخدمين</p>
+              <Button onClick={() => { resetQuizSetForm(); setShowSetForm(true) }}
+                className="mt-4 bg-gradient-to-l from-neon-purple to-neon-cyan text-white font-bold rounded-xl">
+                <Plus className="h-4 w-4 ml-1" /> إضافة اختبار
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {quizSets.map((s, idx) => {
+                const catInfo = QUIZ_CATEGORIES.find(c => c.value === s.category)
+                const diffConfig = DIFFICULTY_CONFIG[s.difficulty as keyof typeof DIFFICULTY_CONFIG] || DIFFICULTY_CONFIG.medium
+                return (
+                  <motion.div
+                    key={s.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(idx * 0.04, 0.4) }}
+                    className={`glass-card p-4 border ${catInfo?.color || 'border-border'} relative overflow-hidden ${s.active === false ? 'opacity-50' : ''}`}
+                  >
+                    <div className="absolute top-0 left-0 w-20 h-20 bg-current/5 rounded-full blur-2xl -translate-x-6 -translate-y-6" />
+                    <div className="relative">
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-purple/15 to-neon-cyan/10 flex items-center justify-center text-lg border border-neon-purple/15">
+                            {s.icon || '📋'}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-sm line-clamp-1">{s.titleAr || s.title}</h3>
+                            {s.descriptionAr && <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{s.descriptionAr}</p>}
+                          </div>
+                        </div>
+                        {/* Actions */}
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button onClick={() => handleToggleSetActive(s)}
+                            className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all ${
+                              s.active !== false ? 'hover:bg-emerald-500/10 text-emerald-400' : 'hover:bg-red-500/10 text-red-400'
+                            }`} title={s.active !== false ? 'تعطيل' : 'تفعيل'}>
+                            {s.active !== false ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
+                          </button>
+                          <button onClick={() => startEditSet(s)}
+                            className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-neon-cyan/10 text-neon-cyan transition-all" title="تعديل">
+                            <Edit3 className="h-3 w-3" />
+                          </button>
+                          <button onClick={() => handleDeleteSet(s)}
+                            className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-red-500/10 text-red-400 transition-all" title="حذف">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Badges */}
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        <Badge className={`${diffConfig.color} border text-[9px]`}>{diffConfig.label}</Badge>
+                        <Badge className={`${catInfo?.color || 'bg-muted/30 text-muted-foreground border-border'} border text-[9px]`}>
+                          {catInfo?.icon} {catInfo?.label}
+                        </Badge>
+                        {s.active !== false && (
+                          <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/25 text-[9px] border">نشط</Badge>
+                        )}
+                      </div>
+
+                      {/* Stats Row */}
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <div className="bg-muted/20 rounded-lg p-1.5 text-center">
+                          <p className="text-xs font-bold text-foreground">{s.questionCount || 0}</p>
+                          <p className="text-[8px] text-muted-foreground">سؤال</p>
+                        </div>
+                        <div className="bg-muted/20 rounded-lg p-1.5 text-center">
+                          <p className="text-xs font-bold text-foreground">{s.timeLimit > 0 ? `${Math.floor(s.timeLimit / 60)}:${String(s.timeLimit % 60).padStart(2, '0')}` : '∞'}</p>
+                          <p className="text-[8px] text-muted-foreground">الوقت</p>
+                        </div>
+                        <div className="bg-muted/20 rounded-lg p-1.5 text-center">
+                          <p className="text-xs font-bold text-neon-cyan">{s.xpReward || 0}</p>
+                          <p className="text-[8px] text-muted-foreground">XP</p>
+                        </div>
+                        <div className="bg-muted/20 rounded-lg p-1.5 text-center">
+                          <p className="text-xs font-bold text-amber-400">{s.attemptCount || 0}</p>
+                          <p className="text-[8px] text-muted-foreground">محاولة</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* ━━━━━━━━━━━━ Questions Tab ━━━━━━━━━━━━ */}
       {activeTab === 'questions' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          {/* Add/Edit Form */}
+
+          {/* Difficulty & Category Distribution */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="glass-card p-4">
+              <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5" /> توزيع الصعوبة
+              </p>
+              <div className="space-y-3">
+                {(['easy', 'medium', 'hard'] as const).map(d => {
+                  const config = DIFFICULTY_CONFIG[d]
+                  const count = difficultyStats[d]
+                  const pct = questions.length > 0 ? Math.round((count / questions.length) * 100) : 0
+                  return (
+                    <div key={d}>
+                      <div className="flex items-center justify-between mb-1">
+                        <Badge className={`${config.color} border text-[10px]`}>{config.label}</Badge>
+                        <span className="text-[10px] text-muted-foreground">{count} سؤال ({pct}%)</span>
+                      </div>
+                      <div className="h-2.5 rounded-full bg-muted/30 overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: 0.3 }}
+                          className={`h-full rounded-full ${config.barColor}`} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="glass-card p-4">
+              <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5" /> توزيع التصنيفات
+              </p>
+              <div className="grid grid-cols-2 gap-2 max-h-[140px] overflow-y-auto">
+                {QUIZ_CATEGORIES.map(cat => {
+                  const count = categoryStats[cat.value] || 0
+                  return (
+                    <div key={cat.value} className={`flex items-center gap-2 rounded-lg p-1.5 ${cat.color} border`}>
+                      <span className="text-sm">{cat.icon}</span>
+                      <div className="flex-1 min-w-0"><p className="text-[10px] font-semibold truncate">{cat.label}</p></div>
+                      <span className="text-[10px] font-bold">{count}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Add/Edit Question Form */}
           <AnimatePresence>
             {showForm && (
               <motion.div
@@ -4419,19 +4742,15 @@ function QuizManagementSection() {
                         </div>
                         {editingQuestion ? 'تعديل السؤال' : 'إضافة سؤال جديد'}
                       </h3>
-                      <Button variant="ghost" size="sm" onClick={resetForm} className="h-7 w-7 p-0">
+                      <Button variant="ghost" size="sm" onClick={resetQuestionForm} className="h-7 w-7 p-0">
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
 
                     <div>
                       <label className="text-xs font-medium text-muted-foreground mb-1.5 block">نص السؤال *</label>
-                      <Textarea
-                        value={form.questionAr}
-                        onChange={e => setForm(prev => ({ ...prev, questionAr: e.target.value }))}
-                        placeholder="أدخل نص السؤال بالعربية..."
-                        className="min-h-[80px] bg-muted/20 border-border"
-                      />
+                      <Textarea value={form.questionAr} onChange={e => setForm(p => ({ ...p, questionAr: e.target.value }))}
+                        placeholder="أدخل نص السؤال بالعربية..." className="min-h-[80px] bg-muted/20 border-border" />
                     </div>
 
                     <div>
@@ -4443,22 +4762,17 @@ function QuizManagementSection() {
                           const labels = ['أ', 'ب', 'ج', 'د']
                           return (
                             <div key={idx} className="flex items-center gap-2">
-                              <button
-                                onClick={() => setForm(prev => ({ ...prev, correctIndex: idx }))}
+                              <button onClick={() => setForm(p => ({ ...p, correctIndex: idx }))}
                                 className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold transition-all shrink-0 ${
                                   isCorrect
                                     ? 'bg-neon-green/20 border-2 border-neon-green/50 text-neon-green shadow-[0_0_10px_rgba(16,185,129,0.2)]'
                                     : 'bg-muted/30 border-2 border-border text-muted-foreground hover:border-neon-green/30'
-                                }`}
-                              >
+                                }`}>
                                 {isCorrect ? <CheckCircle2 className="h-4 w-4" /> : labels[idx]}
                               </button>
-                              <Input
-                                value={form[key]}
-                                onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                              <Input value={form[key]} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
                                 placeholder={`الخيار ${idx + 1}${idx < 2 ? ' *' : ''}`}
-                                className={`bg-muted/20 ${isCorrect ? 'border-neon-green/30 shadow-[0_0_8px_rgba(16,185,129,0.1)]' : 'border-border'}`}
-                              />
+                                className={`bg-muted/20 ${isCorrect ? 'border-neon-green/30 shadow-[0_0_8px_rgba(16,185,129,0.1)]' : 'border-border'}`} />
                             </div>
                           )
                         })}
@@ -4467,18 +4781,14 @@ function QuizManagementSection() {
 
                     <div>
                       <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الشرح</label>
-                      <Textarea
-                        value={form.explanationAr}
-                        onChange={e => setForm(prev => ({ ...prev, explanationAr: e.target.value }))}
-                        placeholder="شرح الإجابة الصحيحة..."
-                        className="min-h-[60px] bg-muted/20 border-border"
-                      />
+                      <Textarea value={form.explanationAr} onChange={e => setForm(p => ({ ...p, explanationAr: e.target.value }))}
+                        placeholder="شرح الإجابة الصحيحة..." className="min-h-[60px] bg-muted/20 border-border" />
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">التصنيف *</label>
-                        <Select value={form.category} onValueChange={v => setForm(prev => ({ ...prev, category: v }))}>
+                        <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
                           <SelectTrigger className="bg-muted/20 border-border h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {QUIZ_CATEGORIES.map(cat => (
@@ -4489,7 +4799,7 @@ function QuizManagementSection() {
                       </div>
                       <div>
                         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الصعوبة</label>
-                        <Select value={form.difficulty} onValueChange={v => setForm(prev => ({ ...prev, difficulty: v as any }))}>
+                        <Select value={form.difficulty} onValueChange={v => setForm(p => ({ ...p, difficulty: v as any }))}>
                           <SelectTrigger className="bg-muted/20 border-border h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="easy">سهل</SelectItem>
@@ -4500,14 +4810,10 @@ function QuizManagementSection() {
                       </div>
                       <div>
                         <label className="text-xs font-medium text-muted-foreground mb-1.5 block">الحالة</label>
-                        <button
-                          onClick={() => setForm(prev => ({ ...prev, active: !prev.active }))}
+                        <button onClick={() => setForm(p => ({ ...p, active: !p.active }))}
                           className={`w-full h-9 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-                            form.active
-                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                              : 'bg-red-500/10 border-red-500/25 text-red-400'
-                          }`}
-                        >
+                            form.active ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/25 text-red-400'
+                          }`}>
                           {form.active ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
                           {form.active ? 'نشط' : 'معطل'}
                         </button>
@@ -4515,12 +4821,9 @@ function QuizManagementSection() {
                     </div>
 
                     <div className="flex gap-2 pt-2">
-                      <Button variant="ghost" onClick={resetForm} className="flex-1 h-10 rounded-xl">إلغاء</Button>
-                      <Button
-                        onClick={handleSave}
-                        disabled={saving || !form.questionAr || !form.option1 || !form.option2}
-                        className="flex-1 h-10 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold rounded-xl"
-                      >
+                      <Button variant="ghost" onClick={resetQuestionForm} className="flex-1 h-10 rounded-xl">إلغاء</Button>
+                      <Button onClick={handleSaveQuestion} disabled={saving || !form.questionAr || !form.option1 || !form.option2}
+                        className="flex-1 h-10 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold rounded-xl">
                         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingQuestion ? 'حفظ التعديلات' : 'إضافة السؤال'}
                       </Button>
                     </div>
@@ -4533,12 +4836,8 @@ function QuizManagementSection() {
           {/* Search + Filters */}
           <div className="flex gap-2 flex-wrap items-center">
             <div className="relative flex-1 min-w-[200px]">
-              <Input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="بحث في الأسئلة..."
-                className="h-8 text-xs bg-muted/20 border-border pr-8"
-              />
+              <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                placeholder="بحث في الأسئلة..." className="h-8 text-xs bg-muted/20 border-border pr-8" />
               <HelpCircle className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             </div>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -4567,12 +4866,13 @@ function QuizManagementSection() {
               <HelpCircle className="h-14 w-14 mx-auto mb-4 opacity-15 text-muted-foreground" />
               <h3 className="text-base font-bold text-muted-foreground mb-1">لا توجد أسئلة</h3>
               <p className="text-sm text-muted-foreground/60">ابدأ بإضافة أسئلة للاختبارات</p>
-              <Button onClick={() => { resetForm(); setShowForm(true) }} className="mt-4 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold rounded-xl">
+              <Button onClick={() => { resetQuestionForm(); setShowForm(true) }}
+                className="mt-4 bg-gradient-to-l from-neon-cyan to-cyan-400 text-med-dark font-bold rounded-xl">
                 <Plus className="h-4 w-4 ml-1" /> إضافة سؤال
               </Button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {filteredQuestions.map((q, idx) => {
                 const catInfo = QUIZ_CATEGORIES.find(c => c.value === q.category)
                 const diffConfig = DIFFICULTY_CONFIG[q.difficulty]
@@ -4592,14 +4892,9 @@ function QuizManagementSection() {
                         <p className="text-sm font-semibold text-foreground leading-7 line-clamp-2">{q.questionAr || q.question}</p>
                         <div className="flex flex-wrap gap-1.5 mt-2">
                           {(q.optionsAr || q.options || []).map((opt: string, oi: number) => (
-                            <span
-                              key={oi}
-                              className={`text-[10px] px-2 py-0.5 rounded-lg ${
-                                oi === q.correctIndex
-                                  ? 'bg-neon-green/15 text-neon-green border border-neon-green/25 font-bold'
-                                  : 'bg-muted/30 text-muted-foreground border border-border'
-                              }`}
-                            >
+                            <span key={oi} className={`text-[10px] px-2 py-0.5 rounded-lg ${
+                              oi === q.correctIndex ? 'bg-neon-green/15 text-neon-green border border-neon-green/25 font-bold' : 'bg-muted/30 text-muted-foreground border border-border'
+                            }`}>
                               {oi === q.correctIndex && '✓ '}{opt}
                             </span>
                           ))}
@@ -4617,20 +4912,17 @@ function QuizManagementSection() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => handleToggleActive(q)}
+                        <button onClick={() => handleToggleQuestionActive(q)}
                           className={`h-8 w-8 rounded-xl flex items-center justify-center transition-all ${
                             q.active !== false ? 'hover:bg-emerald-500/10 text-emerald-400' : 'hover:bg-red-500/10 text-red-400'
-                          }`}
-                          title={q.active !== false ? 'تعطيل' : 'تفعيل'}
-                        >
+                          }`} title={q.active !== false ? 'تعطيل' : 'تفعيل'}>
                           {q.active !== false ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
                         </button>
-                        <button onClick={() => startEdit(q)}
+                        <button onClick={() => startEditQuestion(q)}
                           className="h-8 w-8 rounded-xl flex items-center justify-center hover:bg-neon-cyan/10 text-neon-cyan transition-all" title="تعديل">
                           <Edit3 className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(q.id, q.questionAr || q.question)}
+                        <button onClick={() => handleDeleteQuestion(q.id, q.questionAr || q.question)}
                           className="h-8 w-8 rounded-xl flex items-center justify-center hover:bg-red-500/10 text-red-400 transition-all" title="حذف">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -4644,78 +4936,7 @@ function QuizManagementSection() {
         </motion.div>
       )}
 
-      {/* ──── Categories Tab ──── */}
-      {activeTab === 'categories' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {QUIZ_CATEGORIES.map(cat => {
-              const count = categoryStats[cat.value] || 0
-              const catQuestions = questions.filter(q => q.category === cat.value)
-              const easyCount = catQuestions.filter(q => q.difficulty === 'easy').length
-              const medCount = catQuestions.filter(q => q.difficulty === 'medium').length
-              const hardCount = catQuestions.filter(q => q.difficulty === 'hard').length
-              const activeCount = catQuestions.filter(q => q.active !== false).length
-              return (
-                <motion.div
-                  key={cat.value}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`glass-card p-4 border ${cat.color} relative overflow-hidden`}
-                >
-                  <div className="absolute top-0 left-0 w-20 h-20 bg-current/5 rounded-full blur-2xl -translate-x-6 -translate-y-6" />
-                  <div className="relative">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{cat.icon}</span>
-                        <h3 className="font-bold text-sm">{cat.label}</h3>
-                      </div>
-                      <Badge className="text-[9px] bg-muted/30 text-muted-foreground border-0">{count} سؤال</Badge>
-                    </div>
-
-                    {/* Mini difficulty bars */}
-                    <div className="space-y-1.5 mb-3">
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className="text-emerald-400 w-10">سهل</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
-                          <div className="h-full rounded-full bg-emerald-400" style={{ width: count > 0 ? `${(easyCount / count) * 100}%` : '0%' }} />
-                        </div>
-                        <span className="text-muted-foreground w-5 text-left">{easyCount}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className="text-amber-400 w-10">متوسط</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
-                          <div className="h-full rounded-full bg-amber-400" style={{ width: count > 0 ? `${(medCount / count) * 100}%` : '0%' }} />
-                        </div>
-                        <span className="text-muted-foreground w-5 text-left">{medCount}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className="text-red-400 w-10">صعب</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
-                          <div className="h-full rounded-full bg-red-400" style={{ width: count > 0 ? `${(hardCount / count) * 100}%` : '0%' }} />
-                        </div>
-                        <span className="text-muted-foreground w-5 text-left">{hardCount}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] text-muted-foreground">{activeCount} نشط من {count}</span>
-                      <Button
-                        onClick={() => { resetForm(); setForm(prev => ({ ...prev, category: cat.value })); setShowForm(true) }}
-                        size="sm" variant="ghost"
-                        className="h-6 px-2 text-[10px] text-neon-cyan hover:text-neon-cyan hover:bg-neon-cyan/10"
-                      >
-                        <Plus className="h-3 w-3 ml-0.5" /> إضافة
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </motion.div>
-      )}
-
-      {/* ──── Leaderboard Tab ──── */}
+      {/* ━━━━━━━━━━━━ Leaderboard Tab ━━━━━━━━━━━━ */}
       {activeTab === 'leaderboard' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           {/* Stats Cards */}

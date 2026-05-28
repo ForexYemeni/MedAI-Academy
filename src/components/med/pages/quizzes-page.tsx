@@ -33,6 +33,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Eye,
+  Loader2,
 } from 'lucide-react'
 
 // ─── Types ──────────────────────────────────────────────────
@@ -51,6 +52,26 @@ interface QuizResult {
     selectedIndex: number
     isCorrect: boolean
   }>
+}
+
+interface ApiQuizSet {
+  id: string
+  titleAr: string
+  title: string
+  descriptionAr: string
+  description: string
+  category: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  questionCount: number
+  timeLimit: number // seconds, 0 = no limit
+  xpReward: number
+  coinReward: number
+  icon: string
+  gradient: string
+  active: boolean
+  order: number
+  attemptCount: number
+  bestResult: { correct: number; total: number; percentage: number } | null
 }
 
 // ─── Quiz Mode Config ───────────────────────────────────────
@@ -144,6 +165,47 @@ const DIFFICULTY_MAP: Record<string, { label: string; color: string; bg: string;
   easy: { label: 'سهل', color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/30' },
   medium: { label: 'متوسط', color: 'text-neon-orange', bg: 'bg-neon-orange/10', border: 'border-neon-orange/30' },
   hard: { label: 'صعب', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
+}
+
+// ─── Quiz Set Gradient/Glow Map ────────────────────────────
+
+const GRADIENT_MAP: Record<string, { gradient: string; glow: string; borderColor: string }> = {
+  'from-neon-cyan/20 via-neon-blue/10 to-transparent': {
+    gradient: 'from-neon-cyan/20 via-neon-blue/10 to-transparent',
+    glow: '0 0 30px rgba(0,245,255,0.2)',
+    borderColor: 'border-neon-cyan/30',
+  },
+  'from-neon-purple/20 via-neon-pink/10 to-transparent': {
+    gradient: 'from-neon-purple/20 via-neon-pink/10 to-transparent',
+    glow: '0 0 30px rgba(139,92,246,0.2)',
+    borderColor: 'border-neon-purple/30',
+  },
+  'from-neon-orange/20 via-amber-500/10 to-transparent': {
+    gradient: 'from-neon-orange/20 via-amber-500/10 to-transparent',
+    glow: '0 0 30px rgba(245,158,11,0.2)',
+    borderColor: 'border-neon-orange/30',
+  },
+  'from-neon-green/20 via-emerald-500/10 to-transparent': {
+    gradient: 'from-neon-green/20 via-emerald-500/10 to-transparent',
+    glow: '0 0 30px rgba(16,185,129,0.2)',
+    borderColor: 'border-neon-green/30',
+  },
+  'from-neon-pink/20 via-purple-500/10 to-transparent': {
+    gradient: 'from-neon-pink/20 via-purple-500/10 to-transparent',
+    glow: '0 0 30px rgba(236,72,153,0.2)',
+    borderColor: 'border-neon-pink/30',
+  },
+}
+
+function getGradientStyle(gradient: string): { gradient: string; glow: string; borderColor: string } {
+  if (GRADIENT_MAP[gradient]) return GRADIENT_MAP[gradient]
+  // Default fallback based on first color segment
+  if (gradient.includes('neon-cyan') || gradient.includes('cyan')) return GRADIENT_MAP[Object.keys(GRADIENT_MAP)[0]]
+  if (gradient.includes('neon-purple') || gradient.includes('purple')) return GRADIENT_MAP[Object.keys(GRADIENT_MAP)[1]]
+  if (gradient.includes('neon-orange') || gradient.includes('amber') || gradient.includes('orange')) return GRADIENT_MAP[Object.keys(GRADIENT_MAP)[2]]
+  if (gradient.includes('neon-green') || gradient.includes('emerald') || gradient.includes('green')) return GRADIENT_MAP[Object.keys(GRADIENT_MAP)[3]]
+  if (gradient.includes('neon-pink') || gradient.includes('pink')) return GRADIENT_MAP[Object.keys(GRADIENT_MAP)[4]]
+  return GRADIENT_MAP[Object.keys(GRADIENT_MAP)[0]]
 }
 
 // ─── Animation Variants ─────────────────────────────────────
@@ -300,6 +362,33 @@ export function QuizzesPage() {
   const [answerFlash, setAnswerFlash] = useState<'correct' | 'wrong' | null>(null)
   const [activeQuestions, setActiveQuestions] = useState<typeof quizQuestions>([])
 
+  // ─── Quiz Set State ────────────────────────────────────
+  const [quizSets, setQuizSets] = useState<ApiQuizSet[]>([])
+  const [quizSetsLoading, setQuizSetsLoading] = useState(true)
+  const [activeQuizSet, setActiveQuizSet] = useState<ApiQuizSet | null>(null)
+
+  // ─── Fetch quiz sets from API ──────────────────────────
+  useEffect(() => {
+    const fetchQuizSets = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (token) headers['Authorization'] = `Bearer ${token}`
+
+        const res = await fetch('/api/quizzes/sets', { headers })
+        const data = await res.json()
+        if (data.sets && data.sets.length > 0) {
+          setQuizSets(data.sets.filter((s: ApiQuizSet) => s.active))
+        }
+      } catch (err) {
+        console.log('No quiz sets available, using default modes')
+      } finally {
+        setQuizSetsLoading(false)
+      }
+    }
+    fetchQuizSets()
+  }, [])
+
   // ─── Fetch quiz questions from API ────────────────────
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -329,6 +418,34 @@ export function QuizzesPage() {
     fetchQuestions()
   }, [setQuizQuestions])
 
+  // ─── Whether the current quiz is timed ─────────────────
+  const isTimedQuiz = useMemo(() => {
+    if (activeQuizSet && activeQuizSet.timeLimit > 0) return true
+    return selectedMode === 'timed'
+  }, [activeQuizSet, selectedMode])
+
+  // ─── Time limit per question for current quiz ──────────
+  const timeLimitPerQuestion = useMemo(() => {
+    if (activeQuizSet && activeQuizSet.timeLimit > 0) return activeQuizSet.timeLimit
+    return 30 // default for timed mode
+  }, [activeQuizSet])
+
+  // ─── XP per question for current quiz ──────────────────
+  const xpPerQuestion = useMemo(() => {
+    if (activeQuizSet) {
+      return Math.max(1, Math.floor(activeQuizSet.xpReward / activeQuizSet.questionCount))
+    }
+    const modeConfig = QUIZ_MODES.find((m) => m.id === selectedMode)
+    return modeConfig?.xpPerQuestion ?? 10
+  }, [activeQuizSet, selectedMode])
+
+  // ─── Coin reward for current quiz ──────────────────────
+  const coinRewardTotal = useMemo(() => {
+    if (activeQuizSet) return activeQuizSet.coinReward
+    const modeConfig = QUIZ_MODES.find((m) => m.id === selectedMode)
+    return modeConfig?.coinReward ?? 5
+  }, [activeQuizSet, selectedMode])
+
   // ─── Generate Questions for Mode ───────────────────────
   const generateQuestions = useCallback(
     (mode: QuizMode) => {
@@ -344,12 +461,47 @@ export function QuizzesPage() {
     [quizQuestions]
   )
 
+  // ─── Generate Questions from Quiz Set ──────────────────
+  const generateQuestionsFromSet = useCallback(
+    async (quizSet: ApiQuizSet) => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (token) headers['Authorization'] = `Bearer ${token}`
+
+        const res = await fetch(`/api/quizzes?category=${encodeURIComponent(quizSet.category)}&limit=${quizSet.questionCount}&random=true`, { headers })
+        const data = await res.json()
+        if (data.questions && data.questions.length > 0) {
+          return data.questions.map((q: any) => ({
+            id: q.id,
+            question: q.questionAr || q.question,
+            options: q.optionsAr || q.options,
+            correctIndex: q.correctIndex,
+            explanation: q.explanationAr || q.explanation,
+            difficulty: q.difficulty,
+            category: q.category,
+          }))
+        }
+      } catch (err) {
+        console.log('Failed to fetch questions for quiz set, falling back to local')
+      }
+
+      // Fallback: filter local questions by category
+      const filtered = quizQuestions.filter(q => q.category === quizSet.category)
+      const pool = filtered.length > 0 ? filtered : quizQuestions
+      const shuffled = [...pool].sort(() => Math.random() - 0.5)
+      return shuffled.slice(0, Math.min(quizSet.questionCount, shuffled.length))
+    },
+    [quizQuestions]
+  )
+
   // ─── Start Quiz ────────────────────────────────────────
   const startQuiz = useCallback(
     (mode: QuizMode) => {
       const questions = generateQuestions(mode)
       if (questions.length === 0) return
 
+      setActiveQuizSet(null)
       setSelectedMode(mode)
       setActiveQuestions(questions)
       setCurrentQuizIndex(0)
@@ -359,7 +511,7 @@ export function QuizzesPage() {
       setXpAnimation(0)
       setAnswerFlash(null)
       setQuizActive(true)
-      setTimeLeft(30)
+      setTimeLeft(mode === 'timed' ? 30 : 30)
 
       if (mode === 'flashcards') {
         setPhase('flashcards')
@@ -374,9 +526,32 @@ export function QuizzesPage() {
     [generateQuestions, setCurrentQuizIndex, setQuizScore, setQuizActive, quizQuestions]
   )
 
-  // ─── Timer Effect (Timed Mode) ─────────────────────────
+  // ─── Start Quiz from Quiz Set ──────────────────────────
+  const startQuizFromSet = useCallback(
+    async (quizSet: ApiQuizSet) => {
+      const questions = await generateQuestionsFromSet(quizSet)
+      if (questions.length === 0) return
+
+      setActiveQuizSet(quizSet)
+      setSelectedMode(quizSet.timeLimit > 0 ? 'timed' : 'quick')
+      setActiveQuestions(questions)
+      setCurrentQuizIndex(0)
+      setQuizScore(0)
+      setSelectedAnswer(null)
+      setShowExplanation(false)
+      setXpAnimation(0)
+      setAnswerFlash(null)
+      setQuizActive(true)
+      setTimeLeft(quizSet.timeLimit > 0 ? quizSet.timeLimit : 30)
+
+      setPhase('active')
+    },
+    [generateQuestionsFromSet, setCurrentQuizIndex, setQuizScore, setQuizActive]
+  )
+
+  // ─── Timer Effect (Timed Mode or Quiz Set with timeLimit) ──
   useEffect(() => {
-    if (phase !== 'active' || selectedMode !== 'timed' || selectedAnswer !== null) return
+    if (phase !== 'active' || !isTimedQuiz || selectedAnswer !== null) return
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
@@ -392,15 +567,15 @@ export function QuizzesPage() {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [phase, selectedMode, selectedAnswer])
+  }, [phase, isTimedQuiz, selectedAnswer])
 
   // Reset timer on new question
   useEffect(() => {
-    if (phase === 'active' && selectedMode === 'timed' && selectedAnswer === null) {
+    if (phase === 'active' && isTimedQuiz && selectedAnswer === null) {
       // Using requestAnimationFrame to avoid synchronous setState in effect
-      requestAnimationFrame(() => setTimeLeft(30))
+      requestAnimationFrame(() => setTimeLeft(timeLimitPerQuestion))
     }
-  }, [currentQuizIndex, phase, selectedMode, selectedAnswer])
+  }, [currentQuizIndex, phase, isTimedQuiz, selectedAnswer, timeLimitPerQuestion])
 
   // ─── Answer Handler ────────────────────────────────────
   const handleAnswer = useCallback(
@@ -414,10 +589,8 @@ export function QuizzesPage() {
       setShowExplanation(true)
 
       if (isCorrect) {
-        const modeConfig = QUIZ_MODES.find((m) => m.id === selectedMode)
-        const xpGain = modeConfig?.xpPerQuestion ?? 10
         setQuizScore(quizScore + 1)
-        setXpAnimation((prev) => prev + xpGain)
+        setXpAnimation((prev) => prev + xpPerQuestion)
         setAnswerFlash('correct')
         setShowConfetti(true)
         setTimeout(() => setShowConfetti(false), 1500)
@@ -427,17 +600,18 @@ export function QuizzesPage() {
 
       setTimeout(() => setAnswerFlash(null), 600)
     },
-    [selectedAnswer, activeQuestions, currentQuizIndex, quizScore, setQuizScore, selectedMode]
+    [selectedAnswer, activeQuestions, currentQuizIndex, quizScore, setQuizScore, xpPerQuestion]
   )
 
   // ─── Next Question ─────────────────────────────────────
   const nextQuestion = useCallback(() => {
     if (currentQuizIndex >= activeQuestions.length - 1) {
       // Quiz finished
-      const modeConfig = QUIZ_MODES.find((m) => m.id === selectedMode)
       const finalScore = quizScore
       const xpEarned = xpAnimation
-      const coinsEarned = (modeConfig?.coinReward ?? 5) * finalScore
+      const coinsEarned = activeQuizSet
+        ? activeQuizSet.coinReward
+        : coinRewardTotal * finalScore
 
       setQuizResult({
         correct: finalScore,
@@ -446,7 +620,6 @@ export function QuizzesPage() {
         xpEarned,
         coinsEarned,
         answers: activeQuestions.map((q, i) => {
-          // We track only answered ones properly, for simplicity track all up to current
           return { questionIndex: i, selectedIndex: -1, isCorrect: false }
         }),
       })
@@ -470,6 +643,7 @@ export function QuizzesPage() {
               total: activeQuestions.length,
               xpEarned,
               coinsEarned,
+              quizSetId: activeQuizSet?.id || undefined,
             }),
           }).catch(() => {})
         }
@@ -482,7 +656,7 @@ export function QuizzesPage() {
       setSelectedAnswer(null)
       setShowExplanation(false)
     }
-  }, [currentQuizIndex, activeQuestions, quizScore, xpAnimation, selectedMode, setQuizActive, setCurrentQuizIndex, updateUser, user.xp, user.coins])
+  }, [currentQuizIndex, activeQuestions, quizScore, xpAnimation, selectedMode, setQuizActive, setCurrentQuizIndex, updateUser, user.xp, user.coins, activeQuizSet, coinRewardTotal])
 
   // ─── Flashcard Handlers ────────────────────────────────
   const handleFlashcardSwipe = useCallback(
@@ -535,6 +709,21 @@ export function QuizzesPage() {
     setCurrentQuizIndex(0)
     setQuizScore(0)
     setQuizActive(false)
+    setActiveQuizSet(null)
+    // Re-fetch quiz sets to update best results
+    const refetchSets = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (token) headers['Authorization'] = `Bearer ${token}`
+        const res = await fetch('/api/quizzes/sets', { headers })
+        const data = await res.json()
+        if (data.sets && data.sets.length > 0) {
+          setQuizSets(data.sets.filter((s: ApiQuizSet) => s.active))
+        }
+      } catch {}
+    }
+    refetchSets()
   }, [setCurrentQuizIndex, setQuizScore, setQuizActive])
 
   // ─── Review Missed Questions ───────────────────────────
@@ -565,6 +754,9 @@ export function QuizzesPage() {
     () => (activeQuestions.length > 0 ? ((currentQuizIndex + 1) / activeQuestions.length) * 100 : 0),
     [currentQuizIndex, activeQuestions.length]
   )
+
+  // ─── Whether to show quiz sets or fallback modes ───────
+  const useQuizSets = quizSets.length > 0
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  RENDER
@@ -621,54 +813,164 @@ export function QuizzesPage() {
                 </div>
               </motion.div>
 
-              {/* Mode Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {QUIZ_MODES.map((mode, i) => (
-                  <motion.button
-                    key={mode.id}
-                    variants={itemVariants}
-                    whileHover={{ scale: 1.03, y: -4 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => startQuiz(mode.id)}
-                    className={`glass-card gradient-border p-5 text-right group relative overflow-hidden ${mode.borderColor}`}
-                    style={{ boxShadow: mode.glow }}
-                  >
-                    {/* Background gradient */}
-                    <div className={`absolute inset-0 bg-gradient-to-bl ${mode.gradient} opacity-50 group-hover:opacity-80 transition-opacity`} />
+              {/* Loading State */}
+              {quizSetsLoading && (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 text-neon-cyan animate-spin" />
+                  <span className="mr-3 text-muted-foreground">جاري تحميل الاختبارات...</span>
+                </div>
+              )}
 
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`rounded-xl bg-muted/50 p-2.5 border ${mode.borderColor} group-hover:bg-muted transition-colors`}>
-                          <span className="text-neon-cyan">{mode.icon}</span>
+              {/* Quiz Set Cards (from database) */}
+              {!quizSetsLoading && useQuizSets && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {quizSets
+                    .sort((a, b) => a.order - b.order)
+                    .map((quizSet, i) => {
+                    const style = getGradientStyle(quizSet.gradient || '')
+                    const diffInfo = DIFFICULTY_MAP[quizSet.difficulty] ?? DIFFICULTY_MAP.medium
+                    const catInfo = CATEGORY_MAP[quizSet.category] ?? CATEGORY_MAP.general
+
+                    return (
+                      <motion.button
+                        key={quizSet.id}
+                        variants={itemVariants}
+                        whileHover={{ scale: 1.03, y: -4 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => startQuizFromSet(quizSet)}
+                        className={`glass-card gradient-border p-5 text-right group relative overflow-hidden ${style.borderColor}`}
+                        style={{ boxShadow: style.glow }}
+                      >
+                        {/* Background gradient */}
+                        <div className={`absolute inset-0 bg-gradient-to-bl ${style.gradient} opacity-50 group-hover:opacity-80 transition-opacity`} />
+
+                        <div className="relative z-10">
+                          {/* Top row: icon + badges */}
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`rounded-xl bg-muted/50 p-2.5 border ${style.borderColor} group-hover:bg-muted transition-colors`}>
+                              <span className="text-2xl leading-none">{quizSet.icon || '📝'}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              <Badge variant="outline" className={`text-[10px] ${diffInfo.bg} ${diffInfo.color} ${diffInfo.border}`}>
+                                {diffInfo.label}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] bg-muted/50 text-muted-foreground border-border">
+                                {quizSet.questionCount} سؤال
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Title & Description */}
+                          <h3 className="font-bold text-lg mb-1 group-hover:neon-text transition-all">
+                            {quizSet.titleAr || quizSet.title}
+                          </h3>
+                          <p className="text-xs text-muted-foreground leading-5 mb-3">{quizSet.descriptionAr || quizSet.description}</p>
+
+                          {/* Category badge */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <Badge variant="outline" className="text-[10px] bg-muted/30 border-border">
+                              <span className={catInfo.color}>{catInfo.label}</span>
+                            </Badge>
+                            {quizSet.timeLimit > 0 && (
+                              <Badge variant="outline" className="text-[10px] bg-neon-orange/10 border-neon-orange/20 text-neon-orange">
+                                <Clock className="h-2.5 w-2.5 ml-1" />
+                                {quizSet.timeLimit} ثانية/سؤال
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Rewards row */}
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="flex items-center gap-1 text-neon-cyan">
+                              <Zap className="h-3 w-3" />
+                              +{Math.max(1, Math.floor(quizSet.xpReward / quizSet.questionCount))} XP/سؤال
+                            </span>
+                            <span className="flex items-center gap-1 text-amber-400">
+                              <Coins className="h-3 w-3" />
+                              +{quizSet.coinReward}
+                            </span>
+                          </div>
+
+                          {/* Best result indicator */}
+                          {quizSet.bestResult && (
+                            <div className="mt-3 pt-2 border-t border-border/50">
+                              <div className="flex items-center gap-2 text-xs">
+                                <Award className="h-3.5 w-3.5 text-amber-400" />
+                                <span className="text-muted-foreground">أفضل نتيجة:</span>
+                                <span className={`font-bold ${
+                                  quizSet.bestResult.percentage >= 80 ? 'text-neon-green' :
+                                  quizSet.bestResult.percentage >= 60 ? 'text-neon-orange' : 'text-red-400'
+                                }`}>
+                                  {quizSet.bestResult.percentage}%
+                                </span>
+                                <span className="text-muted-foreground">
+                                  ({quizSet.bestResult.correct}/{quizSet.bestResult.total})
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <Badge variant="outline" className={`text-[10px] ${mode.borderColor} ${mode.gradient.split(' ')[0].replace('/20', '/30').replace('from-', 'bg-').replace('from-', '')}`}>
-                          {mode.questionCount} سؤال
-                        </Badge>
+
+                        {/* Arrow indicator */}
+                        <div className="absolute bottom-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ChevronLeft className="h-5 w-5 text-neon-cyan" />
+                        </div>
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Fallback: Hardcoded Mode Cards */}
+              {!quizSetsLoading && !useQuizSets && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {QUIZ_MODES.map((mode, i) => (
+                    <motion.button
+                      key={mode.id}
+                      variants={itemVariants}
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => startQuiz(mode.id)}
+                      className={`glass-card gradient-border p-5 text-right group relative overflow-hidden ${mode.borderColor}`}
+                      style={{ boxShadow: mode.glow }}
+                    >
+                      {/* Background gradient */}
+                      <div className={`absolute inset-0 bg-gradient-to-bl ${mode.gradient} opacity-50 group-hover:opacity-80 transition-opacity`} />
+
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`rounded-xl bg-muted/50 p-2.5 border ${mode.borderColor} group-hover:bg-muted transition-colors`}>
+                            <span className="text-neon-cyan">{mode.icon}</span>
+                          </div>
+                          <Badge variant="outline" className={`text-[10px] ${mode.borderColor} ${mode.gradient.split(' ')[0].replace('/20', '/30').replace('from-', 'bg-').replace('from-', '')}`}>
+                            {mode.questionCount} سؤال
+                          </Badge>
+                        </div>
+
+                        <h3 className="font-bold text-lg mb-1 group-hover:neon-text transition-all">
+                          {mode.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground leading-5 mb-3">{mode.description}</p>
+
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="flex items-center gap-1 text-neon-cyan">
+                            <Zap className="h-3 w-3" />
+                            +{mode.xpPerQuestion} XP/سؤال
+                          </span>
+                          <span className="flex items-center gap-1 text-amber-400">
+                            🪙 +{mode.coinReward}/إجابة
+                          </span>
+                        </div>
                       </div>
 
-                      <h3 className="font-bold text-lg mb-1 group-hover:neon-text transition-all">
-                        {mode.title}
-                      </h3>
-                      <p className="text-xs text-muted-foreground leading-5 mb-3">{mode.description}</p>
-
-                      <div className="flex items-center gap-3 text-xs">
-                        <span className="flex items-center gap-1 text-neon-cyan">
-                          <Zap className="h-3 w-3" />
-                          +{mode.xpPerQuestion} XP/سؤال
-                        </span>
-                        <span className="flex items-center gap-1 text-amber-400">
-                          🪙 +{mode.coinReward}/إجابة
-                        </span>
+                      {/* Arrow indicator */}
+                      <div className="absolute bottom-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ChevronLeft className="h-5 w-5 text-neon-cyan" />
                       </div>
-                    </div>
-
-                    {/* Arrow indicator */}
-                    <div className="absolute bottom-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ChevronLeft className="h-5 w-5 text-neon-cyan" />
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
+                    </motion.button>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -699,6 +1001,13 @@ export function QuizzesPage() {
                   </button>
 
                   <div className="flex items-center gap-3">
+                    {/* Quiz set title */}
+                    {activeQuizSet && (
+                      <span className="text-xs text-muted-foreground hidden sm:block">
+                        {activeQuizSet.titleAr || activeQuizSet.title}
+                      </span>
+                    )}
+
                     {/* XP Counter */}
                     <motion.div
                       className="flex items-center gap-1.5 rounded-full bg-neon-cyan/10 px-3 py-1 border border-neon-cyan/20"
@@ -710,8 +1019,8 @@ export function QuizzesPage() {
                       <span className="text-sm font-bold text-neon-cyan">{xpAnimation} XP</span>
                     </motion.div>
 
-                    {/* Timer (timed mode) */}
-                    {selectedMode === 'timed' && (
+                    {/* Timer (timed mode or quiz set with timeLimit) */}
+                    {isTimedQuiz && (
                       <motion.div
                         className={`flex items-center gap-1.5 rounded-full px-3 py-1 border ${
                           timeLeft <= 10
@@ -853,7 +1162,7 @@ export function QuizzesPage() {
                       className="absolute top-4 left-4 flex items-center gap-1 rounded-full bg-neon-green/20 px-3 py-1 border border-neon-green/30 z-30"
                     >
                       <Zap className="h-4 w-4 text-neon-green" />
-                      <span className="text-sm font-bold text-neon-green">+{QUIZ_MODES.find(m => m.id === selectedMode)?.xpPerQuestion ?? 10} XP</span>
+                      <span className="text-sm font-bold text-neon-green">+{xpPerQuestion} XP</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1072,7 +1381,7 @@ export function QuizzesPage() {
                         : 'حاول مرة أخرى! 💪'}
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      {selectedMode === 'flashcards' ? 'نتيجة البطاقات' : 'نتيجة الاختبار'}
+                      {activeQuizSet ? (activeQuizSet.titleAr || activeQuizSet.title) : selectedMode === 'flashcards' ? 'نتيجة البطاقات' : 'نتيجة الاختبار'}
                     </p>
                   </motion.div>
 
@@ -1133,7 +1442,13 @@ export function QuizzesPage() {
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
-                      onClick={() => selectedMode && startQuiz(selectedMode)}
+                      onClick={() => {
+                        if (activeQuizSet) {
+                          startQuizFromSet(activeQuizSet)
+                        } else if (selectedMode) {
+                          startQuiz(selectedMode)
+                        }
+                      }}
                       className="flex-1 h-12 bg-gradient-to-l from-neon-cyan to-neon-blue text-white font-bold hover:opacity-90 rounded-xl neon-glow"
                     >
                       <RotateCcw className="h-4 w-4 ml-2" />

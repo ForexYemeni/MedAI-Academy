@@ -12,20 +12,24 @@ export async function POST(req: NextRequest) {
     if (!payload) return NextResponse.json({ error: 'رمز غير صالح' }, { status: 401 })
 
     const body = await req.json()
-    const { quizMode, correct, total, xpEarned, coinsEarned, answers } = body
+    const { quizMode, quizSetId, correct, total, xpEarned, coinsEarned, answers } = body
 
-    if (!quizMode || total === undefined) {
+    if ((!quizMode && !quizSetId) || total === undefined) {
       return NextResponse.json({ error: 'بيانات غير مكتملة' }, { status: 400 })
     }
 
     const { db } = await connectToDatabase()
 
+    const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
+
     const result = {
       userId: payload.id,
       userName: payload.name,
-      quizMode,
+      quizMode: quizMode || 'set',
+      quizSetId: quizSetId || '',
       correct: correct || 0,
       total: total || 0,
+      percentage,
       xpEarned: xpEarned || 0,
       coinsEarned: coinsEarned || 0,
       answers: answers || [],
