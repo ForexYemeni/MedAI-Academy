@@ -1,4 +1,4 @@
-import { Db, MongoClient } from 'mongodb'
+import { Db, MongoClient, ObjectId } from 'mongodb'
 
 const MONGODB_URI = process.env.MONGODB_URI || ''
 const MONGODB_DB = process.env.MONGODB_DB || 'medai_academy'
@@ -34,6 +34,27 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
   cachedDb = db
 
   return { client, db }
+}
+
+// Create database indexes for performance
+export async function createIndexes() {
+  const { db } = await connectToDatabase()
+  
+  try {
+    await Promise.all([
+      db.collection('users').createIndex({ phone: 1 }, { unique: true }),
+      db.collection('courses').createIndex({ published: 1, rating: -1 }),
+      db.collection('enrollments').createIndex({ userId: 1, courseId: 1 }, { unique: true }),
+      db.collection('payments').createIndex({ userId: 1, status: 1 }),
+      db.collection('notifications').createIndex({ userId: 1, read: 1, createdAt: -1 }),
+      db.collection('push_subscriptions').createIndex({ userId: 1 }),
+      db.collection('group_join_requests').createIndex({ groupId: 1, status: 1 }),
+      db.collection('community_posts').createIndex({ createdAt: -1 }),
+    ])
+    console.log('[DB] Indexes created successfully')
+  } catch (error) {
+    console.warn('[DB] Some indexes may already exist:', error)
+  }
 }
 
 export default connectToDatabase
