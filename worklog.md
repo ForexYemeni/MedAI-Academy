@@ -247,3 +247,23 @@ Stage Summary:
 - Community notifications added: likes, join requests, approve/reject, new posts, broadcasts
 - Sound fallback now generates valid WAV audio
 - Deployed: https://nabd-academy.vercel.app
+---
+Task ID: push-fix-outside-app
+Agent: Main Agent
+Task: Fix push notifications not appearing outside the app (no sound, no popup when app is closed)
+
+Work Log:
+- Identified root cause: VAPID keys were regenerated but old push subscriptions in MongoDB were created with previous keys, making them invalid
+- Browser also cached old push subscription from old VAPID keys, so subscribeToPush() returned stale subscription
+- Fixed subscribeToPush() in notification-sound.ts: added VAPID key rotation detection — compares current key with localStorage stored key, force unsubscribes old + resubscribes with new key
+- Bumped Service Worker version from v10.0 to v11.0 to force SW update on all clients
+- Fixed auto-subscribe in push-notification-provider.tsx: added authToken to dependency array, always re-subscribes on login to handle key rotation
+- Deleted 2 old invalid push subscriptions from MongoDB push_subscriptions collection
+- Built, pushed to GitHub, deployed to Vercel
+
+Stage Summary:
+- Push subscriptions are now 0 in DB (clean slate) — users will re-subscribe automatically on next login
+- VAPID key rotation detection ensures subscriptions always match current keys
+- SW v11.0 will force update on all clients
+- Deployed: https://nabd-academy.vercel.app
+- IMPORTANT: Users need to open the app once after this deploy to re-subscribe to push notifications
