@@ -2,7 +2,7 @@
 // يدعم الإشعارات الفورية حتى عند إغلاق التطبيق
 // يقوم بإعادة توجيه إشعارات Push للعملاء المفتوحين لتشغيل الصوت
 
-const SW_VERSION = 'v10.0';
+const SW_VERSION = 'v11.0';
 
 // Install - delete ALL old caches immediately, skip waiting
 self.addEventListener('install', (event) => {

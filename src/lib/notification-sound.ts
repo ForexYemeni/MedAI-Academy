@@ -54,23 +54,40 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
       return null
     }
 
-    // Check if already subscribed
+    // Check if VAPID key has changed since last subscription
     const existingSubscription = await registration.pushManager.getSubscription()
-    if (existingSubscription) {
-      console.log('[Push] Already subscribed, returning existing subscription')
+    const lastVapidKey = typeof localStorage !== 'undefined' ? localStorage.getItem('medai-vapid-key') : null
+
+    if (existingSubscription && lastVapidKey === vapidKey) {
+      console.log('[Push] Already subscribed with current VAPID key, reusing subscription')
       return existingSubscription
+    }
+
+    // VAPID key changed or first time — unsubscribe old subscription first
+    if (existingSubscription) {
+      console.log('[Push] VAPID key changed, unsubscribing old subscription...')
+      try {
+        await existingSubscription.unsubscribe()
+      } catch (e) {
+        console.warn('[Push] Old unsubscribe failed (continuing):', e)
+      }
     }
 
     // Convert VAPID key to Uint8Array
     const applicationServerKey = urlBase64ToUint8Array(vapidKey)
 
-    // Subscribe
+    // Subscribe with current VAPID key
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey,
     })
 
-    console.log('[Push] Subscribed successfully')
+    // Remember the VAPID key we subscribed with
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('medai-vapid-key', vapidKey)
+    }
+
+    console.log('[Push] Subscribed successfully with new VAPID key')
     return subscription
   } catch (error: any) {
     console.error('[Push] Subscription failed:', error)

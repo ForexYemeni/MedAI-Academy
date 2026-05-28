@@ -166,7 +166,7 @@ export function PushNotificationProvider({ children }: { children: React.ReactNo
 
   // ─── On login: check status, fetch notifications, auto-subscribe ───
   useEffect(() => {
-    if (!isLoggedIn) return
+    if (!isLoggedIn || !authToken) return
 
     checkStatus()
 
@@ -180,22 +180,22 @@ export function PushNotificationProvider({ children }: { children: React.ReactNo
       if (currentPermission === 'default' && !dismissed) {
         setShowPermissionPrompt(true)
       } else if (currentPermission === 'granted' && pushApiSupported()) {
-        // Auto-subscribe if permission already granted but not subscribed
-        getPushSubscription().then(sub => {
-          if (!sub && authToken) {
-            setupPushNotifications(authToken).then(result => {
-              setPermission(result.permission)
-              setIsSubscribed(result.subscribed)
-            })
-          } else {
-            setIsSubscribed(!!sub)
-          }
-        })
+        // Always re-subscribe to ensure VAPID key matches (handles key rotation)
+        const token = useAppStore.getState().authToken
+        if (token) {
+          setupPushNotifications(token).then(result => {
+            setPermission(result.permission)
+            setIsSubscribed(result.subscribed)
+            console.log('[PushProvider] Auto-subscribe result:', result.subscribed)
+          }).catch(err => {
+            console.warn('[PushProvider] Auto-subscribe failed:', err)
+          })
+        }
       }
     }, 2000)
 
     return () => clearTimeout(timer)
-  }, [isLoggedIn, checkStatus])
+  }, [isLoggedIn, authToken, checkStatus])
 
   // ─── Fetch notifications from API on login + auto-refresh ───
   useEffect(() => {
