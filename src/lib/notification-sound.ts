@@ -299,12 +299,57 @@ function playTone(frequency: number, duration: number, type: OscillatorType = 's
 // ─── Fallback sound using Audio element (for Safari, mobile, etc.) ───
 function playFallbackBeep() {
   try {
-    // Create a short beep using a data URI WAV
-    const audio = new Audio('data:audio/wav;base64,UklGRl9vT19teleUQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU' + Array(300).fill('123').join('').slice(0, 1000) + '=')
+    // Create a valid short beep WAV using a proper PCM data URI
+    // Minimal WAV: 8-bit mono, 8000 Hz, ~0.15 seconds
+    const sampleRate = 8000
+    const duration = 0.15
+    const numSamples = Math.floor(sampleRate * duration)
+    const bufferSize = 44 + numSamples
+    const buffer = new ArrayBuffer(bufferSize)
+    const view = new DataView(buffer)
+
+    // RIFF header
+    writeString(view, 0, 'RIFF')
+    view.setUint32(4, bufferSize - 8, true)
+    writeString(view, 8, 'WAVE')
+
+    // fmt chunk
+    writeString(view, 12, 'fmt ')
+    view.setUint32(16, 16, true) // chunk size
+    view.setUint16(20, 1, true)  // PCM
+    view.setUint16(22, 1, true)  // mono
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, sampleRate, true) // byte rate
+    view.setUint16(32, 1, true)  // block align
+    view.setUint16(34, 8, true)  // bits per sample
+
+    // data chunk
+    writeString(view, 36, 'data')
+    view.setUint32(40, numSamples, true)
+
+    // Generate a simple sine wave beep at 800Hz
+    for (let i = 0; i < numSamples; i++) {
+      const t = i / sampleRate
+      const envelope = Math.min(1, (numSamples - i) / (sampleRate * 0.02)) // fade out
+      const sample = Math.sin(2 * Math.PI * 800 * t) * envelope
+      view.setUint8(44 + i, Math.floor((sample * 0.5 + 0.5) * 255))
+    }
+
+    const blob = new Blob([buffer], { type: 'audio/wav' })
+    const url = URL.createObjectURL(blob)
+    const audio = new Audio(url)
     audio.volume = 0.5
     audio.play().catch(() => {})
+    // Clean up object URL after playback
+    audio.addEventListener('ended', () => URL.revokeObjectURL(url), { once: true })
   } catch (e) {
     // Ignore
+  }
+}
+
+function writeString(view: DataView, offset: number, str: string) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i))
   }
 }
 

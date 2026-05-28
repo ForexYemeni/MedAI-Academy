@@ -285,6 +285,14 @@ export function PushNotificationProvider({ children }: { children: React.ReactNo
             category: type || 'info',
           })
 
+          // Show toast popup for the notification
+          useAppStore.getState().addToast({
+            id: optimisticId,
+            title: title || '',
+            message: body || '',
+            type: (type || 'info') as any,
+          })
+
           // Mark this ID as sound-played so the polling fallback doesn't replay it
           soundPlayedFor.current.add(optimisticId)
         }
@@ -387,6 +395,14 @@ export function PushNotificationProvider({ children }: { children: React.ReactNo
 
     // Play in-app sound
     playNotificationSound(latest.type)
+
+    // Show toast popup for the notification
+    useAppStore.getState().addToast({
+      id: latest.id,
+      title: latest.title,
+      message: latest.message,
+      type: latest.type,
+    })
 
     // Show browser notification if tab is not focused
     if (document.visibilityState !== 'visible') {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
+import { createAdminNotification } from '@/app/api/notifications/route'
 
 // GET /api/community/groups - List all groups (with user join status)
 export async function GET(req: NextRequest) {
@@ -142,6 +143,17 @@ export async function POST(req: NextRequest) {
         { _id: groupOid },
         { $addToSet: { pendingMembers: authUser.id } }
       )
+      
+      // Notify admins about the join request (non-blocking)
+      try {
+        createAdminNotification({
+          title: 'طلب انضمام جديد',
+          message: `${user?.name || 'مستخدم'} يريد الانضمام إلى "${group.nameAr || group.name}"`,
+          type: 'community',
+          link: 'admin',
+          category: 'community',
+        }).catch(() => {})
+      } catch (e) { /* non-critical */ }
       
       return NextResponse.json({ success: true, message: 'تم إرسال طلب الانضمام بنجاح' })
     }

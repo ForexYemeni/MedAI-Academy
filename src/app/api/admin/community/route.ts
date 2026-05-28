@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
+import { createNotification } from '@/app/api/notifications/route'
 
 // GET /api/admin/community - Get all groups and posts for admin
 export async function GET(req: NextRequest) {
@@ -192,6 +193,18 @@ export async function PUT(req: NextRequest) {
           { $addToSet: { joinedGroups: joinRequest.groupId.toString() } }
         )
         
+        // Notify the user that their join request was approved (non-blocking)
+        try {
+          createNotification({
+            userId: joinRequest.userId.toString(),
+            title: 'تم قبول طلب الانضمام',
+            message: `تم قبول طلبك للانضمام إلى "${joinRequest.groupName || 'المجموعة'}"`,
+            type: 'success',
+            link: 'community',
+            category: 'community',
+          }).catch(() => {})
+        } catch (e) { /* non-critical */ }
+        
       } else if (requestAction === 'reject') {
         // Update request status
         await db.collection('group_join_requests').updateOne(
@@ -207,6 +220,18 @@ export async function PUT(req: NextRequest) {
           { _id: groupOid },
           { $pull: { pendingMembers: joinRequest.userId } }
         )
+
+        // Notify the user that their join request was rejected (non-blocking)
+        try {
+          createNotification({
+            userId: joinRequest.userId.toString(),
+            title: 'تم رفض طلب الانضمام',
+            message: `تم رفض طلبك للانضمام إلى "${joinRequest.groupName || 'المجموعة'}"`,
+            type: 'warning',
+            link: 'community',
+            category: 'community',
+          }).catch(() => {})
+        } catch (e) { /* non-critical */ }
       }
       
       return NextResponse.json({ success: true })
@@ -229,6 +254,24 @@ export async function PUT(req: NextRequest) {
         updatedAt: new Date(),
       }
       await db.collection('community_posts').insertOne(newPost)
+
+      // Notify all users about the admin broadcast (non-blocking, in background)
+      ;(async () => {
+        try {
+          const users = await db.collection('users').find({ role: 'user' }, { projection: { _id: 1 } }).toArray()
+          for (const u of users.slice(0, 500)) {
+            createNotification({
+              userId: u._id.toString(),
+              title: 'إعلان من الإدارة',
+              message: message.substring(0, 100),
+              type: 'system',
+              link: 'community',
+              category: 'system',
+            }).catch(() => {})
+          }
+        } catch (e) { /* non-critical */ }
+      })()
+
       return NextResponse.json({ success: true })
     }
     

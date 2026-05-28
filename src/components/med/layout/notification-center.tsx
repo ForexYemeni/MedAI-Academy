@@ -406,11 +406,9 @@ function NotificationCenterPanel({ onClose }: { onClose: () => void }) {
     } catch (e) { /* fallback to store notifications */ }
   }, [authToken])
 
-  // Auto-refresh every 2 seconds for near-instant notification delivery
+  // Fetch notifications once when panel opens (PushNotificationProvider handles polling every 5s)
   useEffect(() => {
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 2000)
-    return () => clearInterval(interval)
   }, [fetchNotifications])
 
   const handleMarkRead = async (id: string) => {

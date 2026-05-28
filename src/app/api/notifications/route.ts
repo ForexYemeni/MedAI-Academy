@@ -31,7 +31,7 @@ async function sendPushFast(subscriptions: any[], payload: string) {
   for (let i = 0; i < subscriptions.length; i += BATCH_SIZE) {
     const batch = subscriptions.slice(i, i + BATCH_SIZE)
     
-    Promise.allSettled(
+    await Promise.allSettled(
       batch.map(async (sub: any) => {
         try {
           await webpush.sendNotification(
