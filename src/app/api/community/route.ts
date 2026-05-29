@@ -130,30 +130,67 @@ export async function POST(req: NextRequest) {
 
     const result = await db.collection('community_posts').insertOne(newPost)
 
-    // Notify group members about the new post (non-blocking)
-    if (category && category !== 'general') {
+    // Notify about the new post (non-blocking, runs in background)
+    ;(async () => {
       try {
         const { ObjectId: ObjId } = await import('mongodb')
-        // Find the group
-        const group = await db.collection('community_groups').findOne({ category: category })
-        if (group) {
-          const memberIds = (group.joinedMembers || []).filter(
-            (id: any) => id.toString() !== authUser.id
-          )
-          // Send notification to each member (batch, non-blocking)
-          for (const memberId of memberIds.slice(0, 100)) {
+        const authorName = user?.name || authUser.name || 'مستخدم'
+
+        if (authUser.role === 'admin') {
+          // Admin created a post → notify ALL users
+          const users = await db.collection('users').find(
+            { role: 'user' },
+            { projection: { _id: 1 } }
+          ).toArray()
+          for (const u of users.slice(0, 500)) {
             createNotification({
-              userId: memberId.toString(),
-              title: 'منشور جديد في المجموعة',
-              message: `${user?.name || 'مستخدم'} نشر منشوراً جديداً في "${group.nameAr || group.name}"`,
+              userId: u._id.toString(),
+              title: 'منشور جديد من الإدارة',
+              message: `${authorName} نشر منشوراً جديداً`,
               type: 'community',
               link: 'community',
               category: 'community',
             }).catch(() => {})
           }
+        } else {
+          // Regular user created a post → notify admins always
+          const admins = await db.collection('users').find(
+            { role: 'admin' },
+            { projection: { _id: 1 } }
+          ).toArray()
+          for (const admin of admins) {
+            createNotification({
+              userId: admin._id.toString(),
+              title: 'منشور جديد في المجتمع',
+              message: `${authorName} نشر منشوراً جديداً`,
+              type: 'community',
+              link: 'admin',
+              category: 'community',
+            }).catch(() => {})
+          }
+
+          // Notify group members if post is in a specific group
+          if (category && category !== 'general') {
+            const group = await db.collection('community_groups').findOne({ category: category })
+            if (group) {
+              const memberIds = (group.joinedMembers || []).filter(
+                (id: any) => id.toString() !== authUser.id
+              )
+              for (const memberId of memberIds.slice(0, 100)) {
+                createNotification({
+                  userId: memberId.toString(),
+                  title: 'منشور جديد في المجموعة',
+                  message: `${authorName} نشر منشوراً جديداً في "${group.nameAr || group.name}"`,
+                  type: 'community',
+                  link: 'community',
+                  category: 'community',
+                }).catch(() => {})
+              }
+            }
+          }
         }
       } catch (e) { /* non-critical */ }
-    }
+    })()
 
     return NextResponse.json({
       success: true,
@@ -230,7 +267,9 @@ export async function PUT(req: NextRequest) {
         )
 
         // Notify the post author about the like (non-blocking)
-        if (post.authorId && post.authorId.toString() !== authUser.id) {
+        // Note: post document stores author as 'userId', not 'authorId'
+        const postAuthorId = post.userId || post.authorId
+        if (postAuthorId && postAuthorId.toString() !== authUser.id) {
           try {
             let userName = authUser.name || 'مستخدم'
             const { ObjectId: ObjId } = await import('mongodb')
@@ -240,7 +279,7 @@ export async function PUT(req: NextRequest) {
             } catch { /* use default name */ }
 
             createNotification({
-              userId: post.authorId.toString(),
+              userId: postAuthorId.toString(),
               title: 'إعجاب جديد بمنشورك',
               message: `${userName} أعجب بمنشورك`,
               type: 'community',

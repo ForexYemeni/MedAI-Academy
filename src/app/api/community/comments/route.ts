@@ -64,10 +64,12 @@ export async function POST(req: NextRequest) {
     )
 
     // Send notification to the post author (don't notify if commenting on own post)
-    if (post.authorId && post.authorId.toString() !== authUser.id) {
+    // Note: post document stores author as 'userId', not 'authorId'
+    const postAuthorId = post.userId || post.authorId
+    if (postAuthorId && postAuthorId.toString() !== authUser.id) {
       try {
         await createNotification({
-          userId: post.authorId.toString(),
+          userId: postAuthorId.toString(),
           title: 'تعليق جديد على منشورك',
           message: `${user?.name || authUser.name || 'مستخدم'} علّق على منشورك: "${content.trim().substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
           type: 'community',
