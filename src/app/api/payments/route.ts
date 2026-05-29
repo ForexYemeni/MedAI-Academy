@@ -16,7 +16,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'جلسة غير صالحة' }, { status: 401 })
     }
 
-    const { courseId, amount, screenshotUrl, paymentMethodId } = await req.json()
+    const { courseId, amount, screenshotUrl, screenshotData, paymentMethodId, plan, courseName } = await req.json()
+
+    // Accept both field names for compatibility
+    const finalScreenshotUrl = screenshotUrl || screenshotData || ''
 
     if (!courseId || !amount) {
       return NextResponse.json({ error: 'جميع الحقول مطلوبة' }, { status: 400 })
@@ -76,7 +79,7 @@ export async function POST(req: NextRequest) {
       amount,
       walletName,
       walletPhone,
-      screenshotUrl: screenshotUrl || '',
+      screenshotUrl: finalScreenshotUrl,
       status: 'pending',
       adminNote: '',
       createdAt: new Date(),

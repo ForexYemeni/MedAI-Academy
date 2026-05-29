@@ -83,21 +83,57 @@ export function PaymentDialog({ open, onOpenChange, courseId, courseName, amount
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ضغط الصورة قبل الرفع (جودة عالية بحجم صغير)
+  const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          // تصغير العرض إذا تجاوز الحد الأقصى
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          }
+
+          canvas.width = width
+          canvas.height = height
+
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(img, 0, 0, width, height)
+
+          // ضغط JPEG بجودة 80%
+          const compressed = canvas.toDataURL('image/jpeg', quality)
+          resolve(compressed)
+        }
+        img.onerror = () => reject(new Error('فشل تحميل الصورة'))
+        img.src = e.target?.result as string
+      }
+      reader.onerror = () => reject(new Error('فشل قراءة الملف'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError('حجم الصورة يجب أن يكون أقل من 5 ميجابايت')
+    if (file.size > 10 * 1024 * 1024) {
+      setError('حجم الصورة يجب أن يكون أقل من 10 ميجابايت')
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      setScreenshot(reader.result as string)
+    try {
+      const compressed = await compressImage(file)
+      setScreenshot(compressed)
       setError('')
+    } catch {
+      setError('فشل معالجة الصورة، حاول مرة أخرى')
     }
-    reader.readAsDataURL(file)
   }
 
   const handleSubmit = async () => {
@@ -132,7 +168,7 @@ export function PaymentDialog({ open, onOpenChange, courseId, courseName, amount
           courseId,
           courseName,
           amount: displayAmount,
-          screenshotData: screenshot,
+          screenshotUrl: screenshot,
           paymentMethodId: selectedMethod._id,
         }),
       })

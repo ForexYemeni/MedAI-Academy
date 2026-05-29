@@ -954,18 +954,21 @@ export function AdminPage() {
   const handleApprovePayment = async (paymentId: string, status: 'approved' | 'rejected', note?: string) => {
     setSaving(true)
     try {
+      const payment = payments.find(p => p._id === paymentId)
+
+      // Main API call - must succeed first
       const res = await fetch('/api/admin/payments', {
         method: 'PUT', headers: getAuthHeaders(),
         body: JSON.stringify({ paymentId, status, adminNote: note || '' }),
       })
       const data = await res.json()
       if (data.success) {
-        await fetchPayments()
-        await fetchStats()
-        // Log activity
-        const payment = payments.find(p => p._id === paymentId)
-        try {
-          await fetch('/api/admin/activity-logs', {
+        // Run all secondary operations in parallel (non-blocking)
+        Promise.all([
+          fetchPayments(),
+          fetchStats(),
+          // Log activity (non-critical)
+          fetch('/api/admin/activity-logs', {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -973,25 +976,21 @@ export function AdminPage() {
               adminName: user?.name || 'المدير',
               details: { paymentId, userName: payment?.userName, amount: payment?.amount, courseName: payment?.courseName },
             }),
-          })
-        } catch (e) { /* ignore logging error */ }
-        // Send notification to user
-        if (payment?.userId) {
-          try {
-            await fetch('/api/notifications', {
-              method: 'POST',
-              headers: getAuthHeaders(),
-              body: JSON.stringify({
-                userId: payment.userId,
-                title: status === 'approved' ? 'تم تفعيل الدورة ✅' : 'تم رفض الدفع ❌',
-                message: status === 'approved'
-                  ? `تمت الموافقة على دفعتك لدورة "${payment.courseName || 'الدورة'}". يمكنك الآن الوصول للمحتوى!`
-                  : `تم رفض دفعتك لدورة "${payment.courseName || 'الدورة'}". يرجى التواصل مع الإدارة.`,
-                type: status === 'approved' ? 'success' : 'warning',
-              }),
-            })
-          } catch (e) { /* ignore notification error */ }
-        }
+          }).catch(() => {}),
+          // Send notification to user (API already sends via createNotification, this is a duplicate - keep for safety)
+          payment?.userId ? fetch('/api/notifications', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              userId: payment.userId,
+              title: status === 'approved' ? 'تم تفعيل الدورة ✅' : 'تم رفض الدفع ❌',
+              message: status === 'approved'
+                ? `تمت الموافقة على دفعتك لدورة "${payment.courseName || 'الدورة'}". يمكنك الآن الوصول للمحتوى!`
+                : `تم رفض دفعتك لدورة "${payment.courseName || 'الدورة'}". يرجى التواصل مع الإدارة.`,
+              type: status === 'approved' ? 'success' : 'warning',
+            }),
+          }).catch(() => {}) : Promise.resolve(),
+        ]).catch(() => {})
       }
       else setError(data.error || 'فشل تحديث الدفع')
     } catch { setError('خطأ في الاتصال') }
