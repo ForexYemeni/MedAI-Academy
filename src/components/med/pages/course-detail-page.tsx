@@ -78,6 +78,68 @@ function getYouTubeId(url: string): string | null {
   return null
 }
 
+// ─── Professional Video Player (No YouTube Branding) ──────────
+function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number }) {
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  return (
+    <div
+      className="relative w-full bg-black rounded-xl overflow-hidden"
+      style={{ aspectRatio: '16/9' }}
+    >
+      {!isPlaying ? (
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+          onClick={() => setIsPlaying(true)}
+          whileTap={{ scale: 0.998 }}
+        >
+          <img
+            src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
+            className="absolute inset-0 w-full h-full object-cover"
+            alt=""
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-black/40" />
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="relative z-10 flex flex-col items-center gap-3"
+          >
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)]">
+              <Play className="w-7 h-7 text-white fill-white ml-0.5" />
+            </div>
+            <span className="text-white/80 text-sm font-medium">اضغط للمشاهدة</span>
+          </motion.div>
+          {duration && (
+            <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/70 text-white text-[11px] font-medium z-10">
+              {duration} دقيقة
+            </div>
+          )}
+        </motion.div>
+      ) : (
+        <div className="relative w-full h-full overflow-hidden">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&showinfo=0&cc_load_policy=0&annotations=0&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
+            className="absolute w-full h-full"
+            style={{
+              border: 'none',
+              top: '-50px',
+              left: '0',
+              height: 'calc(100% + 100px)',
+            }}
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title="Video player"
+          />
+          <div className="absolute top-0 left-0 right-0 h-[50px] z-10 pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)' }} />
+          <div className="absolute bottom-0 left-0 right-0 h-[48px] z-10 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)' }} />
+          <div className="absolute bottom-1 right-0 w-[100px] h-[48px] z-10 pointer-events-none" style={{ background: 'rgba(0,0,0,0.9)' }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function CourseDetailPage() {
   const {
     activeCourseId, courses, setActivePage, user,
@@ -647,20 +709,7 @@ export function CourseDetailPage() {
                     {activeLesson.type === 'video' && activeLesson.videoUrl && (() => {
                       const ytId = getYouTubeId(activeLesson.videoUrl)
                       return ytId ? (
-                        <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden bg-black/50">
-                          <iframe
-                            src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&disablekb=1&cc_load_policy=0&annotations=0`}
-                            className="absolute inset-0 w-full h-full"
-                            allowFullScreen
-                            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
-                            style={{ border: 'none' }}
-                            title="Video player"
-                          />
-                          {/* Overlay to hide YouTube top bar (channel name, title) */}
-                          <div className="absolute top-0 left-0 right-0 h-[55px] pointer-events-none z-10" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }} />
-                          {/* Overlay to hide YouTube bottom-right logo */}
-                          <div className="absolute bottom-[40px] right-0 w-[70px] h-[30px] pointer-events-none z-10" style={{ background: 'rgba(0,0,0,0.85)' }} />
-                        </div>
+                        <DetailVideoPlayer ytId={ytId} duration={activeLesson.duration} />
                       ) : (
                         <div className="text-center py-8">
                           <Video className="w-12 h-12 text-purple-400/30 mx-auto mb-3" />
@@ -774,27 +823,31 @@ export function CourseDetailPage() {
                     {/* Simulation Content */}
                     {activeLesson.type === 'simulation' && (
                       <div className="py-6">
-                        {activeLesson.simulationData ? (
+                        {activeLesson.simulationData && (activeLesson.simulationData.patientInfo || activeLesson.simulationData.diagnosis) ? (
                           <div className="space-y-3">
-                            <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/15">
-                              <p className="text-xs text-purple-400 mb-1">معلومات المريض</p>
-                              <p className="text-sm text-foreground">{activeLesson.simulationData.patientInfo}</p>
-                            </div>
-                            <div className="grid grid-cols-5 gap-2">
-                              {[
-                                { label: 'HR', value: activeLesson.simulationData.vitals?.hr },
-                                { label: 'BP', value: activeLesson.simulationData.vitals?.bp },
-                                { label: 'SpO2', value: activeLesson.simulationData.vitals?.spo2 },
-                                { label: 'Temp', value: activeLesson.simulationData.vitals?.temp },
-                                { label: 'RR', value: activeLesson.simulationData.vitals?.rr },
-                              ].map((v, i) => (
-                                <div key={i} className="p-2 rounded-lg bg-muted/20 border border-border text-center">
-                                  <p className="text-[9px] text-muted-foreground">{v.label}</p>
-                                  <p className="text-sm font-bold text-foreground">{v.value}</p>
-                                </div>
-                              ))}
-                            </div>
-                            {activeLesson.simulationData.symptoms?.length > 0 && (
+                            {activeLesson.simulationData.patientInfo && (
+                              <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/15">
+                                <p className="text-xs text-purple-400 mb-1">معلومات المريض</p>
+                                <p className="text-sm text-foreground">{activeLesson.simulationData.patientInfo}</p>
+                              </div>
+                            )}
+                            {activeLesson.simulationData.vitals && (
+                              <div className="grid grid-cols-5 gap-2">
+                                {[
+                                  { label: 'HR', value: activeLesson.simulationData.vitals.hr || '--' },
+                                  { label: 'BP', value: activeLesson.simulationData.vitals.bp || '--' },
+                                  { label: 'SpO2', value: activeLesson.simulationData.vitals.spo2 || '--' },
+                                  { label: 'Temp', value: activeLesson.simulationData.vitals.temp || '--' },
+                                  { label: 'RR', value: activeLesson.simulationData.vitals.rr || '--' },
+                                ].map((v, i) => (
+                                  <div key={i} className="p-2 rounded-lg bg-muted/20 border border-border text-center">
+                                    <p className="text-[9px] text-muted-foreground">{v.label}</p>
+                                    <p className="text-sm font-bold text-foreground">{v.value}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {activeLesson.simulationData.symptoms && activeLesson.simulationData.symptoms.length > 0 && (
                               <div className="p-3 rounded-xl bg-muted/10 border border-border">
                                 <p className="text-xs text-muted-foreground mb-1">الأعراض</p>
                                 <p className="text-sm text-foreground">{activeLesson.simulationData.symptoms.join(' • ')}</p>
@@ -804,6 +857,12 @@ export function CourseDetailPage() {
                               <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
                                 <p className="text-xs text-emerald-400 mb-1">التشخيص</p>
                                 <p className="text-sm text-foreground">{activeLesson.simulationData.diagnosis}</p>
+                              </div>
+                            )}
+                            {activeLesson.simulationData.treatment && (
+                              <div className="p-3 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15">
+                                <p className="text-xs text-neon-cyan mb-1">العلاج</p>
+                                <p className="text-sm text-foreground">{activeLesson.simulationData.treatment}</p>
                               </div>
                             )}
                           </div>
