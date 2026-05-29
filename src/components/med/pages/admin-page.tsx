@@ -769,8 +769,8 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
 
       {/* Footer Actions */}
       <div className="px-5 py-4 border-t border-border flex gap-3 bg-muted/10">
-        <Button onClick={() => onSave(form)} disabled={!form.titleAr || !form.title}
-          className="bg-gradient-to-l from-neon-purple to-neon-cyan text-white font-bold hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all h-10 px-6">
+        <Button onClick={() => onSave(form)} disabled={!form.titleAr}
+          className="bg-gradient-to-l from-neon-purple to-neon-cyan text-white font-bold hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all h-10 px-6 disabled:opacity-50">
           <Save className="h-4 w-4 ml-1.5" />
           {lesson ? 'حفظ التعديلات' : 'إضافة الدرس'}
         </Button>
