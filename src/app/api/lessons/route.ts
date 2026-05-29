@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
       if (isEnrolled || lesson.isFree || isCourseFree) {
         return { ...lesson, isLocked: false }
       } else {
-        const { content, videoUrl, ...metaOnly } = lesson
+        const { content, videoUrl, quizData, flashcardData, simulationData, ...metaOnly } = lesson
         return { ...metaOnly, isLocked: true }
       }
     })

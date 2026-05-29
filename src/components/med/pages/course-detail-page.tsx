@@ -624,10 +624,12 @@ export function CourseDetailPage() {
                       return ytId ? (
                         <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden bg-black/50">
                           <iframe
-                            src={`https://www.youtube.com/embed/${ytId}`}
+                            src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&disablekb=0`}
                             className="absolute inset-0 w-full h-full"
                             allowFullScreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            style={{ border: 'none' }}
+                            title="Video player"
                           />
                         </div>
                       ) : (

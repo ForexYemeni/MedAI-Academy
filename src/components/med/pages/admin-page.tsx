@@ -33,6 +33,27 @@ import { usePushNotifications } from '@/components/med/layout/push-notification-
 
 // ─── Types ──────────────────────────────────────────────────
 
+interface ApiLessonQuizQuestion {
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+}
+
+interface ApiLessonFlashcard {
+  front: string
+  back: string
+}
+
+interface ApiLessonSimulationCase {
+  patientInfo: string
+  vitals: { hr: number; bp: string; spo2: number; temp: number; rr: number }
+  symptoms: string[]
+  diagnosis: string
+  treatment: string
+  actions: string[]
+}
+
 interface ApiLesson {
   id: string
   title: string
@@ -44,6 +65,9 @@ interface ApiLesson {
   content?: string
   videoUrl?: string
   keyPoints?: string[]
+  quizData?: ApiLessonQuizQuestion[]
+  flashcardData?: ApiLessonFlashcard[]
+  simulationData?: ApiLessonSimulationCase
 }
 
 interface ApiCourse {
@@ -405,7 +429,50 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
     content: lesson?.content || '',
     videoUrl: lesson?.videoUrl || '',
     keyPoints: lesson?.keyPoints || [],
+    quizData: lesson?.quizData || [],
+    flashcardData: lesson?.flashcardData || [],
+    simulationData: lesson?.simulationData || undefined,
   })
+
+  const addQuizQuestion = () => {
+    const newQ: ApiLessonQuizQuestion = { question: '', options: ['', '', '', ''], correctIndex: 0, explanation: '' }
+    setForm({ ...form, quizData: [...(form.quizData || []), newQ] })
+  }
+  const updateQuizQuestion = (idx: number, field: string, value: any) => {
+    const updated = [...(form.quizData || [])]
+    updated[idx] = { ...updated[idx], [field]: value }
+    setForm({ ...form, quizData: updated })
+  }
+  const updateQuizOption = (qIdx: number, oIdx: number, value: string) => {
+    const updated = [...(form.quizData || [])]
+    const opts = [...updated[qIdx].options]
+    opts[oIdx] = value
+    updated[qIdx] = { ...updated[qIdx], options: opts }
+    setForm({ ...form, quizData: updated })
+  }
+  const removeQuizQuestion = (idx: number) => {
+    setForm({ ...form, quizData: (form.quizData || []).filter((_, i) => i !== idx) })
+  }
+  const addFlashcard = () => {
+    const newCard: ApiLessonFlashcard = { front: '', back: '' }
+    setForm({ ...form, flashcardData: [...(form.flashcardData || []), newCard] })
+  }
+  const updateFlashcard = (idx: number, field: 'front' | 'back', value: string) => {
+    const updated = [...(form.flashcardData || [])]
+    updated[idx] = { ...updated[idx], [field]: value }
+    setForm({ ...form, flashcardData: updated })
+  }
+  const removeFlashcard = (idx: number) => {
+    setForm({ ...form, flashcardData: (form.flashcardData || []).filter((_, i) => i !== idx) })
+  }
+  const updateSimulationData = (field: string, value: any) => {
+    setForm({ ...form, simulationData: { ...form.simulationData, [field]: value } as ApiLessonSimulationCase })
+  }
+  const updateVital = (vitalField: string, vitalValue: any) => {
+    const currentVitals = form.simulationData?.vitals || { hr: 80, bp: '120/80', spo2: 98, temp: 37, rr: 16 }
+    const newVitals = { ...currentVitals, [vitalField]: vitalValue }
+    updateSimulationData('vitals', newVitals)
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
@@ -518,23 +585,166 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
           )}
 
           {form.type === 'quiz' && (
-            <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/15 text-center">
-              <HelpCircle className="h-8 w-8 text-amber-400/40 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">أسئلة الاختبار تُضاف من خلال محرر الاختبارات</p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-muted-foreground font-medium">أسئلة الاختبار</label>
+                <Button type="button" variant="outline" size="sm" onClick={addQuizQuestion}
+                  className="h-7 text-xs gap-1 border-amber-500/30 text-amber-400 hover:bg-amber-500/10">
+                  <Plus className="h-3 w-3" />
+                  إضافة سؤال
+                </Button>
+              </div>
+              {(!form.quizData || form.quizData.length === 0) && (
+                <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/15 text-center">
+                  <HelpCircle className="h-8 w-8 text-amber-400/40 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">لا توجد أسئلة بعد. اضغط &quot;إضافة سؤال&quot; للبدء</p>
+                </div>
+              )}
+              {(form.quizData || []).map((q, qIdx) => (
+                <div key={qIdx} className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/15 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-400">{'سؤال ' + (qIdx + 1)}</span>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeQuizQuestion(qIdx)}
+                      className="h-6 w-6 hover:bg-red-500/10">
+                      <Trash2 className="h-3 w-3 text-red-400" />
+                    </Button>
+                  </div>
+                  <Input value={q.question} onChange={(e) => updateQuizQuestion(qIdx, 'question', e.target.value)}
+                    placeholder="نص السؤال" className="bg-muted/30 border-border focus:border-amber-500/50 text-sm h-9" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {q.options.map((opt, oIdx) => (
+                      <div key={oIdx} className="flex items-center gap-2">
+                        <button type="button" onClick={() => updateQuizQuestion(qIdx, 'correctIndex', oIdx)}
+                          className={"shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all " + (q.correctIndex === oIdx ? 'border-emerald-400 bg-emerald-400/20' : 'border-muted-foreground/30 hover:border-muted-foreground/50')}>
+                          {q.correctIndex === oIdx && <CheckCircle2 className="h-3 w-3 text-emerald-400" />}
+                        </button>
+                        <Input value={opt} onChange={(e) => updateQuizOption(qIdx, oIdx, e.target.value)}
+                          placeholder={'الخيار ' + (oIdx + 1)}
+                          className={"bg-muted/30 border-border text-sm h-8 " + (q.correctIndex === oIdx ? 'border-emerald-500/40' : 'focus:border-amber-500/50')} />
+                      </div>
+                    ))}
+                  </div>
+                  <Input value={q.explanation} onChange={(e) => updateQuizQuestion(qIdx, 'explanation', e.target.value)}
+                    placeholder="شرح الإجابة الصحيحة (اختياري)" className="bg-muted/30 border-border focus:border-amber-500/50 text-sm h-9" />
+                </div>
+              ))}
             </div>
           )}
 
           {form.type === 'simulation' && (
-            <div className="p-4 rounded-lg bg-purple-500/5 border border-purple-500/15 text-center">
-              <FlaskConical className="h-8 w-8 text-purple-400/40 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">حالات المحاكاة تُضاف من خلال قسم المحاكاة</p>
+            <div className="space-y-3">
+              <label className="text-xs text-muted-foreground font-medium">بيانات حالة المحاكاة</label>
+              <div>
+                <label className="text-[10px] text-muted-foreground/60 mb-1 block">معلومات المريض</label>
+                <Textarea value={form.simulationData?.patientInfo || ''}
+                  onChange={(e) => updateSimulationData('patientInfo', e.target.value)}
+                  rows={3} className="bg-muted/30 border-border focus:border-purple-500/50 text-sm resize-none"
+                  placeholder="معلومات المريض الأساسية..." />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground/60 mb-1 block">العلامات الحيوية</label>
+                <div className="grid grid-cols-5 gap-2">
+                  <div>
+                    <label className="text-[9px] text-muted-foreground/50 block">HR</label>
+                    <Input type="number" value={form.simulationData?.vitals?.hr || 80}
+                      onChange={(e) => updateVital('hr', parseInt(e.target.value) || 0)}
+                      className="bg-muted/30 border-border text-xs h-8 text-center" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground/50 block">BP</label>
+                    <Input value={form.simulationData?.vitals?.bp || '120/80'}
+                      onChange={(e) => updateVital('bp', e.target.value)}
+                      className="bg-muted/30 border-border text-xs h-8 text-center" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground/50 block">SpO2</label>
+                    <Input type="number" value={form.simulationData?.vitals?.spo2 || 98}
+                      onChange={(e) => updateVital('spo2', parseInt(e.target.value) || 0)}
+                      className="bg-muted/30 border-border text-xs h-8 text-center" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground/50 block">Temp</label>
+                    <Input type="number" step="0.1" value={form.simulationData?.vitals?.temp || 37}
+                      onChange={(e) => updateVital('temp', parseFloat(e.target.value) || 0)}
+                      className="bg-muted/30 border-border text-xs h-8 text-center" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground/50 block">RR</label>
+                    <Input type="number" value={form.simulationData?.vitals?.rr || 16}
+                      onChange={(e) => updateVital('rr', parseInt(e.target.value) || 0)}
+                      className="bg-muted/30 border-border text-xs h-8 text-center" />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground/60 mb-1 block">الأعراض (سطر لكل عرض)</label>
+                <Textarea value={(form.simulationData?.symptoms || []).join('\n')}
+                  onChange={(e) => updateSimulationData('symptoms', e.target.value.split('\n').filter(Boolean))}
+                  rows={3} className="bg-muted/30 border-border focus:border-purple-500/50 text-sm resize-none"
+                  placeholder="ألم صدري&#10;ضيق تنفس&#10;تعريق" />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground/60 mb-1 block">التشخيص</label>
+                <Input value={form.simulationData?.diagnosis || ''}
+                  onChange={(e) => updateSimulationData('diagnosis', e.target.value)}
+                  placeholder="التشخيص المقترح" className="bg-muted/30 border-border focus:border-purple-500/50 text-sm h-9" />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground/60 mb-1 block">العلاج</label>
+                <Textarea value={form.simulationData?.treatment || ''}
+                  onChange={(e) => updateSimulationData('treatment', e.target.value)}
+                  rows={2} className="bg-muted/30 border-border focus:border-purple-500/50 text-sm resize-none"
+                  placeholder="خطة العلاج المقترحة..." />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground/60 mb-1 block">الإجراءات (سطر لكل إجراء)</label>
+                <Textarea value={(form.simulationData?.actions || []).join('\n')}
+                  onChange={(e) => updateSimulationData('actions', e.target.value.split('\n').filter(Boolean))}
+                  rows={3} className="bg-muted/30 border-border focus:border-purple-500/50 text-sm resize-none"
+                  placeholder="فحص أولي&#10;طلب تحاليل&#10;إعطاء أدوية" />
+              </div>
             </div>
           )}
 
           {form.type === 'flashcard' && (
-            <div className="p-4 rounded-lg bg-cyan-500/5 border border-cyan-500/15 text-center">
-              <Layers className="h-8 w-8 text-cyan-400/40 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">البطاقات التعليمية تُضاف من خلال محرر البطاقات</p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-muted-foreground font-medium">البطاقات التعليمية</label>
+                <Button type="button" variant="outline" size="sm" onClick={addFlashcard}
+                  className="h-7 text-xs gap-1 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10">
+                  <Plus className="h-3 w-3" />
+                  إضافة بطاقة
+                </Button>
+              </div>
+              {(!form.flashcardData || form.flashcardData.length === 0) && (
+                <div className="p-4 rounded-lg bg-cyan-500/5 border border-cyan-500/15 text-center">
+                  <Layers className="h-8 w-8 text-cyan-400/40 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">لا توجد بطاقات بعد. اضغط &quot;إضافة بطاقة&quot; للبدء</p>
+                </div>
+              )}
+              {(form.flashcardData || []).map((card, idx) => (
+                <div key={idx} className="p-3 rounded-lg bg-cyan-500/5 border border-cyan-500/15 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-cyan-400">{'بطاقة ' + (idx + 1)}</span>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeFlashcard(idx)}
+                      className="h-6 w-6 hover:bg-red-500/10">
+                      <Trash2 className="h-3 w-3 text-red-400" />
+                    </Button>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground/60 mb-1 block">الوجه الأمامي</label>
+                    <Textarea value={card.front} onChange={(e) => updateFlashcard(idx, 'front', e.target.value)}
+                      rows={2} className="bg-muted/30 border-border focus:border-cyan-500/50 text-sm resize-none"
+                      placeholder="السؤال أو المصطلح..." />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground/60 mb-1 block">الوجه الخلفي</label>
+                    <Textarea value={card.back} onChange={(e) => updateFlashcard(idx, 'back', e.target.value)}
+                      rows={2} className="bg-muted/30 border-border focus:border-cyan-500/50 text-sm resize-none"
+                      placeholder="الإجابة أو الشرح..." />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

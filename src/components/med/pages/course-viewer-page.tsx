@@ -10,7 +10,7 @@ import {
   CreditCard, Loader2, Image as ImageIcon, Wallet,
   Shield, ArrowLeft, Gift
 } from 'lucide-react'
-import { useAppStore, type Lesson, type Course } from '@/store/app-store'
+import { useAppStore, type Lesson, type Course, type LessonQuizQuestion, type LessonFlashcard, type LessonSimulationCase } from '@/store/app-store'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineBadge } from '@/components/med/layout/offline-indicator'
 import { Badge } from '@/components/ui/badge'
@@ -1090,6 +1090,609 @@ function InCoursePaymentModal({ course, onClose }: { course: Course; onClose: ()
   )
 }
 
+// ─── Inline Quiz Lesson Component ──────────────────────────
+
+function InlineQuizLesson({ lesson }: { lesson: Lesson }) {
+  const [currentQ, setCurrentQ] = useState(0)
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [showResult, setShowResult] = useState(false)
+  const [answers, setAnswers] = useState<(number | null)[]>([])
+  const [quizFinished, setQuizFinished] = useState(false)
+  const questions = lesson.quizData || []
+
+  if (questions.length === 0) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+        <div className="glass-card overflow-hidden">
+          <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+              <HelpCircle className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">اختبار الدرس</p>
+              <p className="text-[10px] text-muted-foreground">اختبر فهمك لهذا الدرس</p>
+            </div>
+          </div>
+          <div className="p-8 text-center">
+            <HelpCircle className="w-12 h-12 text-amber-400/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">لم تتم إضافة أسئلة لهذا الاختبار بعد</p>
+          </div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  const question = questions[currentQ]
+  const correctCount = answers.filter((a, i) => a === questions[i]?.correctIndex).length
+  const isAnswered = selectedAnswer !== null
+
+  const handleSelectAnswer = (idx: number) => {
+    if (isAnswered) return
+    setSelectedAnswer(idx)
+    const newAnswers = [...answers]
+    newAnswers[currentQ] = idx
+    setAnswers(newAnswers)
+    setShowResult(true)
+  }
+
+  const handleNext = () => {
+    if (currentQ < questions.length - 1) {
+      setCurrentQ(currentQ + 1)
+      setSelectedAnswer(null)
+      setShowResult(false)
+    } else {
+      setQuizFinished(true)
+    }
+  }
+
+  const handleRestart = () => {
+    setCurrentQ(0)
+    setSelectedAnswer(null)
+    setShowResult(false)
+    setAnswers([])
+    setQuizFinished(false)
+  }
+
+  if (quizFinished) {
+    const percentage = Math.round((correctCount / questions.length) * 100)
+    const isPassed = percentage >= 60
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+        <div className="glass-card overflow-hidden">
+          <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+              <HelpCircle className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">نتيجة الاختبار</p>
+            </div>
+          </div>
+          <div className="p-6 text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              className={`w-24 h-24 rounded-2xl mx-auto mb-4 flex items-center justify-center ${
+                isPassed ? 'bg-neon-green/15 border border-neon-green/30' : 'bg-red-500/15 border border-red-500/30'
+              }`}
+            >
+              {isPassed ? (
+                <CheckCircle2 className="w-10 h-10 text-neon-green" />
+              ) : (
+                <X className="w-10 h-10 text-red-400" />
+              )}
+            </motion.div>
+            <h3 className="text-xl font-bold text-foreground mb-2">{isPassed ? 'أحسنت! نجحت في الاختبار' : 'حاول مرة أخرى'}</h3>
+            <p className="text-3xl font-black mb-1" style={{ color: isPassed ? '#10b981' : '#ef4444' }}>{percentage}%</p>
+            <p className="text-sm text-muted-foreground mb-4">{correctCount} من {questions.length} إجابات صحيحة</p>
+            <div className="flex gap-3 justify-center">
+              <Button onClick={handleRestart} variant="outline" className="border-border text-foreground">
+                إعادة الاختبار
+              </Button>
+            </div>
+            {/* Show correct answers review */}
+            <div className="mt-6 space-y-2 text-right">
+              {questions.map((q, i) => {
+                const isCorrect = answers[i] === q.correctIndex
+                return (
+                  <div key={i} className={`p-3 rounded-lg border text-sm ${isCorrect ? 'bg-neon-green/5 border-neon-green/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                    <div className="flex items-start gap-2">
+                      {isCorrect ? <CheckCircle2 className="w-4 h-4 text-neon-green mt-0.5 flex-shrink-0" /> : <X className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />}
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{q.question}</p>
+                        {!isCorrect && (
+                          <p className="text-neon-green text-xs mt-1">الإجابة الصحيحة: {q.options[q.correctIndex]}</p>
+                        )}
+                        {q.explanation && <p className="text-muted-foreground text-xs mt-1">{q.explanation}</p>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+      <div className="glass-card overflow-hidden">
+        {/* Quiz header */}
+        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+            <HelpCircle className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-foreground">اختبار الدرس</p>
+            <p className="text-[10px] text-muted-foreground">السؤال {currentQ + 1} من {questions.length}</p>
+          </div>
+          {/* Progress bar */}
+          <div className="w-24 h-1.5 rounded-full bg-muted/30 overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-l from-amber-400 to-orange-400"
+              initial={{ width: 0 }}
+              animate={{ width: `${((currentQ + 1) / questions.length) * 100}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+        </div>
+
+        {/* Question */}
+        <div className="p-5">
+          <h3 className="text-base font-bold text-foreground mb-4 leading-relaxed">{question.question}</h3>
+          <div className="space-y-2.5">
+            {question.options.map((opt, idx) => {
+              let optStyle = 'bg-muted/20 border-border hover:border-muted-foreground/30 hover:bg-muted/30'
+              if (showResult) {
+                if (idx === question.correctIndex) {
+                  optStyle = 'bg-neon-green/10 border-neon-green/30'
+                } else if (idx === selectedAnswer && idx !== question.correctIndex) {
+                  optStyle = 'bg-red-500/10 border-red-500/30'
+                } else {
+                  optStyle = 'bg-muted/10 border-border/50 opacity-50'
+                }
+              } else if (selectedAnswer === idx) {
+                optStyle = 'bg-amber-500/10 border-amber-500/30'
+              }
+
+              return (
+                <motion.button
+                  key={idx}
+                  onClick={() => handleSelectAnswer(idx)}
+                  disabled={isAnswered}
+                  className={`w-full text-right p-3.5 rounded-xl border transition-all flex items-center gap-3 ${optStyle}`}
+                  whileTap={!isAnswered ? { scale: 0.98 } : {}}
+                >
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                    showResult && idx === question.correctIndex
+                      ? 'border-neon-green bg-neon-green/20 text-neon-green'
+                      : showResult && idx === selectedAnswer && idx !== question.correctIndex
+                        ? 'border-red-400 bg-red-400/20 text-red-400'
+                        : 'border-border text-muted-foreground'
+                  }`}>
+                    {showResult && idx === question.correctIndex ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : showResult && idx === selectedAnswer && idx !== question.correctIndex ? (
+                      <X className="w-3.5 h-3.5" />
+                    ) : (
+                      String.fromCharCode(1571 + idx)
+                    )}
+                  </div>
+                  <span className="text-sm text-foreground/90 flex-1">{opt}</span>
+                </motion.button>
+              )
+            })}
+          </div>
+
+          {/* Explanation */}
+          {showResult && question.explanation && (
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-3 rounded-lg bg-neon-cyan/5 border border-neon-cyan/15"
+            >
+              <p className="text-xs text-neon-cyan font-bold mb-1">الشرح:</p>
+              <p className="text-sm text-foreground/80">{question.explanation}</p>
+            </motion.div>
+          )}
+
+          {/* Next button */}
+          {showResult && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 flex justify-end">
+              <Button onClick={handleNext} className="bg-gradient-to-l from-amber-500 to-orange-500 text-white font-bold">
+                {currentQ < questions.length - 1 ? (
+                  <>{'السؤال التالي'} <ArrowRight className="w-4 h-4 mr-1" /></>
+                ) : (
+                  <>{'عرض النتيجة'} <CheckCircle2 className="w-4 h-4 mr-1" /></>
+                )}
+              </Button>
+            </motion.div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Inline Flashcard Lesson Component ─────────────────────
+
+function InlineFlashcardLesson({ lesson }: { lesson: Lesson }) {
+  const [currentCard, setCurrentCard] = useState(0)
+  const [isFlipped, setIsFlipped] = useState(false)
+  const [knownCards, setKnownCards] = useState<Set<number>>(new Set())
+  const [unknownCards, setUnknownCards] = useState<Set<number>>(new Set())
+  const [reviewDone, setReviewDone] = useState(false)
+  const cards = lesson.flashcardData || []
+
+  if (cards.length === 0) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+        <div className="glass-card overflow-hidden">
+          <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
+              <Brain className="w-4 h-4 text-cyan-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">بطاقات تعليمية</p>
+              <p className="text-[10px] text-muted-foreground">مراجعة سريعة للمعلومات الرئيسية</p>
+            </div>
+          </div>
+          <div className="p-8 text-center">
+            <Brain className="w-12 h-12 text-cyan-400/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">لم تتم إضافة بطاقات لهذا الدرس بعد</p>
+          </div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  const card = cards[currentCard]
+
+  const handleKnown = () => {
+    setKnownCards(new Set([...knownCards, currentCard]))
+    goNext()
+  }
+
+  const handleUnknown = () => {
+    setUnknownCards(new Set([...unknownCards, currentCard]))
+    goNext()
+  }
+
+  const goNext = () => {
+    if (currentCard < cards.length - 1) {
+      setCurrentCard(currentCard + 1)
+      setIsFlipped(false)
+    } else {
+      setReviewDone(true)
+    }
+  }
+
+  const handleRestart = () => {
+    setCurrentCard(0)
+    setIsFlipped(false)
+    setKnownCards(new Set())
+    setUnknownCards(new Set())
+    setReviewDone(false)
+  }
+
+  if (reviewDone) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+        <div className="glass-card overflow-hidden">
+          <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
+              <Brain className="w-4 h-4 text-cyan-400" />
+            </div>
+            <p className="text-sm font-bold text-foreground">نتيجة المراجعة</p>
+          </div>
+          <div className="p-6 text-center">
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}
+              className="w-20 h-20 rounded-2xl bg-neon-green/15 border border-neon-green/30 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-10 h-10 text-neon-green" />
+            </motion.div>
+            <h3 className="text-lg font-bold text-foreground mb-2">أحسنت! أكملت المراجعة</h3>
+            <div className="flex justify-center gap-6 mb-4">
+              <div className="text-center">
+                <p className="text-2xl font-black text-neon-green">{knownCards.size}</p>
+                <p className="text-xs text-muted-foreground">أعرفها</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-amber-400">{unknownCards.size}</p>
+                <p className="text-xs text-muted-foreground">تحتاج مراجعة</p>
+              </div>
+            </div>
+            <Button onClick={handleRestart} variant="outline" className="border-border text-foreground">
+              إعادة المراجعة
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+      <div className="glass-card overflow-hidden">
+        {/* Flashcard header */}
+        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
+            <Brain className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-foreground">بطاقات تعليمية</p>
+            <p className="text-[10px] text-muted-foreground">البطاقة {currentCard + 1} من {cards.length}</p>
+          </div>
+          <div className="w-24 h-1.5 rounded-full bg-muted/30 overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-l from-cyan-400 to-teal-400"
+              initial={{ width: 0 }}
+              animate={{ width: `${((currentCard + 1) / cards.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Flashcard */}
+        <div className="p-5">
+          <motion.div
+            onClick={() => setIsFlipped(!isFlipped)}
+            className="relative cursor-pointer min-h-[200px] perspective-1000"
+            whileTap={{ scale: 0.98 }}
+          >
+            <motion.div
+              className="w-full min-h-[200px] relative preserve-3d"
+              animate={{ rotateY: isFlipped ? 180 : 0 }}
+              transition={{ duration: 0.5, type: 'spring', stiffness: 150 }}
+              style={{ transformStyle: 'preserve-3d' }}
+            >
+              {/* Front */}
+              <div className="absolute inset-0 backface-hidden rounded-2xl bg-gradient-to-br from-cyan-500/10 to-teal-500/5 border border-cyan-500/20 p-6 flex flex-col items-center justify-center" style={{ backfaceVisibility: 'hidden' }}>
+                <Brain className="w-8 h-8 text-cyan-400/40 mb-3" />
+                <p className="text-center text-lg font-bold text-foreground leading-relaxed">{card.front}</p>
+                <p className="text-xs text-muted-foreground mt-3">اضغط لقلب البطاقة</p>
+              </div>
+              {/* Back */}
+              <div className="absolute inset-0 backface-hidden rounded-2xl bg-gradient-to-br from-neon-green/10 to-emerald-500/5 border border-neon-green/20 p-6 flex flex-col items-center justify-center" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                <CheckCircle2 className="w-8 h-8 text-neon-green/40 mb-3" />
+                <p className="text-center text-base text-foreground/90 leading-relaxed">{card.back}</p>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3 mt-4 justify-center">
+            <Button onClick={handleUnknown}
+              className="flex-1 max-w-[160px] bg-amber-500/10 text-amber-400 border border-amber-500/25 hover:bg-amber-500/20 font-bold">
+              أريد مراجعتها
+            </Button>
+            <Button onClick={handleKnown}
+              className="flex-1 max-w-[160px] bg-neon-green/10 text-neon-green border border-neon-green/25 hover:bg-neon-green/20 font-bold">
+              أعرفها
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Inline Simulation Lesson Component ────────────────────
+
+function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
+  const [phase, setPhase] = useState<'intro' | 'vitals' | 'actions' | 'reveal'>('intro')
+  const [selectedActions, setSelectedActions] = useState<string[]>([])
+  const simData = lesson.simulationData
+
+  if (!simData) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+        <div className="glass-card overflow-hidden">
+          <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">محاكاة تفاعلية</p>
+              <p className="text-[10px] text-muted-foreground">تطبيق عملي للحالات الطبية</p>
+            </div>
+          </div>
+          <div className="p-8 text-center">
+            <Activity className="w-12 h-12 text-purple-400/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">لم تتم إضافة بيانات المحاكاة لهذا الدرس بعد</p>
+          </div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  const toggleAction = (action: string) => {
+    setSelectedActions(prev =>
+      prev.includes(action) ? prev.filter(a => a !== action) : [...prev, action]
+    )
+  }
+
+  const getVitalColor = (type: string, value: number | string) => {
+    if (type === 'hr') {
+      const v = value as number
+      return v > 100 || v < 60 ? 'text-red-400' : 'text-neon-green'
+    }
+    if (type === 'spo2') {
+      const v = value as number
+      return v < 94 ? 'text-red-400' : 'text-neon-green'
+    }
+    if (type === 'temp') {
+      const v = value as number
+      return v > 38 || v < 36 ? 'text-amber-400' : 'text-neon-green'
+    }
+    if (type === 'rr') {
+      const v = value as number
+      return v > 20 || v < 12 ? 'text-amber-400' : 'text-neon-green'
+    }
+    return 'text-neon-green'
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+      <div className="glass-card overflow-hidden">
+        {/* Simulation header */}
+        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+          <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+            <Activity className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-foreground">محاكاة تفاعلية</p>
+            <p className="text-[10px] text-muted-foreground">
+              {phase === 'intro' && 'قراءة الحالة المرضية'}
+              {phase === 'vitals' && 'فحص العلامات الحيوية'}
+              {phase === 'actions' && 'اتخاذ الإجراءات الطبية'}
+              {phase === 'reveal' && 'التشخيص والعلاج'}
+            </p>
+          </div>
+          {/* Phase indicators */}
+          <div className="flex gap-1">
+            {['intro', 'vitals', 'actions', 'reveal'].map((p, i) => (
+              <div key={p} className={`w-2 h-2 rounded-full transition-all ${
+                ['intro', 'vitals', 'actions', 'reveal'].indexOf(phase) >= i
+                  ? 'bg-purple-400' : 'bg-muted/30'
+              }`} />
+            ))}
+          </div>
+        </div>
+
+        {/* Intro phase */}
+        {phase === 'intro' && (
+          <div className="p-5">
+            <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/15 mb-4">
+              <h3 className="text-sm font-bold text-purple-400 mb-2">الحالة المرضية</h3>
+              <p className="text-foreground/80 leading-7 text-sm">{simData.patientInfo}</p>
+            </div>
+            {simData.symptoms.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-muted-foreground mb-2">الأعراض المبلغ عنها:</p>
+                <div className="flex flex-wrap gap-2">
+                  {simData.symptoms.map((s, i) => (
+                    <span key={i} className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={() => setPhase('vitals')} className="bg-gradient-to-l from-purple-500 to-violet-500 text-white font-bold">
+                فحص العلامات الحيوية <ArrowRight className="w-4 h-4 mr-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Vitals phase */}
+        {phase === 'vitals' && (
+          <div className="p-5">
+            <div className="grid grid-cols-5 gap-3 mb-4">
+              {[
+                { label: 'النبض', value: simData.vitals.hr, unit: 'bpm', type: 'hr', icon: '❤️' },
+                { label: 'الضغط', value: simData.vitals.bp, unit: 'mmHg', type: 'bp', icon: '🩸' },
+                { label: 'SpO2', value: simData.vitals.spo2, unit: '%', type: 'spo2', icon: '🫁' },
+                { label: 'الحرارة', value: simData.vitals.temp, unit: '°C', type: 'temp', icon: '🌡️' },
+                { label: 'التنفس', value: simData.vitals.rr, unit: '/min', type: 'rr', icon: '💨' },
+              ].map((v, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="p-3 rounded-xl bg-muted/20 border border-border text-center"
+                >
+                  <span className="text-lg">{v.icon}</span>
+                  <p className={`text-lg font-black mt-1 ${getVitalColor(v.type, v.value)}`}>{v.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{v.label}</p>
+                  <p className="text-[9px] text-muted-foreground/50">{v.unit}</p>
+                </motion.div>
+              ))}
+            </div>
+            <div className="flex justify-between">
+              <Button onClick={() => setPhase('intro')} variant="ghost" className="text-muted-foreground">رجوع</Button>
+              <Button onClick={() => setPhase('actions')} className="bg-gradient-to-l from-purple-500 to-violet-500 text-white font-bold">
+                اتخاذ الإجراءات <ArrowRight className="w-4 h-4 mr-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Actions phase */}
+        {phase === 'actions' && (
+          <div className="p-5">
+            <p className="text-sm text-muted-foreground mb-3">اختر الإجراءات المناسبة للحالة:</p>
+            <div className="space-y-2 mb-4">
+              {simData.actions.map((action, i) => (
+                <motion.button
+                  key={i}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  onClick={() => toggleAction(action)}
+                  className={`w-full text-right p-3 rounded-xl border transition-all flex items-center gap-3 ${
+                    selectedActions.includes(action)
+                      ? 'bg-purple-500/10 border-purple-500/30'
+                      : 'bg-muted/20 border-border hover:border-muted-foreground/30'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${
+                    selectedActions.includes(action) ? 'border-purple-400 bg-purple-400/20' : 'border-border'
+                  }`}>
+                    {selectedActions.includes(action) && <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />}
+                  </div>
+                  <span className="text-sm text-foreground/90">{action}</span>
+                </motion.button>
+              ))}
+            </div>
+            <div className="flex justify-between">
+              <Button onClick={() => setPhase('vitals')} variant="ghost" className="text-muted-foreground">رجوع</Button>
+              <Button onClick={() => setPhase('reveal')} disabled={selectedActions.length === 0}
+                className="bg-gradient-to-l from-purple-500 to-violet-500 text-white font-bold disabled:opacity-50">
+                عرض التشخيص <ArrowRight className="w-4 h-4 mr-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Reveal phase */}
+        {phase === 'reveal' && (
+          <div className="p-5">
+            <div className="p-4 rounded-xl bg-neon-green/5 border border-neon-green/20 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-5 h-5 text-neon-green" />
+                <h3 className="text-sm font-bold text-neon-green">التشخيص</h3>
+              </div>
+              <p className="text-foreground/90 text-sm leading-7">{simData.diagnosis}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Lightbulb className="w-5 h-5 text-neon-cyan" />
+                <h3 className="text-sm font-bold text-neon-cyan">خطة العلاج</h3>
+              </div>
+              <p className="text-foreground/80 text-sm leading-7">{simData.treatment}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/20 border border-border mb-4">
+              <p className="text-xs text-muted-foreground mb-1">الإجراءات التي اخترتها:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedActions.map((a, i) => (
+                  <span key={i} className="px-2 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px]">{a}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-between">
+              <Button onClick={() => { setPhase('intro'); setSelectedActions([]) }} variant="outline" className="border-border text-foreground">
+                إعادة المحاكاة
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
 // ─── Main Course Viewer Component ────────────────────────────
 
 export function CourseViewerPage() {
@@ -1871,12 +2474,14 @@ export function CourseViewerPage() {
                           (() => {
                             const ytId = getYouTubeId(currentLesson.videoUrl)
                             return ytId ? (
-                              <div className="relative w-full pt-[56.25%] bg-black/50">
+                              <div className="relative w-full pt-[56.25%] bg-black/50 group/video">
                                 <iframe
-                                  src={`https://www.youtube.com/embed/${ytId}`}
+                                  src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&disablekb=0`}
                                   className="absolute inset-0 w-full h-full"
                                   allowFullScreen
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  style={{ border: 'none' }}
+                                  title="Video player"
                                 />
                               </div>
                             ) : (
@@ -1915,124 +2520,17 @@ export function CourseViewerPage() {
 
                   {/* Simulation type lesson */}
                   {currentLesson.type === 'simulation' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="relative mb-6"
-                    >
-                      <div className="relative glass-card overflow-hidden">
-                        {/* Simulation header */}
-                        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
-                          <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
-                            <Activity className="w-4 h-4 text-purple-400" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-bold text-foreground">محاكاة تفاعلية</p>
-                            <p className="text-[10px] text-muted-foreground">تطبيق عملي للحالات الطبية</p>
-                          </div>
-                        </div>
-
-                        <div className="p-6 text-center">
-                          <div className="w-20 h-20 rounded-2xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center mx-auto mb-4">
-                            <Activity className="w-10 h-10 text-purple-400" />
-                          </div>
-                          <h3 className="text-lg font-bold text-foreground mb-2">حالة محاكاة طبية</h3>
-                          <p className="text-sm text-gray-400 mb-5">تدرّب على التشخيص والقرارات السريرية في بيئة آمنة</p>
-                          <Button
-                            onClick={() => {
-                              if (currentLesson.videoUrl) {
-                                window.open(currentLesson.videoUrl, '_blank')
-                              } else {
-                                setActivePage('simulation')
-                              }
-                            }}
-                            className="bg-gradient-to-l from-purple-500 to-violet-500 text-white font-bold hover:shadow-[0_0_30px_rgba(168,85,247,0.3)]"
-                          >
-                            <Activity className="w-4 h-4 ml-2" />
-                            ابدأ المحاكاة
-                          </Button>
-                        </div>
-
-                        {/* Simulation description if exists */}
-                        {currentLesson.content && (
-                          <div className="p-4 border-t border-border">
-                            <div className="prose-content">
-                              {renderContent(currentLesson.content)}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
+                    <InlineSimulationLesson lesson={currentLesson} />
                   )}
 
                   {/* Flashcard type lesson */}
                   {currentLesson.type === 'flashcard' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="relative mb-6"
-                    >
-                      <div className="relative glass-card overflow-hidden">
-                        {/* Flashcard header */}
-                        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
-                          <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
-                            <Brain className="w-4 h-4 text-cyan-400" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-bold text-foreground">بطاقات تعليمية</p>
-                            <p className="text-[10px] text-muted-foreground">مراجعة سريعة للمعلومات الرئيسية</p>
-                          </div>
-                        </div>
-
-                        <div className="p-6 text-center">
-                          <div className="w-20 h-20 rounded-2xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center mx-auto mb-4">
-                            <Brain className="w-10 h-10 text-cyan-400" />
-                          </div>
-                          <h3 className="text-lg font-bold text-foreground mb-2">بطاقات مراجعة</h3>
-                          <p className="text-sm text-gray-400 mb-5">راجع المفاهيم الأساسية ببطاقات تعليمية تفاعلية</p>
-                          <Button
-                            onClick={() => setActivePage('quizzes')}
-                            className="bg-gradient-to-l from-cyan-500 to-teal-500 text-white font-bold hover:shadow-[0_0_30px_rgba(0,245,255,0.3)]"
-                          >
-                            <Brain className="w-4 h-4 ml-2" />
-                            ابدأ المراجعة
-                          </Button>
-                        </div>
-
-                        {/* Flashcard content/description if exists */}
-                        {currentLesson.content && (
-                          <div className="p-4 border-t border-border">
-                            <div className="prose-content">
-                              {renderContent(currentLesson.content)}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
+                    <InlineFlashcardLesson lesson={currentLesson} />
                   )}
 
                   {/* Quiz type lesson */}
                   {currentLesson.type === 'quiz' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="glass-card p-8 mb-6 text-center"
-                    >
-                      <div className="w-20 h-20 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center mx-auto mb-4">
-                        <HelpCircle className="w-10 h-10 text-amber-400" />
-                      </div>
-                      <h3 className="text-xl font-bold text-foreground mb-2">اختبار الدورة</h3>
-                      <p className="text-gray-400 mb-6">اختبر معلوماتك في ما تعلمته من هذه الدورة</p>
-                      <Button
-                        onClick={() => setActivePage('quizzes')}
-                        className="bg-gradient-to-l from-amber-500 to-orange-500 text-white font-bold hover:shadow-[0_0_30px_rgba(245,158,11,0.3)]"
-                      >
-                        <HelpCircle className="w-4 h-4 ml-2" />
-                        ابدأ الاختبار
-                      </Button>
-                    </motion.div>
+                    <InlineQuizLesson lesson={currentLesson} />
                   )}
 
                   {/* Celebration overlay */}

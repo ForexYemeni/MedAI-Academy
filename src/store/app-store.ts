@@ -79,6 +79,27 @@ export interface Message {
   timestamp: number
 }
 
+export interface LessonQuizQuestion {
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+}
+
+export interface LessonFlashcard {
+  front: string
+  back: string
+}
+
+export interface LessonSimulationCase {
+  patientInfo: string
+  vitals: { hr: number; bp: string; spo2: number; temp: number; rr: number }
+  symptoms: string[]
+  diagnosis: string
+  treatment: string
+  actions: string[]
+}
+
 export interface Lesson {
   id: string
   courseId: string
@@ -92,6 +113,9 @@ export interface Lesson {
   videoUrl?: string
   summary?: string
   keyPoints?: string[]
+  quizData?: LessonQuizQuestion[]
+  flashcardData?: LessonFlashcard[]
+  simulationData?: LessonSimulationCase
 }
 
 export interface CourseProgress {
