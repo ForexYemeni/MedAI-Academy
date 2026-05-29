@@ -1945,8 +1945,8 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
 }
 
 // ─── Professional Video Player (YouTube IFrame API on div) ──────
-// APPROACH: Use YouTube IFrame API to create player on a <div>.
-// On user click: load video with autoplay + unmuted (user gesture = sound works).
+// APPROACH: NO autoplay. Create player, wait for ready, then user clicks
+// "Play with Sound" button -> playVideo() within click handler = user gesture = SOUND WORKS.
 // YouTube branding hidden with CSS overlays (NO video scaling).
 function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: number }) {
   const [started, setStarted] = useState(false)
@@ -1960,7 +1960,7 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
   const playerDivRef = useRef<HTMLDivElement>(null)
   const hideControlsTimer = useRef<NodeJS.Timeout | null>(null)
 
-  // Load YouTube IFrame API and create player when user clicks play
+  // Load YouTube IFrame API and create player (NO autoplay)
   useEffect(() => {
     if (!started) return
 
@@ -1988,8 +1988,8 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
         width: '100%',
         height: '100%',
         playerVars: {
-          autoplay: 1,        // Autoplay on user gesture
-          mute: 0,            // NOT muted - user clicked = sound allowed
+          autoplay: 0,        // NO autoplay - must click to play
+          mute: 0,            // NOT muted
           controls: 0,
           modestbranding: 1,
           rel: 0,
@@ -2002,14 +2002,10 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
           origin: window.location.origin,
         },
         events: {
-          onReady: (event: any) => {
+          onReady: () => {
             setPlayerReady(true)
-            // Ensure sound is on - this is within user gesture context
-            try {
-              event.target.unMute()
-              event.target.setVolume(100)
-              event.target.playVideo()
-            } catch {}
+            // Do NOT call playVideo() here - not a user gesture
+            // Wait for user to click the play button
           },
           onStateChange: (event: any) => {
             if (event.data === YT.PlayerState.PLAYING) setPlaying(true)
@@ -2049,6 +2045,17 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
 
   const handleStart = () => {
     setStarted(true)
+  }
+
+  // KEY: This is called from a click handler = user gesture = sound works!
+  const handlePlayWithSound = () => {
+    if (!playerRef.current) return
+    try {
+      playerRef.current.unMute()
+      playerRef.current.setVolume(100)
+      playerRef.current.playVideo()
+      setMuted(false)
+    } catch {}
   }
 
   const togglePlayPause = () => {
@@ -2149,33 +2156,40 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
             style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
           />
 
-          {/* Loading indicator */}
+          {/* Loading spinner while player initializes */}
           {!playerReady && (
             <div className="absolute inset-0 z-25 flex items-center justify-center">
               <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-white animate-spin" />
             </div>
           )}
 
+          {/* BIG "Play with Sound" button - this is the KEY user gesture */}
+          <AnimatePresence>
+            {playerReady && !playing && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="absolute inset-0 z-40 flex items-center justify-center cursor-pointer"
+                onClick={handlePlayWithSound}
+              >
+                <div className="absolute inset-0 bg-black/30" />
+                <div className="relative z-10 flex flex-col items-center gap-4">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_50px_rgba(6,182,212,0.5)] hover:shadow-[0_0_70px_rgba(6,182,212,0.7)] transition-shadow">
+                    <Volume2 className="w-9 h-9 text-white" />
+                  </div>
+                  <span className="text-white text-base font-bold">اضغط لمشاهدة الفيديو مع الصوت</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Custom controls */}
           <div
-            className={`absolute inset-0 z-30 flex flex-col justify-end transition-opacity duration-300 pointer-events-none ${showControls && playerReady ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 z-30 flex flex-col justify-end transition-opacity duration-300 pointer-events-none ${showControls && playing ? 'opacity-100' : 'opacity-0'}`}
             onMouseMove={(e) => { e.stopPropagation(); resetHideTimer() }}
           >
             <div className="flex-1 cursor-pointer pointer-events-auto" onClick={togglePlayPause} />
-            <AnimatePresence>
-              {!playing && playerReady && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.5 }}
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                >
-                  <div className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center">
-                    <Play className="w-7 h-7 text-white fill-white ml-1" />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
             <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-auto">
               <button onClick={togglePlayPause} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
                 {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 fill-white" />}
