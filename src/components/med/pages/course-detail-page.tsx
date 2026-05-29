@@ -16,11 +16,12 @@ import { PaymentDialog } from '@/components/med/features/payment-dialog'
 import { useToast } from '@/hooks/use-toast'
 
 interface Lesson {
-  _id: string
+  id: string
+  _id?: string
   courseId: string
   title: string
   titleAr: string
-  type: 'article' | 'video' | 'pdf' | 'quiz' | 'flashcard'
+  type: 'article' | 'video' | 'pdf' | 'quiz' | 'flashcard' | 'simulation'
   order: number
   content?: string
   videoUrl?: string
@@ -29,7 +30,11 @@ interface Lesson {
   pdfName?: string
   duration?: number
   isFree: boolean
-  published: boolean
+  isLocked?: boolean
+  published?: boolean
+  quizData?: { question: string; options: string[]; correctIndex: number; explanation: string }[]
+  flashcardData?: { front: string; back: string }[]
+  simulationData?: { patientInfo: string; vitals: { hr: number; bp: string; spo2: number; temp: number; rr: number }; symptoms: string[]; diagnosis: string; treatment: string; actions: string[] }
 }
 
 const categoryGradients: Record<string, string> = {
@@ -103,14 +108,34 @@ export function CourseDetailPage() {
       setLessonsLoading(true)
       try {
         const token = localStorage.getItem('medai-token')
-        const res = await fetch(`/api/courses/manage/lessons?courseId=${activeCourseId}`, {
+        const res = await fetch(`/api/lessons?courseId=${activeCourseId}`, {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         })
         if (res.ok) {
           const data = await res.json()
-          setLessons(data.lessons || [])
+          const rawLessons = data.lessons || []
+          // Map API data to Lesson type including quizData, flashcardData, simulationData
+          const mappedLessons = rawLessons.map((l: any) => ({
+            id: l.id,
+            courseId: activeCourseId,
+            title: l.title || '',
+            titleAr: l.titleAr || '',
+            type: l.type || 'article',
+            duration: l.duration || 15,
+            order: l.order || 1,
+            isFree: l.isFree || false,
+            content: l.content,
+            videoUrl: l.videoUrl,
+            summary: l.summary,
+            keyPoints: l.keyPoints,
+            quizData: l.quizData || undefined,
+            flashcardData: l.flashcardData || undefined,
+            simulationData: l.simulationData || undefined,
+            isLocked: l.isLocked,
+          }))
+          setLessons(mappedLessons)
           // Auto-expand first section
-          if (data.lessons?.length > 0) {
+          if (mappedLessons.length > 0) {
             setExpandedSections({ 'all': true })
           }
         }
@@ -491,13 +516,13 @@ export function CourseDetailPage() {
               ) : (
                 <div className="space-y-2">
                   {lessons.map((lesson, index) => {
-                    const isCompleted = completedLessons.includes(lesson._id?.toString())
+                    const isCompleted = completedLessons.includes(lesson.id) || completedLessons.includes(lesson._id?.toString() || '')
                     const canAccess = canAccessLesson(lesson)
-                    const isActive = activeLesson?._id === lesson._id
+                    const isActive = activeLesson?.id === lesson.id
 
                     return (
                       <motion.div
-                        key={lesson._id?.toString() || index}
+                        key={lesson.id || lesson._id?.toString() || index}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.03 }}
@@ -590,7 +615,7 @@ export function CourseDetailPage() {
             <AnimatePresence mode="wait">
               {activeLesson ? (
                 <motion.div
-                  key={activeLesson._id}
+                  key={activeLesson.id || activeLesson._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
@@ -624,13 +649,17 @@ export function CourseDetailPage() {
                       return ytId ? (
                         <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden bg-black/50">
                           <iframe
-                            src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&disablekb=0`}
+                            src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&disablekb=1&cc_load_policy=0&annotations=0`}
                             className="absolute inset-0 w-full h-full"
                             allowFullScreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
                             style={{ border: 'none' }}
                             title="Video player"
                           />
+                          {/* Overlay to hide YouTube top bar (channel name, title) */}
+                          <div className="absolute top-0 left-0 right-0 h-[55px] pointer-events-none z-10" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }} />
+                          {/* Overlay to hide YouTube bottom-right logo */}
+                          <div className="absolute bottom-[40px] right-0 w-[70px] h-[30px] pointer-events-none z-10" style={{ background: 'rgba(0,0,0,0.85)' }} />
                         </div>
                       ) : (
                         <div className="text-center py-8">
@@ -695,11 +724,102 @@ export function CourseDetailPage() {
                       </div>
                     )}
 
+                    {/* Quiz Content */}
+                    {activeLesson.type === 'quiz' && (
+                      <div className="py-6">
+                        {activeLesson.quizData && activeLesson.quizData.length > 0 ? (
+                          <div className="space-y-4">
+                            {activeLesson.quizData.map((q, qIdx) => (
+                              <div key={qIdx} className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/15">
+                                <p className="font-bold text-foreground text-sm mb-3">{qIdx + 1}. {q.question}</p>
+                                <div className="space-y-2">
+                                  {q.options.map((opt, oIdx) => (
+                                    <div key={oIdx} className={`p-2.5 rounded-lg text-sm ${oIdx === q.correctIndex ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-muted/20 border border-border text-foreground/70'}`}>
+                                      {opt}
+                                    </div>
+                                  ))}
+                                </div>
+                                {q.explanation && <p className="text-xs text-muted-foreground mt-2">💡 {q.explanation}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <p className="text-sm text-muted-foreground">لم تتم إضافة أسئلة لهذا الاختبار بعد</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Flashcard Content */}
+                    {activeLesson.type === 'flashcard' && (
+                      <div className="py-6">
+                        {activeLesson.flashcardData && activeLesson.flashcardData.length > 0 ? (
+                          <div className="space-y-3">
+                            {activeLesson.flashcardData.map((card, cIdx) => (
+                              <div key={cIdx} className="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/15">
+                                <p className="font-bold text-foreground text-sm">{card.front}</p>
+                                <p className="text-sm text-cyan-400 mt-2">{card.back}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <p className="text-sm text-muted-foreground">لم تتم إضافة بطاقات لهذا الدرس بعد</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Simulation Content */}
+                    {activeLesson.type === 'simulation' && (
+                      <div className="py-6">
+                        {activeLesson.simulationData ? (
+                          <div className="space-y-3">
+                            <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/15">
+                              <p className="text-xs text-purple-400 mb-1">معلومات المريض</p>
+                              <p className="text-sm text-foreground">{activeLesson.simulationData.patientInfo}</p>
+                            </div>
+                            <div className="grid grid-cols-5 gap-2">
+                              {[
+                                { label: 'HR', value: activeLesson.simulationData.vitals?.hr },
+                                { label: 'BP', value: activeLesson.simulationData.vitals?.bp },
+                                { label: 'SpO2', value: activeLesson.simulationData.vitals?.spo2 },
+                                { label: 'Temp', value: activeLesson.simulationData.vitals?.temp },
+                                { label: 'RR', value: activeLesson.simulationData.vitals?.rr },
+                              ].map((v, i) => (
+                                <div key={i} className="p-2 rounded-lg bg-muted/20 border border-border text-center">
+                                  <p className="text-[9px] text-muted-foreground">{v.label}</p>
+                                  <p className="text-sm font-bold text-foreground">{v.value}</p>
+                                </div>
+                              ))}
+                            </div>
+                            {activeLesson.simulationData.symptoms?.length > 0 && (
+                              <div className="p-3 rounded-xl bg-muted/10 border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">الأعراض</p>
+                                <p className="text-sm text-foreground">{activeLesson.simulationData.symptoms.join(' • ')}</p>
+                              </div>
+                            )}
+                            {activeLesson.simulationData.diagnosis && (
+                              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                                <p className="text-xs text-emerald-400 mb-1">التشخيص</p>
+                                <p className="text-sm text-foreground">{activeLesson.simulationData.diagnosis}</p>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <p className="text-sm text-muted-foreground">لم تتم إضافة بيانات المحاكاة لهذا الدرس بعد</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Mark as Complete Button */}
-                    {isUnlocked && !completedLessons.includes(activeLesson._id?.toString()) && (
+                    {isUnlocked && !completedLessons.includes(activeLesson.id) && !completedLessons.includes(activeLesson._id?.toString() || '') && (
                       <div className="mt-6 pt-4 border-t border-white/5">
                         <Button
-                          onClick={() => markLessonComplete(activeLesson._id?.toString())}
+                          onClick={() => markLessonComplete(activeLesson.id || activeLesson._id?.toString() || '')}
                           className="w-full bg-gradient-to-l from-emerald-500 to-teal-500 text-white font-bold hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
                         >
                           <CheckCircle2 className="w-4 h-4 ml-2" />
@@ -708,7 +828,7 @@ export function CourseDetailPage() {
                       </div>
                     )}
 
-                    {completedLessons.includes(activeLesson._id?.toString()) && (
+                    {completedLessons.includes(activeLesson.id) || completedLessons.includes(activeLesson._id?.toString() || '') ? (
                       <div className="mt-6 pt-4 border-t border-white/5">
                         <div className="flex items-center justify-center gap-2 text-sm text-emerald-400">
                           <CheckCircle2 className="w-4 h-4" />

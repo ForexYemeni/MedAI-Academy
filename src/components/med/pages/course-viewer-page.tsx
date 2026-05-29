@@ -1801,6 +1801,9 @@ export function CourseViewerPage() {
               videoUrl: l.videoUrl,
               summary: l.summary,
               keyPoints: l.keyPoints,
+              quizData: l.quizData || undefined,
+              flashcardData: l.flashcardData || undefined,
+              simulationData: l.simulationData || undefined,
             }))
             // Always replace lessons for this course with API data (handles additions, deletions, and reordering)
             const otherLessons = currentLessons.filter(l => l.courseId !== activeCourseId)
@@ -2474,15 +2477,19 @@ export function CourseViewerPage() {
                           (() => {
                             const ytId = getYouTubeId(currentLesson.videoUrl)
                             return ytId ? (
-                              <div className="relative w-full pt-[56.25%] bg-black/50 group/video">
+                              <div className="relative w-full pt-[56.25%] bg-black/50 group/video overflow-hidden">
                                 <iframe
-                                  src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&disablekb=0`}
+                                  src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&disablekb=1&cc_load_policy=0&annotations=0`}
                                   className="absolute inset-0 w-full h-full"
                                   allowFullScreen
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
                                   style={{ border: 'none' }}
                                   title="Video player"
                                 />
+                                {/* Overlay to hide YouTube top bar (channel name, title) */}
+                                <div className="absolute top-0 left-0 right-0 h-[55px] pointer-events-none z-10" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }} />
+                                {/* Overlay to hide YouTube bottom-right logo */}
+                                <div className="absolute bottom-[40px] right-0 w-[70px] h-[30px] pointer-events-none z-10" style={{ background: 'rgba(0,0,0,0.85)' }} />
                               </div>
                             ) : (
                               <div className="p-8 text-center">
