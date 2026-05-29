@@ -531,7 +531,7 @@ function NotificationCenterPanel({ onClose }: { onClose: () => void }) {
   }, [notifications, unreadCount])
 
   return (
-    <div className="flex flex-col max-h-[70vh]" dir="rtl">
+    <div className="flex flex-col h-[70vh] overflow-hidden" dir="rtl">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-3">
@@ -616,7 +616,7 @@ function NotificationCenterPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Notifications List */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-2 space-y-1.5">
           <AnimatePresence mode="popLayout">
             {filteredNotifications.length === 0 ? (
