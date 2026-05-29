@@ -9,7 +9,8 @@ import {
   Menu, X, Brain, Target, Lightbulb, ChevronDown,
   CreditCard, Loader2, Image as ImageIcon, Wallet,
   Shield, ArrowLeft, Gift, Heart, Thermometer, Wind, Droplets,
-  Siren, Syringe, Stethoscope, User, ClipboardList
+  Siren, Syringe, Stethoscope, User, ClipboardList,
+  Volume2, VolumeX, Maximize, Minimize, RotateCcw, Trophy
 } from 'lucide-react'
 import { useAppStore, type Lesson, type Course, type LessonQuizQuestion, type LessonFlashcard, type LessonSimulationCase } from '@/store/app-store'
 import { useOffline } from '@/hooks/use-offline'
@@ -1532,8 +1533,9 @@ function MiniECGWave({ color = '#00ff88', height = 35, width = 160 }: { color?: 
 }
 
 function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
-  const [phase, setPhase] = useState<'intro' | 'vitals' | 'actions' | 'reveal'>('intro')
+  const [phase, setPhase] = useState<'intro' | 'vitals' | 'actions' | 'reveal' | 'results'>('intro')
   const [selectedActions, setSelectedActions] = useState<string[]>([])
+  const [startTime] = useState(Date.now())
   const simData = lesson.simulationData
 
   // Safe defaults
@@ -1549,6 +1551,22 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
   const isSpo2Abnormal = vitals.spo2 < 94
   const isTempAbnormal = vitals.temp > 38 || vitals.temp < 36
   const isRRAbnormal = vitals.rr > 20 || vitals.rr < 12
+
+  // Scoring logic
+  const calculateScore = () => {
+    if (actions.length === 0) return 0
+    const correctCount = selectedActions.filter(a => actions.includes(a)).length
+    return Math.round((correctCount / actions.length) * 100)
+  }
+
+  const score = calculateScore()
+  const missedActions = actions.filter(a => !selectedActions.includes(a))
+  const correctSelectedActions = selectedActions.filter(a => actions.includes(a))
+  const xpEarned = Math.round(score * 1.5)
+  const timeTaken = Math.round((Date.now() - startTime) / 1000)
+
+  const scoreColor = score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-yellow-400' : score >= 40 ? 'text-amber-400' : 'text-red-400'
+  const scoreGrade = score >= 90 ? 'ممتاز' : score >= 80 ? 'جيد جداً' : score >= 60 ? 'جيد' : score >= 40 ? 'مقبول' : 'يحتاج تحسين'
 
   if (!simData || (!patientInfo && !diagnosis)) {
     return (
@@ -1600,6 +1618,8 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
     </div>
   )
 
+  const allPhases = ['intro', 'vitals', 'actions', 'reveal', 'results']
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
       <div className="glass-card overflow-hidden">
@@ -1615,14 +1635,14 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
               {phase === 'vitals' && 'فحص العلامات الحيوية'}
               {phase === 'actions' && 'اتخاذ الإجراءات الطبية'}
               {phase === 'reveal' && 'التشخيص والعلاج'}
+              {phase === 'results' && 'نتائج التقييم'}
             </p>
           </div>
           {/* Phase indicators */}
           <div className="flex gap-1">
-            {['intro', 'vitals', 'actions', 'reveal'].map((p, i) => (
+            {allPhases.map((p, i) => (
               <div key={p} className={`w-2 h-2 rounded-full transition-all ${
-                ['intro', 'vitals', 'actions', 'reveal'].indexOf(phase) >= i
-                  ? 'bg-purple-400' : 'bg-muted/30'
+                allPhases.indexOf(phase) >= i ? 'bg-purple-400' : 'bg-muted/30'
               }`} />
             ))}
           </div>
@@ -1739,7 +1759,7 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
           </div>
         )}
 
-        {/* Reveal phase */}
+        {/* Reveal phase - Diagnosis & Treatment */}
         {phase === 'reveal' && (
           <div className="p-5">
             <div className="p-4 rounded-xl bg-neon-green/5 border border-neon-green/20 mb-4">
@@ -1762,12 +1782,158 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
               <p className="text-xs text-muted-foreground mb-1">الإجراءات التي اخترتها:</p>
               <div className="flex flex-wrap gap-1.5">
                 {selectedActions.map((a, i) => (
-                  <span key={i} className="px-2 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px]">{a}</span>
+                  <span key={i} className={`px-2 py-1 rounded border text-[10px] ${
+                    actions.includes(a) 
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' 
+                      : 'bg-red-500/10 border-red-500/20 text-red-300'
+                  }`}>{a}</span>
                 ))}
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-between">
               <Button onClick={() => { setPhase('intro'); setSelectedActions([]) }} variant="outline" className="border-border text-foreground">
+                <RotateCcw className="w-4 h-4 ml-1" />
+                إعادة المحاكاة
+              </Button>
+              <Button onClick={() => setPhase('results')} className="bg-gradient-to-l from-amber-500 to-orange-500 text-white font-bold">
+                عرض النتائج <Trophy className="w-4 h-4 mr-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Results phase - Professional Evaluation like main app */}
+        {phase === 'results' && (
+          <div className="p-5">
+            {/* Score Card */}
+            <div className="glass-card rounded-xl p-6 flex flex-col items-center text-center mb-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', delay: 0.3, stiffness: 200 }}
+              >
+                <Trophy className="size-12 text-amber-400 mb-2" style={{ filter: 'drop-shadow(0 0 10px rgba(245,158,11,0.4))' }} />
+              </motion.div>
+
+              <h2 className="text-xl font-bold text-foreground mb-1">تقييم المحاكاة</h2>
+              <p className="text-sm text-muted-foreground mb-4">تم إنهاء المحاكاة بنجاح</p>
+
+              {/* Score Circle */}
+              <div className="relative flex items-center justify-center mb-4">
+                <svg width="140" height="140" className="transform -rotate-90">
+                  <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(0,245,255,0.1)" strokeWidth="8" />
+                  <motion.circle
+                    cx="70" cy="70" r="58" fill="none"
+                    stroke={score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444'}
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 58}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 58 }}
+                    animate={{ strokeDashoffset: 2 * Math.PI * 58 * (1 - score / 100) }}
+                    transition={{ duration: 1.5, delay: 0.5 }}
+                    style={{ filter: 'drop-shadow(0 0 8px rgba(0,245,255,0.4))' }}
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <motion.span
+                    className={`text-4xl font-mono font-bold ${scoreColor}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1 }}
+                  >
+                    {score}
+                  </motion.span>
+                  <span className="text-xs text-muted-foreground">من 100</span>
+                </div>
+              </div>
+
+              <Badge className={`${scoreColor} bg-background/30 border-border text-sm px-3 py-1`}>
+                <Award className="size-3.5 ml-1" />
+                {scoreGrade}
+              </Badge>
+
+              {/* Stats Row */}
+              <div className="grid grid-cols-3 gap-4 mt-6 w-full">
+                <div className="flex flex-col items-center gap-1">
+                  <Zap className="size-5 text-amber-400" />
+                  <span className="text-lg font-bold text-amber-400">+{xpEarned}</span>
+                  <span className="text-[10px] text-muted-foreground">XP مكتسب</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Clock className="size-5 text-cyan-400" />
+                  <span className="text-lg font-bold text-cyan-400">
+                    {Math.floor(timeTaken / 60)}:{(timeTaken % 60).toString().padStart(2, '0')}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">الوقت المستغرق</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <CheckCircle2 className="size-5 text-emerald-400" />
+                  <span className="text-lg font-bold text-emerald-400">{correctSelectedActions.length}/{actions.length}</span>
+                  <span className="text-[10px] text-muted-foreground">إجراء صحيح</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance Breakdown */}
+            <div className="glass-card rounded-xl p-4 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="size-4 text-cyan-400" />
+                <h3 className="font-bold text-foreground text-sm">تفاصيل الأداء</h3>
+              </div>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground">الإجراءات المكتملة</span>
+                    <span className="text-muted-foreground font-mono">{correctSelectedActions.length}/{actions.length}</span>
+                  </div>
+                  <Progress
+                    value={actions.length > 0 ? (correctSelectedActions.length / actions.length) * 100 : 0}
+                    className="h-2 bg-cyan-500/10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Correct & Missed Actions */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="glass-card rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="size-4 text-emerald-400" />
+                  <h3 className="font-bold text-foreground text-sm">ما تم بشكل صحيح</h3>
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                  {correctSelectedActions.length > 0 ? correctSelectedActions.map((action, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs p-2 rounded bg-emerald-500/5 border border-emerald-500/10">
+                      <CheckCircle2 className="size-3 text-emerald-400 shrink-0" />
+                      <span className="text-emerald-400">{action}</span>
+                    </div>
+                  )) : (
+                    <span className="text-xs text-muted-foreground">لم تُنفذ أي إجراءات صحيحة</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="glass-card rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="size-4 text-red-400" />
+                  <h3 className="font-bold text-foreground text-sm">ما فاتك</h3>
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                  {missedActions.length > 0 ? missedActions.map((action, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs p-2 rounded bg-red-500/5 border border-red-500/10">
+                      <Shield className="size-3 text-red-400 shrink-0" />
+                      <span className="text-red-400">{action}</span>
+                    </div>
+                  )) : (
+                    <span className="text-xs text-emerald-400">أحسنت! لم يفتك شيء مهم</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-3">
+              <Button onClick={() => { setPhase('intro'); setSelectedActions([]) }} variant="outline" className="border-border text-foreground">
+                <RotateCcw className="w-4 h-4 ml-1" />
                 إعادة المحاكاة
               </Button>
             </div>
@@ -1778,22 +1944,25 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
   )
 }
 
-// ─── Professional Video Player (No YouTube Branding) ──────────
+// ─── Professional Video Player (No YouTube Branding + Sound Fix) ──
 function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: number }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [playerReady, setPlayerReady] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [showControls, setShowControls] = useState(true)
+  const [soundPrompt, setSoundPrompt] = useState(false)
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const hideControlsTimer = useRef<NodeJS.Timeout | null>(null)
 
-  // Load YouTube IFrame API
+  // Load YouTube IFrame API and initialize player
   useEffect(() => {
     if (!isPlaying) return
-    
-    const loadYTAPI = () => {
-      return new Promise<void>((resolve) => {
+
+    const loadYTAPI = (): Promise<void> => {
+      return new Promise((resolve) => {
         if ((window as any).YT && (window as any).YT.Player) {
           resolve()
           return
@@ -1814,13 +1983,31 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
       playerRef.current = new YT.Player(iframeRef.current, {
         events: {
           onReady: () => {
-            setPlayerReady(true)
-            // Play with sound - user already clicked our play button
+            // Play video first
             playerRef.current?.playVideo()
+            // ROOT FIX: Explicitly unmute and set volume for sound
+            // YouTube IFrame API starts muted by default on autoplay
+            try {
+              playerRef.current?.unMute()
+              playerRef.current?.setVolume(100)
+              setIsMuted(false)
+            } catch {
+              // If unmute fails (browser policy), show sound prompt
+              setSoundPrompt(true)
+            }
           },
           onStateChange: (event: any) => {
             if (event.data === YT.PlayerState.PAUSED) setIsPaused(true)
-            if (event.data === YT.PlayerState.PLAYING) setIsPaused(false)
+            if (event.data === YT.PlayerState.PLAYING) {
+              setIsPaused(false)
+              // Double-check unmute when playing starts
+              try {
+                if (playerRef.current?.isMuted?.()) {
+                  playerRef.current?.unMute()
+                  playerRef.current?.setVolume(100)
+                }
+              } catch {}
+            }
           }
         }
       })
@@ -1838,39 +2025,77 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
 
   // Handle fullscreen change
   useEffect(() => {
-    const handleFSChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
+    const handleFSChange = () => setIsFullscreen(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', handleFSChange)
     return () => document.removeEventListener('fullscreenchange', handleFSChange)
   }, [])
 
+  // Auto-hide controls
+  const resetHideTimer = useCallback(() => {
+    setShowControls(true)
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current)
+    hideControlsTimer.current = setTimeout(() => {
+      if (!isPaused) setShowControls(false)
+    }, 3000)
+  }, [isPaused])
+
   const togglePlayPause = () => {
     if (!playerRef.current) return
-    if (isPaused) {
-      playerRef.current.playVideo()
-    } else {
-      playerRef.current.pauseVideo()
-    }
+    try {
+      if (isPaused) {
+        playerRef.current.playVideo()
+      } else {
+        playerRef.current.pauseVideo()
+      }
+    } catch {}
+  }
+
+  const toggleMute = () => {
+    if (!playerRef.current) return
+    try {
+      if (isMuted) {
+        playerRef.current.unMute()
+        playerRef.current.setVolume(100)
+        setIsMuted(false)
+      } else {
+        playerRef.current.mute()
+        setIsMuted(true)
+      }
+      setSoundPrompt(false)
+    } catch {}
+  }
+
+  const handleSoundPromptClick = () => {
+    if (!playerRef.current) return
+    try {
+      playerRef.current.unMute()
+      playerRef.current.setVolume(100)
+      setIsMuted(false)
+      setSoundPrompt(false)
+    } catch {}
   }
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return
-    if (document.fullscreenElement) {
-      document.exitFullscreen()
-    } else {
-      containerRef.current.requestFullscreen()
-    }
+    try {
+      if (document.fullscreenElement) {
+        document.exitFullscreen()
+      } else {
+        containerRef.current.requestFullscreen()
+      }
+    } catch {}
   }
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full bg-black"
+      className="relative w-full bg-black overflow-hidden"
       style={{ aspectRatio: '16/9' }}
+      onMouseMove={resetHideTimer}
+      onMouseLeave={() => !isPaused && setShowControls(false)}
     >
       {!isPlaying ? (
-        /* Custom play overlay - no YouTube branding visible */
+        /* Custom play overlay - NO YouTube branding visible */
         <motion.div
           className="absolute inset-0 flex items-center justify-center cursor-pointer"
           onClick={() => setIsPlaying(true)}
@@ -1879,10 +2104,14 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
         >
           {/* Thumbnail background */}
           <img
-            src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
+            src={`https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`}
             className="absolute inset-0 w-full h-full object-cover"
             alt=""
             loading="lazy"
+            onError={(e) => {
+              // Fallback to hqdefault if maxresdefault fails
+              (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+            }}
           />
           <div className="absolute inset-0 bg-black/40" />
 
@@ -1906,47 +2135,101 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
           )}
         </motion.div>
       ) : (
-        /* YouTube iframe - no controls, managed by our custom buttons */
+        /* YouTube iframe with overlays to hide branding */
         <div className="relative w-full h-full overflow-hidden bg-black">
+          {/* The iframe with NO YouTube controls */}
           <iframe
             ref={iframeRef}
             id={`yt-player-${ytId}`}
-            src={`https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&controls=0&showinfo=0&cc_load_policy=0&annotations=0&disablekb=1`}
+            src={`https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&autoplay=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&controls=0&showinfo=0&cc_load_policy=0&annotations=0&disablekb=1`}
             className="absolute w-full h-full"
             style={{ border: 'none' }}
-            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen={false}
             title="Video player"
           />
-          
-          {/* Custom controls overlay - always visible when playing */}
-          <div className="absolute inset-0 z-10 flex flex-col justify-end">
-            {/* Click area for play/pause */}
-            <div className="flex-1 cursor-pointer flex items-center justify-center" onClick={togglePlayPause}>
+
+          {/* ── Top overlay: Hides YouTube channel name & video title ── */}
+          <div 
+            className="absolute top-0 left-0 right-0 h-14 z-20 pointer-events-none"
+            style={{ 
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' 
+            }} 
+          />
+
+          {/* ── Bottom-right overlay: Hides YouTube logo watermark ── */}
+          <div 
+            className="absolute bottom-0 left-0 w-24 h-12 z-20 pointer-events-none"
+            style={{ 
+              background: 'linear-gradient(to top right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' 
+            }} 
+          />
+
+          {/* ── Sound Permission Prompt (shows if browser blocks audio) ── */}
+          <AnimatePresence>
+            {soundPrompt && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="absolute top-16 left-1/2 -translate-x-1/2 z-30"
+              >
+                <button
+                  onClick={handleSoundPromptClick}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 transition-all backdrop-blur-sm"
+                >
+                  <VolumeX className="w-4 h-4" />
+                  <span className="text-xs font-bold">اضغط لتفعيل الصوت</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Custom controls overlay ── */}
+          <div 
+            className={`absolute inset-0 z-10 flex flex-col justify-end transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+          >
+            {/* Click area for play/pause (transparent) */}
+            <div className="flex-1 cursor-pointer" onClick={togglePlayPause} />
+            
+            {/* Pause indicator (center) */}
+            <AnimatePresence>
               {isPaused && (
                 <motion.div
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
-                  <Play className="w-7 h-7 text-white fill-white ml-1" />
+                  <div className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center">
+                    <Play className="w-7 h-7 text-white fill-white ml-1" />
+                  </div>
                 </motion.div>
               )}
-            </div>
-            
+            </AnimatePresence>
+
             {/* Bottom control bar */}
-            <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-t from-black/80 to-transparent">
-              <button onClick={togglePlayPause} className="text-white/80 hover:text-white transition-colors p-1">
-                {isPaused ? <Play className="w-5 h-5 fill-white" /> : <Pause className="w-5 h-5" />}
+            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+              {/* Play/Pause */}
+              <button onClick={togglePlayPause} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                {isPaused ? <Play className="w-5 h-5 fill-white" /> : <Pause className="w-5 h-5 text-white" />}
               </button>
+
+              {/* Sound toggle */}
+              <button onClick={toggleMute} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                {isMuted ? <VolumeX className="w-5 h-5 text-amber-400" /> : <Volume2 className="w-5 h-5" />}
+              </button>
+
+              {/* Duration badge */}
               {duration && (
-                <span className="text-white/60 text-xs">{duration} دقيقة</span>
+                <span className="text-white/50 text-[11px] font-mono mr-auto">{duration} د</span>
               )}
-              <button onClick={toggleFullscreen} className="text-white/80 hover:text-white transition-colors p-1">
-                {isFullscreen ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-                )}
+
+              {!duration && <div className="flex-1" />}
+
+              {/* Fullscreen toggle */}
+              <button onClick={toggleFullscreen} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
             </div>
           </div>

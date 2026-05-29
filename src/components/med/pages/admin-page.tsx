@@ -469,7 +469,7 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
     setForm({ ...form, simulationData: { ...form.simulationData, [field]: value } as ApiLessonSimulationCase })
   }
   const updateVital = (vitalField: string, vitalValue: any) => {
-    const currentVitals = form.simulationData?.vitals || { hr: 80, bp: '120/80', spo2: 98, temp: 37, rr: 16 }
+    const currentVitals = form.simulationData?.vitals || { hr: 0, bp: '', spo2: 0, temp: 0, rr: 0 }
     const newVitals = { ...currentVitals, [vitalField]: vitalValue }
     updateSimulationData('vitals', newVitals)
   }
@@ -645,33 +645,38 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
                 <label className="text-[10px] text-muted-foreground/60 mb-1 block">العلامات الحيوية</label>
                 <div className="grid grid-cols-5 gap-2">
                   <div>
-                    <label className="text-[9px] text-muted-foreground/50 block">HR</label>
-                    <Input type="number" value={form.simulationData?.vitals?.hr || 80}
-                      onChange={(e) => updateVital('hr', parseInt(e.target.value) || 0)}
+                    <label className="text-[9px] text-muted-foreground/50 block">HR (نبض)</label>
+                    <Input type="number" value={form.simulationData?.vitals?.hr || ''}
+                      onChange={(e) => updateVital('hr', e.target.value ? parseInt(e.target.value) : 0)}
+                      placeholder="80"
                       className="bg-muted/30 border-border text-xs h-8 text-center" />
                   </div>
                   <div>
-                    <label className="text-[9px] text-muted-foreground/50 block">BP</label>
-                    <Input value={form.simulationData?.vitals?.bp || '120/80'}
+                    <label className="text-[9px] text-muted-foreground/50 block">BP (ضغط)</label>
+                    <Input value={form.simulationData?.vitals?.bp || ''}
                       onChange={(e) => updateVital('bp', e.target.value)}
+                      placeholder="120/80"
                       className="bg-muted/30 border-border text-xs h-8 text-center" />
                   </div>
                   <div>
-                    <label className="text-[9px] text-muted-foreground/50 block">SpO2</label>
-                    <Input type="number" value={form.simulationData?.vitals?.spo2 || 98}
-                      onChange={(e) => updateVital('spo2', parseInt(e.target.value) || 0)}
+                    <label className="text-[9px] text-muted-foreground/50 block">SpO2 (%)</label>
+                    <Input type="number" value={form.simulationData?.vitals?.spo2 || ''}
+                      onChange={(e) => updateVital('spo2', e.target.value ? parseInt(e.target.value) : 0)}
+                      placeholder="98"
                       className="bg-muted/30 border-border text-xs h-8 text-center" />
                   </div>
                   <div>
-                    <label className="text-[9px] text-muted-foreground/50 block">Temp</label>
-                    <Input type="number" step="0.1" value={form.simulationData?.vitals?.temp || 37}
-                      onChange={(e) => updateVital('temp', parseFloat(e.target.value) || 0)}
+                    <label className="text-[9px] text-muted-foreground/50 block">Temp (°C)</label>
+                    <Input type="number" step="0.1" value={form.simulationData?.vitals?.temp || ''}
+                      onChange={(e) => updateVital('temp', e.target.value ? parseFloat(e.target.value) : 0)}
+                      placeholder="37.0"
                       className="bg-muted/30 border-border text-xs h-8 text-center" />
                   </div>
                   <div>
-                    <label className="text-[9px] text-muted-foreground/50 block">RR</label>
-                    <Input type="number" value={form.simulationData?.vitals?.rr || 16}
-                      onChange={(e) => updateVital('rr', parseInt(e.target.value) || 0)}
+                    <label className="text-[9px] text-muted-foreground/50 block">RR (تنفس)</label>
+                    <Input type="number" value={form.simulationData?.vitals?.rr || ''}
+                      onChange={(e) => updateVital('rr', e.target.value ? parseInt(e.target.value) : 0)}
+                      placeholder="16"
                       className="bg-muted/30 border-border text-xs h-8 text-center" />
                   </div>
                 </div>

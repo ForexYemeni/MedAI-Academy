@@ -6,7 +6,7 @@ import {
   ArrowRight, BookOpen, Clock, Play, Pause, CheckCircle2, Lock,
   Crown, Star, Users, ChevronDown, ChevronUp, FileText,
   Video, FileIcon, GraduationCap, Loader2, ArrowLeft,
-  Hourglass, X
+  Hourglass, X, Volume2, VolumeX, Maximize, Minimize, Heart, Thermometer, Wind, Droplets, Activity, Zap, Siren, Syringe, Stethoscope, User, ClipboardList, RotateCcw, Trophy, Brain, Target, Lightbulb
 } from 'lucide-react'
 import { useAppStore, type Course } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
@@ -78,20 +78,24 @@ function getYouTubeId(url: string): string | null {
   return null
 }
 
-// ─── Professional Video Player (No YouTube Branding) ──────────
+// ─── Professional Video Player (No YouTube Branding + Sound Fix) ──
 function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [showControls, setShowControls] = useState(true)
+  const [soundPrompt, setSoundPrompt] = useState(false)
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const hideControlsTimer = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (!isPlaying) return
-    
-    const loadYTAPI = () => {
-      return new Promise<void>((resolve) => {
+
+    const loadYTAPI = (): Promise<void> => {
+      return new Promise((resolve) => {
         if ((window as any).YT && (window as any).YT.Player) {
           resolve()
           return
@@ -113,10 +117,26 @@ function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number
         events: {
           onReady: () => {
             playerRef.current?.playVideo()
+            // ROOT FIX: Explicitly unmute and set volume for sound
+            try {
+              playerRef.current?.unMute()
+              playerRef.current?.setVolume(100)
+              setIsMuted(false)
+            } catch {
+              setSoundPrompt(true)
+            }
           },
           onStateChange: (event: any) => {
             if (event.data === YT.PlayerState.PAUSED) setIsPaused(true)
-            if (event.data === YT.PlayerState.PLAYING) setIsPaused(false)
+            if (event.data === YT.PlayerState.PLAYING) {
+              setIsPaused(false)
+              try {
+                if (playerRef.current?.isMuted?.()) {
+                  playerRef.current?.unMute()
+                  playerRef.current?.setVolume(100)
+                }
+              } catch {}
+            }
           }
         }
       })
@@ -138,14 +158,53 @@ function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number
     return () => document.removeEventListener('fullscreenchange', handleFSChange)
   }, [])
 
+  const resetHideTimer = useCallback(() => {
+    setShowControls(true)
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current)
+    hideControlsTimer.current = setTimeout(() => {
+      if (!isPaused) setShowControls(false)
+    }, 3000)
+  }, [isPaused])
+
   const togglePlayPause = () => {
     if (!playerRef.current) return
-    if (isPaused) { playerRef.current.playVideo() } else { playerRef.current.pauseVideo() }
+    try {
+      if (isPaused) playerRef.current.playVideo()
+      else playerRef.current.pauseVideo()
+    } catch {}
+  }
+
+  const toggleMute = () => {
+    if (!playerRef.current) return
+    try {
+      if (isMuted) {
+        playerRef.current.unMute()
+        playerRef.current.setVolume(100)
+        setIsMuted(false)
+      } else {
+        playerRef.current.mute()
+        setIsMuted(true)
+      }
+      setSoundPrompt(false)
+    } catch {}
+  }
+
+  const handleSoundPromptClick = () => {
+    if (!playerRef.current) return
+    try {
+      playerRef.current.unMute()
+      playerRef.current.setVolume(100)
+      setIsMuted(false)
+      setSoundPrompt(false)
+    } catch {}
   }
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return
-    if (document.fullscreenElement) { document.exitFullscreen() } else { containerRef.current.requestFullscreen() }
+    try {
+      if (document.fullscreenElement) document.exitFullscreen()
+      else containerRef.current.requestFullscreen()
+    } catch {}
   }
 
   return (
@@ -153,6 +212,8 @@ function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number
       ref={containerRef}
       className="relative w-full bg-black rounded-xl overflow-hidden"
       style={{ aspectRatio: '16/9' }}
+      onMouseMove={resetHideTimer}
+      onMouseLeave={() => !isPaused && setShowControls(false)}
     >
       {!isPlaying ? (
         <motion.div
@@ -161,12 +222,15 @@ function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number
           whileTap={{ scale: 0.998 }}
         >
           <img
-            src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
-            className="absolute inset-0 w-full h-full object-cover"
+            src={`https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`}
+            className="absolute inset-0 w-full h-full object-cover rounded-xl"
             alt=""
             loading="lazy"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+            }}
           />
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-black/40 rounded-xl" />
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -188,33 +252,415 @@ function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number
           <iframe
             ref={iframeRef}
             id={`yt-player-detail-${ytId}`}
-            src={`https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&controls=0&showinfo=0&cc_load_policy=0&annotations=0&disablekb=1`}
+            src={`https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&autoplay=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&controls=0&showinfo=0&cc_load_policy=0&annotations=0&disablekb=1`}
             className="absolute w-full h-full"
             style={{ border: 'none' }}
-            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen={false}
             title="Video player"
           />
-          <div className="absolute inset-0 z-10 flex flex-col justify-end">
-            <div className="flex-1 cursor-pointer flex items-center justify-center" onClick={togglePlayPause}>
+
+          {/* Top overlay: Hides YouTube channel name */}
+          <div 
+            className="absolute top-0 left-0 right-0 h-14 z-20 pointer-events-none"
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' }} 
+          />
+
+          {/* Bottom-right overlay: Hides YouTube logo watermark */}
+          <div 
+            className="absolute bottom-0 left-0 w-24 h-12 z-20 pointer-events-none"
+            style={{ background: 'linear-gradient(to top right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' }} 
+          />
+
+          {/* Sound Permission Prompt */}
+          <AnimatePresence>
+            {soundPrompt && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="absolute top-16 left-1/2 -translate-x-1/2 z-30"
+              >
+                <button
+                  onClick={handleSoundPromptClick}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30 transition-all backdrop-blur-sm"
+                >
+                  <VolumeX className="w-4 h-4" />
+                  <span className="text-xs font-bold">اضغط لتفعيل الصوت</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Custom controls overlay */}
+          <div 
+            className={`absolute inset-0 z-10 flex flex-col justify-end transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+          >
+            <div className="flex-1 cursor-pointer" onClick={togglePlayPause} />
+            <AnimatePresence>
               {isPaused && (
-                <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-14 h-14 rounded-full bg-black/50 flex items-center justify-center">
-                  <Play className="w-6 h-6 text-white fill-white ml-0.5" />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                >
+                  <div className="w-14 h-14 rounded-full bg-black/50 flex items-center justify-center">
+                    <Play className="w-6 h-6 text-white fill-white ml-0.5" />
+                  </div>
                 </motion.div>
               )}
-            </div>
-            <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-t from-black/80 to-transparent">
-              <button onClick={togglePlayPause} className="text-white/80 hover:text-white transition-colors p-1">
-                {isPaused ? <Play className="w-5 h-5 fill-white" /> : <Pause className="w-5 h-5" />}
+            </AnimatePresence>
+            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+              <button onClick={togglePlayPause} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                {isPaused ? <Play className="w-5 h-5 fill-white" /> : <Pause className="w-5 h-5 text-white" />}
               </button>
-              {duration && <span className="text-white/60 text-xs">{duration} دقيقة</span>}
-              <button onClick={toggleFullscreen} className="text-white/80 hover:text-white transition-colors p-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              <button onClick={toggleMute} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                {isMuted ? <VolumeX className="w-5 h-5 text-amber-400" /> : <Volume2 className="w-5 h-5" />}
+              </button>
+              {duration && <span className="text-white/50 text-[11px] font-mono mr-auto">{duration} د</span>}
+              {!duration && <div className="flex-1" />}
+              <button onClick={toggleFullscreen} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Detail Inline Simulation (Professional with Results) ────────
+function DetailInlineSimulation({ lesson }: { lesson: any }) {
+  const [phase, setPhase] = useState<'intro' | 'vitals' | 'actions' | 'reveal' | 'results'>('intro')
+  const [selectedActions, setSelectedActions] = useState<string[]>([])
+  const [startTime] = useState(Date.now())
+  const simData = lesson.simulationData
+
+  const vitals = simData?.vitals || { hr: 0, bp: '--', spo2: 0, temp: 0, rr: 0 }
+  const symptoms = simData?.symptoms || []
+  const actions = simData?.actions || []
+  const diagnosis = simData?.diagnosis || ''
+  const treatment = simData?.treatment || ''
+  const patientInfo = simData?.patientInfo || ''
+
+  const isHRAbnormal = vitals.hr > 100 || vitals.hr < 60
+  const isSpo2Abnormal = vitals.spo2 < 94
+  const isTempAbnormal = vitals.temp > 38 || vitals.temp < 36
+  const isRRAbnormal = vitals.rr > 20 || vitals.rr < 12
+
+  const calculateScore = () => {
+    if (actions.length === 0) return 0
+    const correctCount = selectedActions.filter(a => actions.includes(a)).length
+    return Math.round((correctCount / actions.length) * 100)
+  }
+  const score = calculateScore()
+  const missedActions = actions.filter(a => !selectedActions.includes(a))
+  const correctSelectedActions = selectedActions.filter(a => actions.includes(a))
+  const xpEarned = Math.round(score * 1.5)
+  const timeTaken = Math.round((Date.now() - startTime) / 1000)
+  const scoreColor = score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-yellow-400' : score >= 40 ? 'text-amber-400' : 'text-red-400'
+  const scoreGrade = score >= 90 ? 'ممتاز' : score >= 80 ? 'جيد جداً' : score >= 60 ? 'جيد' : score >= 40 ? 'مقبول' : 'يحتاج تحسين'
+
+  if (!simData || (!patientInfo && !diagnosis)) {
+    return (
+      <div className="py-6 text-center">
+        <Activity className="w-12 h-12 text-purple-400/30 mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">لم تتم إضافة بيانات المحاكاة لهذا الدرس بعد</p>
+      </div>
+    )
+  }
+
+  const toggleAction = (action: string) => {
+    setSelectedActions(prev => prev.includes(action) ? prev.filter(a => a !== action) : [...prev, action])
+  }
+
+  const allPhases = ['intro', 'vitals', 'actions', 'reveal', 'results']
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="py-2">
+      <div className="glass-card overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+          <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+            <Siren className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-foreground">محاكاة تفاعلية</p>
+            <p className="text-[10px] text-muted-foreground">
+              {phase === 'intro' && 'قراءة الحالة المرضية'}
+              {phase === 'vitals' && 'فحص العلامات الحيوية'}
+              {phase === 'actions' && 'اتخاذ الإجراءات الطبية'}
+              {phase === 'reveal' && 'التشخيص والعلاج'}
+              {phase === 'results' && 'نتائج التقييم'}
+            </p>
+          </div>
+          <div className="flex gap-1">
+            {allPhases.map((p) => (
+              <div key={p} className={`w-2 h-2 rounded-full transition-all ${allPhases.indexOf(phase) >= allPhases.indexOf(p) ? 'bg-purple-400' : 'bg-muted/30'}`} />
+            ))}
+          </div>
+        </div>
+
+        {/* Intro */}
+        {phase === 'intro' && (
+          <div className="p-5">
+            <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/15 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="size-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-foreground">معلومات المريض</h3>
+              </div>
+              <div className="bg-background/30 rounded-lg p-3 border border-border">
+                <p className="text-foreground/80 leading-7 text-sm">{patientInfo}</p>
+              </div>
+            </div>
+            {symptoms.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="size-4 text-red-400" />
+                  <p className="text-sm font-semibold text-foreground">الأعراض</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {symptoms.map((s: string, i: number) => (
+                    <span key={i} className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-medium">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={() => setPhase('vitals')} className="bg-gradient-to-l from-purple-500 to-violet-500 text-white font-bold">
+                فحص العلامات الحيوية <ArrowRight className="w-4 h-4 mr-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Vitals */}
+        {phase === 'vitals' && (
+          <div className="p-5">
+            <div className="rounded-xl border border-cyan-500/15 bg-card p-4 relative overflow-hidden mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="size-4 text-cyan-400" />
+                <span className="text-xs font-mono text-cyan-400 tracking-wider">VITAL SIGNS MONITOR</span>
+                <div className="flex-1" />
+                <motion.div className="flex items-center gap-1" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[10px] font-mono text-emerald-400">LIVE</span>
+                </motion.div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {[
+                  { label: 'HR', value: vitals.hr, unit: 'bpm', icon: Heart, abnormal: isHRAbnormal },
+                  { label: 'BP', value: vitals.bp, unit: 'mmHg', icon: Activity, abnormal: false },
+                  { label: 'SpO2', value: vitals.spo2, unit: '%', icon: Droplets, abnormal: isSpo2Abnormal },
+                  { label: 'TEMP', value: typeof vitals.temp === 'number' ? vitals.temp.toFixed(1) : vitals.temp, unit: '°C', icon: Thermometer, abnormal: isTempAbnormal },
+                  { label: 'RR', value: vitals.rr, unit: '/min', icon: Wind, abnormal: isRRAbnormal },
+                ].map((v, i) => {
+                  const VIcon = v.icon
+                  return (
+                    <div key={i} className={`relative flex flex-col gap-1 p-3 rounded-lg border transition-all ${v.abnormal ? 'border-red-500/30 bg-red-500/5' : 'border-cyan-500/10 bg-cyan-500/5'}`}>
+                      <div className="flex items-center gap-1.5">
+                        <VIcon className={`size-3.5 ${v.abnormal ? 'text-red-400' : 'text-cyan-400'}`} />
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{v.label}</span>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className={`text-xl font-mono font-bold tabular-nums ${v.abnormal ? 'text-red-400' : 'text-neon-green'}`}>{v.value}</span>
+                        <span className="text-[10px] text-muted-foreground">{v.unit}</span>
+                      </div>
+                      {v.abnormal && (
+                        <motion.div className="absolute top-1 left-1" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1, repeat: Infinity }}>
+                          <Zap className="size-3 text-red-400" />
+                        </motion.div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="flex justify-between">
+              <Button onClick={() => setPhase('intro')} variant="ghost" className="text-muted-foreground">رجوع</Button>
+              <Button onClick={() => setPhase('actions')} className="bg-gradient-to-l from-purple-500 to-violet-500 text-white font-bold">
+                اتخاذ الإجراءات <ArrowRight className="w-4 h-4 mr-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        {phase === 'actions' && (
+          <div className="p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Syringe className="size-4 text-cyan-400" />
+              <h3 className="font-bold text-foreground text-sm">الإجراءات الطبية</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">اختر الإجراءات المناسبة للحالة:</p>
+            <div className="space-y-2 mb-4">
+              {actions.map((action: string, i: number) => (
+                <motion.button
+                  key={i}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  onClick={() => toggleAction(action)}
+                  className={`w-full text-right p-3 rounded-xl border transition-all flex items-center gap-3 ${
+                    selectedActions.includes(action) ? 'bg-purple-500/10 border-purple-500/30' : 'bg-muted/20 border-border hover:border-muted-foreground/30'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${selectedActions.includes(action) ? 'border-purple-400 bg-purple-400/20' : 'border-border'}`}>
+                    {selectedActions.includes(action) && <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />}
+                  </div>
+                  <span className="text-sm text-foreground/90">{action}</span>
+                </motion.button>
+              ))}
+            </div>
+            <div className="flex justify-between">
+              <Button onClick={() => setPhase('vitals')} variant="ghost" className="text-muted-foreground">رجوع</Button>
+              <Button onClick={() => setPhase('reveal')} disabled={selectedActions.length === 0}
+                className="bg-gradient-to-l from-purple-500 to-violet-500 text-white font-bold disabled:opacity-50">
+                عرض التشخيص <ArrowRight className="w-4 h-4 mr-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Reveal */}
+        {phase === 'reveal' && (
+          <div className="p-5">
+            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold text-emerald-400">التشخيص</h3>
+              </div>
+              <p className="text-foreground/90 text-sm leading-7">{diagnosis}</p>
+            </div>
+            {treatment && (
+              <div className="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/15 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightbulb className="w-5 h-5 text-cyan-400" />
+                  <h3 className="text-sm font-bold text-cyan-400">خطة العلاج</h3>
+                </div>
+                <p className="text-foreground/80 text-sm leading-7">{treatment}</p>
+              </div>
+            )}
+            <div className="p-3 rounded-lg bg-muted/20 border border-border mb-4">
+              <p className="text-xs text-muted-foreground mb-1">الإجراءات التي اخترتها:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedActions.map((a, i) => (
+                  <span key={i} className={`px-2 py-1 rounded border text-[10px] ${actions.includes(a) ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-red-500/10 border-red-500/20 text-red-300'}`}>{a}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-between">
+              <Button onClick={() => { setPhase('intro'); setSelectedActions([]) }} variant="outline" className="border-border text-foreground">
+                <RotateCcw className="w-4 h-4 ml-1" />
+                إعادة المحاكاة
+              </Button>
+              <Button onClick={() => setPhase('results')} className="bg-gradient-to-l from-amber-500 to-orange-500 text-white font-bold">
+                عرض النتائج <Trophy className="w-4 h-4 mr-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        {phase === 'results' && (
+          <div className="p-5">
+            <div className="glass-card rounded-xl p-6 flex flex-col items-center text-center mb-4">
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3, stiffness: 200 }}>
+                <Trophy className="size-12 text-amber-400 mb-2" style={{ filter: 'drop-shadow(0 0 10px rgba(245,158,11,0.4))' }} />
+              </motion.div>
+              <h2 className="text-xl font-bold text-foreground mb-1">تقييم المحاكاة</h2>
+              <p className="text-sm text-muted-foreground mb-4">تم إنهاء المحاكاة بنجاح</p>
+              <div className="relative flex items-center justify-center mb-4">
+                <svg width="140" height="140" className="transform -rotate-90">
+                  <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(0,245,255,0.1)" strokeWidth="8" />
+                  <motion.circle
+                    cx="70" cy="70" r="58" fill="none"
+                    stroke={score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444'}
+                    strokeWidth="8" strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 58}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 58 }}
+                    animate={{ strokeDashoffset: 2 * Math.PI * 58 * (1 - score / 100) }}
+                    transition={{ duration: 1.5, delay: 0.5 }}
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <motion.span className={`text-4xl font-mono font-bold ${scoreColor}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>{score}</motion.span>
+                  <span className="text-xs text-muted-foreground">من 100</span>
+                </div>
+              </div>
+              <Badge className={`${scoreColor} bg-background/30 border-border text-sm px-3 py-1`}>
+                <Award className="size-3.5 ml-1" />{scoreGrade}
+              </Badge>
+              <div className="grid grid-cols-3 gap-4 mt-6 w-full">
+                <div className="flex flex-col items-center gap-1">
+                  <Zap className="size-5 text-amber-400" />
+                  <span className="text-lg font-bold text-amber-400">+{xpEarned}</span>
+                  <span className="text-[10px] text-muted-foreground">XP مكتسب</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Clock className="size-5 text-cyan-400" />
+                  <span className="text-lg font-bold text-cyan-400">{Math.floor(timeTaken / 60)}:{(timeTaken % 60).toString().padStart(2, '0')}</span>
+                  <span className="text-[10px] text-muted-foreground">الوقت المستغرق</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <CheckCircle2 className="size-5 text-emerald-400" />
+                  <span className="text-lg font-bold text-emerald-400">{correctSelectedActions.length}/{actions.length}</span>
+                  <span className="text-[10px] text-muted-foreground">إجراء صحيح</span>
+                </div>
+              </div>
+            </div>
+            <div className="glass-card rounded-xl p-4 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="size-4 text-cyan-400" />
+                <h3 className="font-bold text-foreground text-sm">تفاصيل الأداء</h3>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-foreground">الإجراءات المكتملة</span>
+                  <span className="text-muted-foreground font-mono">{correctSelectedActions.length}/{actions.length}</span>
+                </div>
+                <Progress value={actions.length > 0 ? (correctSelectedActions.length / actions.length) * 100 : 0} className="h-2 bg-cyan-500/10" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="glass-card rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="size-4 text-emerald-400" />
+                  <h3 className="font-bold text-foreground text-sm">ما تم بشكل صحيح</h3>
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                  {correctSelectedActions.length > 0 ? correctSelectedActions.map((action, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs p-2 rounded bg-emerald-500/5 border border-emerald-500/10">
+                      <CheckCircle2 className="size-3 text-emerald-400 shrink-0" /><span className="text-emerald-400">{action}</span>
+                    </div>
+                  )) : <span className="text-xs text-muted-foreground">لم تُنفذ أي إجراءات صحيحة</span>}
+                </div>
+              </div>
+              <div className="glass-card rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="size-4 text-red-400" />
+                  <h3 className="font-bold text-foreground text-sm">ما فاتك</h3>
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                  {missedActions.length > 0 ? missedActions.map((action, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs p-2 rounded bg-red-500/5 border border-red-500/10">
+                      <Shield className="size-3 text-red-400 shrink-0" /><span className="text-red-400">{action}</span>
+                    </div>
+                  )) : <span className="text-xs text-emerald-400">أحسنت! لم يفتك شيء مهم</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-center gap-3">
+              <Button onClick={() => { setPhase('intro'); setSelectedActions([]) }} variant="outline" className="border-border text-foreground">
+                <RotateCcw className="w-4 h-4 ml-1" />إعادة المحاكاة
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
   )
 }
 
@@ -898,58 +1344,9 @@ export function CourseDetailPage() {
                       </div>
                     )}
 
-                    {/* Simulation Content */}
+                    {/* Simulation Content - Interactive */}
                     {activeLesson.type === 'simulation' && (
-                      <div className="py-6">
-                        {activeLesson.simulationData && (activeLesson.simulationData.patientInfo || activeLesson.simulationData.diagnosis) ? (
-                          <div className="space-y-3">
-                            {activeLesson.simulationData.patientInfo && (
-                              <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/15">
-                                <p className="text-xs text-purple-400 mb-1">معلومات المريض</p>
-                                <p className="text-sm text-foreground">{activeLesson.simulationData.patientInfo}</p>
-                              </div>
-                            )}
-                            {activeLesson.simulationData.vitals && (
-                              <div className="grid grid-cols-5 gap-2">
-                                {[
-                                  { label: 'HR', value: activeLesson.simulationData.vitals.hr || '--' },
-                                  { label: 'BP', value: activeLesson.simulationData.vitals.bp || '--' },
-                                  { label: 'SpO2', value: activeLesson.simulationData.vitals.spo2 || '--' },
-                                  { label: 'Temp', value: activeLesson.simulationData.vitals.temp || '--' },
-                                  { label: 'RR', value: activeLesson.simulationData.vitals.rr || '--' },
-                                ].map((v, i) => (
-                                  <div key={i} className="p-2 rounded-lg bg-muted/20 border border-border text-center">
-                                    <p className="text-[9px] text-muted-foreground">{v.label}</p>
-                                    <p className="text-sm font-bold text-foreground">{v.value}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {activeLesson.simulationData.symptoms && activeLesson.simulationData.symptoms.length > 0 && (
-                              <div className="p-3 rounded-xl bg-muted/10 border border-border">
-                                <p className="text-xs text-muted-foreground mb-1">الأعراض</p>
-                                <p className="text-sm text-foreground">{activeLesson.simulationData.symptoms.join(' • ')}</p>
-                              </div>
-                            )}
-                            {activeLesson.simulationData.diagnosis && (
-                              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
-                                <p className="text-xs text-emerald-400 mb-1">التشخيص</p>
-                                <p className="text-sm text-foreground">{activeLesson.simulationData.diagnosis}</p>
-                              </div>
-                            )}
-                            {activeLesson.simulationData.treatment && (
-                              <div className="p-3 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15">
-                                <p className="text-xs text-neon-cyan mb-1">العلاج</p>
-                                <p className="text-sm text-foreground">{activeLesson.simulationData.treatment}</p>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center py-4">
-                            <p className="text-sm text-muted-foreground">لم تتم إضافة بيانات المحاكاة لهذا الدرس بعد</p>
-                          </div>
-                        )}
-                      </div>
+                      <DetailInlineSimulation lesson={activeLesson} />
                     )}
 
                     {/* Mark as Complete Button */}
