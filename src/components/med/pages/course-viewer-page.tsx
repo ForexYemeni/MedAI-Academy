@@ -1945,23 +1945,25 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
 }
 
 // ─── Professional Video Player (No YouTube Branding + Sound Fix) ──
+// RADICAL APPROACH: Start muted autoplay (browsers allow this),
+// then user clicks "Enable Sound" = fresh user gesture = unMute() works 100%.
+// No iframe scaling - keep 100% for good video quality.
+// Hide YouTube branding with targeted overlays only.
 function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: number }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
+  const [isMuted, setIsMuted] = useState(true) // Always start muted (autoplay policy)
   const [showControls, setShowControls] = useState(true)
   const [playerReady, setPlayerReady] = useState(false)
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const playerDivRef = useRef<HTMLDivElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
   const hideControlsTimer = useRef<NodeJS.Timeout | null>(null)
 
-  // RADICAL FIX: Use YouTube IFrame API on a DIV element (not iframe)
-  // This gives full programmatic control. User click = user gesture = sound allowed.
-  // No autoplay=1 in URL = no browser policy conflict.
+  // Load YouTube IFrame API on existing iframe for programmatic control
   useEffect(() => {
-    if (!isPlaying || !playerDivRef.current) return
+    if (!isPlaying) return
 
     const loadYTAPI = (): Promise<void> => {
       return new Promise((resolve) => {
@@ -1980,76 +1982,39 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
     const initPlayer = async () => {
       await loadYTAPI()
       const YT = (window as any).YT
-      if (!YT || !YT.Player || !playerDivRef.current) return
+      if (!YT || !YT.Player) return
 
-      // Destroy previous player if exists
-      if (playerRef.current) {
-        try { playerRef.current.destroy() } catch {}
-        playerRef.current = null
-      }
+      // Wait for iframe to be in DOM
+      await new Promise(r => setTimeout(r, 200))
+      if (!iframeRef.current) return
 
-      playerRef.current = new YT.Player(playerDivRef.current, {
-        videoId: ytId,
-        width: '100%',
-        height: '100%',
-        playerVars: {
-          autoplay: 0,       // NO autoplay - we control playback via API
-          controls: 0,       // Hide ALL YouTube controls
-          modestbranding: 1, // Minimal YouTube branding
-          rel: 0,            // No related videos
-          showinfo: 0,       // No video title/info
-          iv_load_policy: 3, // No annotations
-          fs: 0,             // Disable YouTube fullscreen button
-          disablekb: 1,      // Disable keyboard controls
-          playsinline: 1,    // Play inline on mobile
-          cc_load_policy: 0, // No closed captions
-          origin: typeof window !== 'undefined' ? window.location.origin : '',
-        },
+      playerRef.current = new YT.Player(iframeRef.current, {
         events: {
           onReady: () => {
             setPlayerReady(true)
-            // CRITICAL: playVideo() called here is triggered by user's click
-            // (the setIsPlaying(true) was from onClick). Browser allows sound!
-            try {
-              playerRef.current?.playVideo()
-              // Explicitly ensure NOT muted and volume at 100%
-              playerRef.current?.unMute()
-              playerRef.current?.setVolume(100)
-              setIsMuted(false)
-            } catch {
-              setIsMuted(true)
-            }
+            // Video is already autoplaying MUTED via iframe src (autoplay=1&mute=1)
+            // We do NOT try to unmute here - browser will block it.
+            // User must click "Enable Sound" button for fresh user gesture.
           },
           onStateChange: (event: any) => {
             if (event.data === YT.PlayerState.PAUSED) setIsPaused(true)
-            if (event.data === YT.PlayerState.PLAYING) {
-              setIsPaused(false)
-              // Ensure sound is on when playing
-              try {
-                if (playerRef.current?.isMuted?.()) {
-                  playerRef.current?.unMute()
-                  playerRef.current?.setVolume(100)
-                  setIsMuted(false)
-                }
-              } catch {}
-            }
+            if (event.data === YT.PlayerState.PLAYING) setIsPaused(false)
+            if (event.data === YT.PlayerState.ENDED) setIsPaused(true)
           }
         }
       })
     }
 
-    // Small delay to ensure the div is mounted
-    const timer = setTimeout(initPlayer, 100)
+    initPlayer()
 
     return () => {
-      clearTimeout(timer)
       if (playerRef.current) {
         try { playerRef.current.destroy() } catch {}
         playerRef.current = null
       }
       setPlayerReady(false)
     }
-  }, [isPlaying, ytId])
+  }, [isPlaying])
 
   // Handle fullscreen change
   useEffect(() => {
@@ -2067,20 +2032,14 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
     }, 3000)
   }, [isPaused])
 
-  const togglePlayPause = () => {
+  // KEY FIX: Enable sound via FRESH user gesture (button click)
+  // This is the ONLY reliable way - browsers require user interaction for audio
+  const enableSound = () => {
     if (!playerRef.current) return
     try {
-      if (isPaused) {
-        playerRef.current.playVideo()
-        // Ensure sound on resume
-        try {
-          playerRef.current.unMute()
-          playerRef.current.setVolume(100)
-          setIsMuted(false)
-        } catch {}
-      } else {
-        playerRef.current.pauseVideo()
-      }
+      playerRef.current.unMute()
+      playerRef.current.setVolume(100)
+      setIsMuted(false)
     } catch {}
   }
 
@@ -2098,6 +2057,17 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
     } catch {}
   }
 
+  const togglePlayPause = () => {
+    if (!playerRef.current) return
+    try {
+      if (isPaused) {
+        playerRef.current.playVideo()
+      } else {
+        playerRef.current.pauseVideo()
+      }
+    } catch {}
+  }
+
   const toggleFullscreen = () => {
     if (!containerRef.current) return
     try {
@@ -2109,6 +2079,9 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
     } catch {}
   }
 
+  // Build the YouTube embed URL
+  const ytEmbedUrl = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&fs=0&disablekb=1&playsinline=1&cc_load_policy=0&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`
+
   return (
     <div
       ref={containerRef}
@@ -2118,14 +2091,13 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
       onMouseLeave={() => !isPaused && setShowControls(false)}
     >
       {!isPlaying ? (
-        /* Custom play overlay - ZERO YouTube branding */
+        /* Thumbnail with play button - ZERO YouTube branding */
         <motion.div
           className="absolute inset-0 flex items-center justify-center cursor-pointer"
           onClick={() => setIsPlaying(true)}
           whileHover={{ scale: 1.002 }}
           whileTap={{ scale: 0.998 }}
         >
-          {/* Thumbnail background */}
           <img
             src={`https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`}
             className="absolute inset-0 w-full h-full object-cover"
@@ -2136,8 +2108,6 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
             }}
           />
           <div className="absolute inset-0 bg-black/40" />
-
-          {/* Play button */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -2149,7 +2119,6 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
             </div>
             <span className="text-white/80 text-sm font-medium">اضغط للمشاهدة</span>
           </motion.div>
-
           {duration && (
             <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/70 text-white text-[11px] font-medium z-10">
               {duration} دقيقة
@@ -2157,47 +2126,47 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
           )}
         </motion.div>
       ) : (
-        /* RADICAL FIX: Scale iframe 120% to push YouTube branding outside visible area */
+        /* Video player: iframe at 100% + targeted overlays + sound enable button */
         <div className="relative w-full h-full overflow-hidden bg-black">
-          {/* YouTube IFrame API will replace this div with an iframe */}
-          <div
-            ref={playerDivRef}
+          {/* YouTube iframe: autoplay muted, no controls, pointer-events blocked */}
+          <iframe
+            ref={iframeRef}
             id={`yt-player-${ytId}`}
-            className="absolute"
-            style={{
-              width: '120%',
-              height: '120%',
-              top: '-10%',
-              left: '-10%',
-              border: 'none',
-            }}
+            src={ytEmbedUrl}
+            className="absolute inset-0 w-full h-full"
+            style={{ border: 'none', pointerEvents: 'none' }}
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen={false}
+            title="Video player"
           />
 
-          {/* ── SOLID border overlays: completely hide YouTube edges ── */}
-          {/* Top bar - hides channel name, video title */}
-          <div className="absolute top-0 left-0 right-0 h-[9%] z-20 bg-black pointer-events-none" />
-          {/* Bottom bar - hides YouTube logo, progress bar remnants */}
-          <div className="absolute bottom-0 left-0 right-0 h-[9%] z-20 bg-black pointer-events-none" />
-          {/* Left bar */}
-          <div className="absolute top-0 left-0 bottom-0 w-[9%] z-20 bg-black pointer-events-none" />
-          {/* Right bar - hides YouTube watermark */}
-          <div className="absolute top-0 right-0 bottom-0 w-[9%] z-20 bg-black pointer-events-none" />
+          {/* ── Targeted overlays to hide YouTube branding ── */}
+          {/* Top gradient: hides channel name, video title, avatar */}
+          <div
+            className="absolute top-0 left-0 right-0 h-12 z-20 pointer-events-none"
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)' }}
+          />
+          {/* Bottom-left gradient: hides YouTube logo watermark */}
+          <div
+            className="absolute bottom-0 left-0 w-32 h-10 z-20 pointer-events-none"
+            style={{ background: 'linear-gradient(to top right, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)' }}
+          />
 
-          {/* ── Sound unmute prompt (always visible when muted) ── */}
+          {/* ── BIG "Enable Sound" button ── visible when muted, requires user click ── */}
           <AnimatePresence>
             {isMuted && playerReady && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="absolute top-4 left-1/2 -translate-x-1/2 z-30"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="absolute inset-0 z-30 flex items-center justify-center"
               >
                 <button
-                  onClick={toggleMute}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500/90 border border-amber-400 text-white hover:bg-amber-500 transition-all shadow-lg shadow-amber-500/30"
+                  onClick={enableSound}
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-lg font-bold shadow-[0_0_40px_rgba(6,182,212,0.4)] hover:shadow-[0_0_60px_rgba(6,182,212,0.6)] hover:scale-105 transition-all"
                 >
-                  <VolumeX className="w-5 h-5" />
-                  <span className="text-sm font-bold">اضغط لتفعيل الصوت</span>
+                  <Volume2 className="w-7 h-7" />
+                  <span>اضغط لتفعيل الصوت</span>
                 </button>
               </motion.div>
             )}
@@ -2205,14 +2174,15 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
 
           {/* ── Custom controls overlay ── */}
           <div
-            className={`absolute inset-0 z-10 flex flex-col justify-end transition-opacity duration-300 pointer-events-none ${showControls ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 z-10 flex flex-col justify-end transition-opacity duration-300 pointer-events-none ${showControls && !(isMuted && playerReady) ? 'opacity-100' : 'opacity-0'}`}
+            onMouseMove={(e) => { e.stopPropagation(); resetHideTimer() }}
           >
             {/* Click area for play/pause */}
             <div className="flex-1 cursor-pointer pointer-events-auto" onClick={togglePlayPause} />
 
-            {/* Pause indicator (center) */}
+            {/* Pause indicator */}
             <AnimatePresence>
-              {isPaused && (
+              {isPaused && !isMuted && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -2228,23 +2198,16 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
 
             {/* Bottom control bar */}
             <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-auto">
-              {/* Play/Pause */}
               <button onClick={togglePlayPause} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
                 {isPaused ? <Play className="w-5 h-5 fill-white" /> : <Pause className="w-5 h-5 text-white" />}
               </button>
-
-              {/* Sound toggle */}
               <button onClick={toggleMute} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
                 {isMuted ? <VolumeX className="w-5 h-5 text-amber-400" /> : <Volume2 className="w-5 h-5" />}
               </button>
-
-              {/* Duration badge */}
               {duration && (
                 <span className="text-white/50 text-[11px] font-mono mr-auto">{duration} د</span>
               )}
               {!duration && <div className="flex-1" />}
-
-              {/* Fullscreen toggle */}
               <button onClick={toggleFullscreen} className="text-white/90 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
