@@ -67,6 +67,20 @@ const lessonTypeColors = {
   flashcard: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
 }
 
+// Helper: Extract YouTube video ID from URL
+function getYouTubeId(url: string): string | null {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  return null
+}
+
 // ─── Professional Markdown Content Renderer ──────────────────
 
 function formatInline(text: string): React.ReactNode {
@@ -1792,7 +1806,7 @@ export function CourseViewerPage() {
                     </motion.div>
                   )}
 
-                  {/* Lesson Content */}
+                  {/* Lesson Content - Article */}
                   {currentLesson.content && currentLesson.type === 'article' && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
@@ -1828,6 +1842,173 @@ export function CourseViewerPage() {
                           <Activity className="w-4 h-4 text-neon-cyan/30" />
                           <div className="w-8 h-0.5 rounded-full bg-gradient-to-r from-transparent to-neon-cyan/30" />
                         </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Video type lesson */}
+                  {currentLesson.type === 'video' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="relative mb-6"
+                    >
+                      <div className="relative glass-card overflow-hidden">
+                        {/* Video header */}
+                        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+                          <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center">
+                            <Play className="w-4 h-4 text-red-400" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-bold text-foreground">فيديو تعليمي</p>
+                            <p className="text-[10px] text-muted-foreground">المدة: ~{currentLesson.duration} دقيقة</p>
+                          </div>
+                        </div>
+
+                        {/* Video player */}
+                        {currentLesson.videoUrl ? (
+                          (() => {
+                            const ytId = getYouTubeId(currentLesson.videoUrl)
+                            return ytId ? (
+                              <div className="relative w-full pt-[56.25%] bg-black/50">
+                                <iframe
+                                  src={`https://www.youtube.com/embed/${ytId}`}
+                                  className="absolute inset-0 w-full h-full"
+                                  allowFullScreen
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                />
+                              </div>
+                            ) : (
+                              <div className="p-8 text-center">
+                                <Play className="w-12 h-12 text-red-400/30 mx-auto mb-3" />
+                                <a
+                                  href={currentLesson.videoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors text-sm font-medium"
+                                >
+                                  <Play className="w-4 h-4" />
+                                  مشاهدة الفيديو (رابط خارجي) ↗
+                                </a>
+                              </div>
+                            )
+                          })()
+                        ) : (
+                          <div className="p-8 text-center">
+                            <Play className="w-12 h-12 text-red-400/30 mx-auto mb-3" />
+                            <p className="text-sm text-muted-foreground">لم يتم إضافة رابط الفيديو بعد</p>
+                          </div>
+                        )}
+
+                        {/* Video description/content if exists */}
+                        {currentLesson.content && (
+                          <div className="p-4 border-t border-border">
+                            <div className="prose-content">
+                              {renderContent(currentLesson.content)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Simulation type lesson */}
+                  {currentLesson.type === 'simulation' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="relative mb-6"
+                    >
+                      <div className="relative glass-card overflow-hidden">
+                        {/* Simulation header */}
+                        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+                          <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+                            <Activity className="w-4 h-4 text-purple-400" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-bold text-foreground">محاكاة تفاعلية</p>
+                            <p className="text-[10px] text-muted-foreground">تطبيق عملي للحالات الطبية</p>
+                          </div>
+                        </div>
+
+                        <div className="p-6 text-center">
+                          <div className="w-20 h-20 rounded-2xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center mx-auto mb-4">
+                            <Activity className="w-10 h-10 text-purple-400" />
+                          </div>
+                          <h3 className="text-lg font-bold text-foreground mb-2">حالة محاكاة طبية</h3>
+                          <p className="text-sm text-gray-400 mb-5">تدرّب على التشخيص والقرارات السريرية في بيئة آمنة</p>
+                          <Button
+                            onClick={() => {
+                              if (currentLesson.videoUrl) {
+                                window.open(currentLesson.videoUrl, '_blank')
+                              } else {
+                                setActivePage('simulation')
+                              }
+                            }}
+                            className="bg-gradient-to-l from-purple-500 to-violet-500 text-white font-bold hover:shadow-[0_0_30px_rgba(168,85,247,0.3)]"
+                          >
+                            <Activity className="w-4 h-4 ml-2" />
+                            ابدأ المحاكاة
+                          </Button>
+                        </div>
+
+                        {/* Simulation description if exists */}
+                        {currentLesson.content && (
+                          <div className="p-4 border-t border-border">
+                            <div className="prose-content">
+                              {renderContent(currentLesson.content)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Flashcard type lesson */}
+                  {currentLesson.type === 'flashcard' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="relative mb-6"
+                    >
+                      <div className="relative glass-card overflow-hidden">
+                        {/* Flashcard header */}
+                        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+                          <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
+                            <Brain className="w-4 h-4 text-cyan-400" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-bold text-foreground">بطاقات تعليمية</p>
+                            <p className="text-[10px] text-muted-foreground">مراجعة سريعة للمعلومات الرئيسية</p>
+                          </div>
+                        </div>
+
+                        <div className="p-6 text-center">
+                          <div className="w-20 h-20 rounded-2xl bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center mx-auto mb-4">
+                            <Brain className="w-10 h-10 text-cyan-400" />
+                          </div>
+                          <h3 className="text-lg font-bold text-foreground mb-2">بطاقات مراجعة</h3>
+                          <p className="text-sm text-gray-400 mb-5">راجع المفاهيم الأساسية ببطاقات تعليمية تفاعلية</p>
+                          <Button
+                            onClick={() => setActivePage('quizzes')}
+                            className="bg-gradient-to-l from-cyan-500 to-teal-500 text-white font-bold hover:shadow-[0_0_30px_rgba(0,245,255,0.3)]"
+                          >
+                            <Brain className="w-4 h-4 ml-2" />
+                            ابدأ المراجعة
+                          </Button>
+                        </div>
+
+                        {/* Flashcard content/description if exists */}
+                        {currentLesson.content && (
+                          <div className="p-4 border-t border-border">
+                            <div className="prose-content">
+                              {renderContent(currentLesson.content)}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
