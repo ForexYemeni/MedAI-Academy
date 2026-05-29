@@ -267,3 +267,35 @@ Stage Summary:
 - SW v11.0 will force update on all clients
 - Deployed: https://nabd-academy.vercel.app
 - IMPORTANT: Users need to open the app once after this deploy to re-subscribe to push notifications
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix video embedding and add inline quiz/flashcard/simulation lesson types
+
+Work Log:
+- Changed YouTube embed URL from youtube.com to youtube-nocookie.com for privacy
+- Added URL parameters: rel=0, modestbranding=1, iv_load_policy=3, playsinline=1, fs=1, disablekb=0
+- Added web-share to iframe allow attribute for proper audio/video permissions
+- Added style={{ border: 'none' }} and title="Video player" for cleaner embed
+- Applied same fix to both course-viewer-page.tsx and course-detail-page.tsx
+- Added LessonQuizQuestion, LessonFlashcard, LessonSimulationCase types to app-store.ts
+- Added quizData, flashcardData, simulationData fields to Lesson interface in store
+- Added corresponding ApiLesson types in admin-page.tsx
+- Updated LessonForm component with inline editors:
+  - Quiz: add/remove questions, 4 options per question, correct answer selector, explanation
+  - Flashcard: add/remove cards, front/back text areas
+  - Simulation: patient info, vitals (hr/bp/spo2/temp/rr), symptoms, diagnosis, treatment, actions
+- Added helper functions for CRUD operations on quiz/flashcard/simulation data
+- Created InlineQuizLesson component with: question display, answer selection, result feedback, score tracking, answer review
+- Created InlineFlashcardLesson component with: card flip animation, known/unknown tracking, progress bar, review summary
+- Created InlineSimulationLesson component with: 4-phase flow (intro/vitals/actions/reveal), vital signs with color coding, action selection, diagnosis reveal
+- Updated /api/lessons route to strip quizData/flashcardData/simulationData from locked lessons
+- Built and deployed successfully to Vercel
+
+Stage Summary:
+- Video now uses youtube-nocookie.com with privacy parameters (hides YouTube branding)
+- Quiz/Flashcard/Simulation lesson types now work with inline content specific to each lesson
+- Each type is completely separate from the general quizzes/simulation pages
+- All data is stored in the lesson's embedded data within the course document
+- Deployed to https://nabd-academy.vercel.app/
