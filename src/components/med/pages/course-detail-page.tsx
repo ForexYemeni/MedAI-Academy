@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowRight, BookOpen, Clock, Play, CheckCircle2, Lock,
+  ArrowRight, BookOpen, Clock, Play, Pause, CheckCircle2, Lock,
   Crown, Star, Users, ChevronDown, ChevronUp, FileText,
   Video, FileIcon, GraduationCap, Loader2, ArrowLeft,
   Hourglass, X
@@ -81,9 +81,76 @@ function getYouTubeId(url: string): string | null {
 // ─── Professional Video Player (No YouTube Branding) ──────────
 function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number }) {
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const playerRef = useRef<any>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  useEffect(() => {
+    if (!isPlaying) return
+    
+    const loadYTAPI = () => {
+      return new Promise<void>((resolve) => {
+        if ((window as any).YT && (window as any).YT.Player) {
+          resolve()
+          return
+        }
+        const tag = document.createElement('script')
+        tag.src = 'https://www.youtube.com/iframe_api'
+        const firstScriptTag = document.getElementsByTagName('script')[0]
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+        ;(window as any).onYouTubeIframeAPIReady = () => resolve()
+      })
+    }
+
+    const initPlayer = async () => {
+      await loadYTAPI()
+      const YT = (window as any).YT
+      if (!YT || !YT.Player || !iframeRef.current) return
+
+      playerRef.current = new YT.Player(iframeRef.current, {
+        events: {
+          onReady: () => {
+            playerRef.current?.playVideo()
+          },
+          onStateChange: (event: any) => {
+            if (event.data === YT.PlayerState.PAUSED) setIsPaused(true)
+            if (event.data === YT.PlayerState.PLAYING) setIsPaused(false)
+          }
+        }
+      })
+    }
+
+    initPlayer()
+
+    return () => {
+      if (playerRef.current) {
+        try { playerRef.current.destroy() } catch {}
+        playerRef.current = null
+      }
+    }
+  }, [isPlaying])
+
+  useEffect(() => {
+    const handleFSChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handleFSChange)
+    return () => document.removeEventListener('fullscreenchange', handleFSChange)
+  }, [])
+
+  const togglePlayPause = () => {
+    if (!playerRef.current) return
+    if (isPaused) { playerRef.current.playVideo() } else { playerRef.current.pauseVideo() }
+  }
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return
+    if (document.fullscreenElement) { document.exitFullscreen() } else { containerRef.current.requestFullscreen() }
+  }
 
   return (
     <div
+      ref={containerRef}
       className="relative w-full bg-black rounded-xl overflow-hidden"
       style={{ aspectRatio: '16/9' }}
     >
@@ -117,23 +184,34 @@ function DetailVideoPlayer({ ytId, duration }: { ytId: string; duration?: number
           )}
         </motion.div>
       ) : (
-        <div className="relative w-full h-full overflow-hidden">
+        <div className="relative w-full h-full overflow-hidden bg-black">
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&showinfo=0&cc_load_policy=0&annotations=0&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
+            ref={iframeRef}
+            id={`yt-player-detail-${ytId}`}
+            src={`https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&controls=0&showinfo=0&cc_load_policy=0&annotations=0&disablekb=1`}
             className="absolute w-full h-full"
-            style={{
-              border: 'none',
-              top: '-50px',
-              left: '0',
-              height: 'calc(100% + 100px)',
-            }}
+            style={{ border: 'none' }}
             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
             title="Video player"
           />
-          <div className="absolute top-0 left-0 right-0 h-[50px] z-10 pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)' }} />
-          <div className="absolute bottom-0 left-0 right-0 h-[48px] z-10 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)' }} />
-          <div className="absolute bottom-1 right-0 w-[100px] h-[48px] z-10 pointer-events-none" style={{ background: 'rgba(0,0,0,0.9)' }} />
+          <div className="absolute inset-0 z-10 flex flex-col justify-end">
+            <div className="flex-1 cursor-pointer flex items-center justify-center" onClick={togglePlayPause}>
+              {isPaused && (
+                <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-14 h-14 rounded-full bg-black/50 flex items-center justify-center">
+                  <Play className="w-6 h-6 text-white fill-white ml-0.5" />
+                </motion.div>
+              )}
+            </div>
+            <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-t from-black/80 to-transparent">
+              <button onClick={togglePlayPause} className="text-white/80 hover:text-white transition-colors p-1">
+                {isPaused ? <Play className="w-5 h-5 fill-white" /> : <Pause className="w-5 h-5" />}
+              </button>
+              {duration && <span className="text-white/60 text-xs">{duration} دقيقة</span>}
+              <button onClick={toggleFullscreen} className="text-white/80 hover:text-white transition-colors p-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

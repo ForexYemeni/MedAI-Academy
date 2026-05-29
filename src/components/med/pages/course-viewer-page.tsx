@@ -4,11 +4,12 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight, BookOpen, Clock, CheckCircle2, Circle, Lock,
-  Play, FileText, HelpCircle, Activity, Zap, ChevronLeft,
+  Play, Pause, FileText, HelpCircle, Activity, Zap, ChevronLeft,
   Star, Users, Crown, GraduationCap, Sparkles, Award,
   Menu, X, Brain, Target, Lightbulb, ChevronDown,
   CreditCard, Loader2, Image as ImageIcon, Wallet,
-  Shield, ArrowLeft, Gift
+  Shield, ArrowLeft, Gift, Heart, Thermometer, Wind, Droplets,
+  Siren, Syringe, Stethoscope, User, ClipboardList
 } from 'lucide-react'
 import { useAppStore, type Lesson, type Course, type LessonQuizQuestion, type LessonFlashcard, type LessonSimulationCase } from '@/store/app-store'
 import { useOffline } from '@/hooks/use-offline'
@@ -1479,18 +1480,75 @@ function InlineFlashcardLesson({ lesson }: { lesson: Lesson }) {
 
 // ─── Inline Simulation Lesson Component ────────────────────
 
+// ─── Mini ECG Wave for Lesson Simulation ──────────────────────
+function MiniECGWave({ color = '#00ff88', height = 35, width = 160 }: { color?: string; height?: number; width?: number }) {
+  const pathRef = useRef<SVGPathElement>(null)
+  const [offset, setOffset] = useState(0)
+
+  useEffect(() => {
+    let animFrame: number
+    let lastTime = 0
+    const speed = 80
+    const animate = (time: number) => {
+      if (lastTime) {
+        const delta = (time - lastTime) / 1000
+        setOffset(prev => { const next = prev + speed * delta; return next > 600 ? 0 : next })
+      }
+      lastTime = time
+      animFrame = requestAnimationFrame(animate)
+    }
+    animFrame = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(animFrame)
+  }, [])
+
+  const ecgPath = useMemo(() => {
+    const mid = height / 2
+    const amp = height * 0.35
+    const segWidth = 60
+    const numSegs = Math.ceil(width / segWidth) + 2
+    let d = ''
+    for (let i = 0; i < numSegs; i++) {
+      const x = i * segWidth
+      d += `M ${x},${mid} L ${x + 8},${mid} L ${x + 12},${mid - amp * 0.15} L ${x + 16},${mid + amp * 0.3} L ${x + 20},${mid - amp} L ${x + 24},${mid + amp * 0.5} L ${x + 28},${mid - amp * 0.1} L ${x + 32},${mid} L ${x + 42},${mid} L ${x + 50},${mid - amp * 0.2} L ${x + 55},${mid - amp * 0.2} L ${x + 60},${mid} `
+    }
+    return d
+  }, [height, width])
+
+  return (
+    <svg width={width} height={height} className="overflow-hidden" style={{ direction: 'ltr' }}>
+      <defs>
+        <linearGradient id={`ecgGrad-${color.replace('#','')}`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor={color} stopOpacity="0" />
+          <stop offset="30%" stopColor={color} stopOpacity="1" />
+          <stop offset="70%" stopColor={color} stopOpacity="1" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <g transform={`translate(${-offset}, 0)`}>
+        <path ref={pathRef} d={ecgPath} fill="none" stroke={`url(#ecgGrad-${color.replace('#','')})`} strokeWidth="1.5" strokeLinecap="round" />
+      </g>
+    </svg>
+  )
+}
+
 function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
   const [phase, setPhase] = useState<'intro' | 'vitals' | 'actions' | 'reveal'>('intro')
   const [selectedActions, setSelectedActions] = useState<string[]>([])
   const simData = lesson.simulationData
 
-  // Safe defaults for simulation data
+  // Safe defaults
   const vitals = simData?.vitals || { hr: 0, bp: '--', spo2: 0, temp: 0, rr: 0 }
   const symptoms = simData?.symptoms || []
   const actions = simData?.actions || []
   const diagnosis = simData?.diagnosis || ''
   const treatment = simData?.treatment || ''
   const patientInfo = simData?.patientInfo || ''
+
+  // Abnormal vitals detection
+  const isHRAbnormal = vitals.hr > 100 || vitals.hr < 60
+  const isSpo2Abnormal = vitals.spo2 < 94
+  const isTempAbnormal = vitals.temp > 38 || vitals.temp < 36
+  const isRRAbnormal = vitals.rr > 20 || vitals.rr < 12
 
   if (!simData || (!patientInfo && !diagnosis)) {
     return (
@@ -1520,25 +1578,27 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
     )
   }
 
-  const getVitalColor = (type: string, value: number | string) => {
-    if (type === 'hr') {
-      const v = value as number
-      return v > 100 || v < 60 ? 'text-red-400' : 'text-neon-green'
-    }
-    if (type === 'spo2') {
-      const v = value as number
-      return v < 94 ? 'text-red-400' : 'text-neon-green'
-    }
-    if (type === 'temp') {
-      const v = value as number
-      return v > 38 || v < 36 ? 'text-amber-400' : 'text-neon-green'
-    }
-    if (type === 'rr') {
-      const v = value as number
-      return v > 20 || v < 12 ? 'text-amber-400' : 'text-neon-green'
-    }
-    return 'text-neon-green'
-  }
+  // Vital sign component for professional display
+  const VitalCard = ({ label, value, unit, icon: Icon, isAbnormal, wave }: { label: string; value: string | number; unit: string; icon: React.ElementType; isAbnormal: boolean; wave?: React.ReactNode }) => (
+    <div className={`relative flex flex-col gap-1 p-3 rounded-lg border transition-all ${isAbnormal ? 'border-red-500/30 bg-red-500/5' : 'border-cyan-500/10 bg-cyan-500/5'}`}>
+      <div className="flex items-center gap-1.5">
+        <Icon className={`size-3.5 ${isAbnormal ? 'text-red-400' : 'text-cyan-400'}`} />
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className={`text-xl font-mono font-bold tabular-nums ${isAbnormal ? 'text-red-400' : 'text-neon-green'}`} style={isAbnormal ? { textShadow: '0 0 10px rgba(239,68,68,0.5)' } : {}}>
+          {value}
+        </span>
+        <span className="text-[10px] text-muted-foreground">{unit}</span>
+      </div>
+      {wave && <div className="mt-1 overflow-hidden rounded">{wave}</div>}
+      {isAbnormal && (
+        <motion.div className="absolute top-1 left-1" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1, repeat: Infinity }}>
+          <Zap className="size-3 text-red-400" />
+        </motion.div>
+      )}
+    </div>
+  )
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
@@ -1546,7 +1606,7 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
         {/* Simulation header */}
         <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
           <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
-            <Activity className="w-4 h-4 text-purple-400" />
+            <Siren className="w-4 h-4 text-purple-400" />
           </div>
           <div className="flex-1">
             <p className="text-sm font-bold text-foreground">محاكاة تفاعلية</p>
@@ -1572,15 +1632,26 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
         {phase === 'intro' && (
           <div className="p-5">
             <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/15 mb-4">
-              <h3 className="text-sm font-bold text-purple-400 mb-2">الحالة المرضية</h3>
-              <p className="text-foreground/80 leading-7 text-sm">{patientInfo}</p>
+              <div className="flex items-center gap-2 mb-2">
+                <User className="size-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-foreground">معلومات المريض</h3>
+              </div>
+              <div className="bg-background/30 rounded-lg p-3 border border-border">
+                <div className="flex items-start gap-2">
+                  <ClipboardList className="size-4 text-amber-400 mt-0.5 shrink-0" />
+                  <p className="text-foreground/80 leading-7 text-sm">{patientInfo}</p>
+                </div>
+              </div>
             </div>
             {symptoms.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-muted-foreground mb-2">الأعراض المبلغ عنها:</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="size-4 text-red-400" />
+                  <p className="text-sm font-semibold text-foreground">الأعراض</p>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {symptoms.map((s, i) => (
-                    <span key={i} className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium">{s}</span>
+                    <span key={i} className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-medium">{s}</span>
                   ))}
                 </div>
               </div>
@@ -1593,30 +1664,30 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
           </div>
         )}
 
-        {/* Vitals phase */}
+        {/* Vitals phase - Professional Monitor */}
         {phase === 'vitals' && (
           <div className="p-5">
-            <div className="grid grid-cols-5 gap-3 mb-4">
-              {[
-                { label: 'النبض', value: vitals.hr, unit: 'bpm', type: 'hr', icon: '❤️' },
-                { label: 'الضغط', value: vitals.bp, unit: 'mmHg', type: 'bp', icon: '🩸' },
-                { label: 'SpO2', value: vitals.spo2, unit: '%', type: 'spo2', icon: '🫁' },
-                { label: 'الحرارة', value: vitals.temp, unit: '°C', type: 'temp', icon: '🌡️' },
-                { label: 'التنفس', value: vitals.rr, unit: '/min', type: 'rr', icon: '💨' },
-              ].map((v, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="p-3 rounded-xl bg-muted/20 border border-border text-center"
-                >
-                  <span className="text-lg">{v.icon}</span>
-                  <p className={`text-lg font-black mt-1 ${getVitalColor(v.type, v.value)}`}>{v.value}</p>
-                  <p className="text-[10px] text-muted-foreground">{v.label}</p>
-                  <p className="text-[9px] text-muted-foreground/50">{v.unit}</p>
+            <div className="rounded-xl border border-cyan-500/15 bg-card p-4 relative overflow-hidden mb-4">
+              {/* Scanline effect */}
+              <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,245,255,0.1) 2px, rgba(0,245,255,0.1) 4px)' }} />
+              {/* Monitor Header */}
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="size-4 text-cyan-400" />
+                <span className="text-xs font-mono text-cyan-400 tracking-wider">VITAL SIGNS MONITOR</span>
+                <div className="flex-1" />
+                <motion.div className="flex items-center gap-1" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[10px] font-mono text-emerald-400">LIVE</span>
                 </motion.div>
-              ))}
+              </div>
+              {/* Vitals Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <VitalCard label="HR" value={vitals.hr} unit="bpm" icon={Heart} isAbnormal={isHRAbnormal} wave={<MiniECGWave color={isHRAbnormal ? '#ef4444' : '#00ff88'} height={30} width={160} />} />
+                <VitalCard label="BP" value={vitals.bp} unit="mmHg" icon={Activity} isAbnormal={false} />
+                <VitalCard label="SpO2" value={vitals.spo2} unit="%" icon={Droplets} isAbnormal={isSpo2Abnormal} />
+                <VitalCard label="TEMP" value={vitals.temp.toFixed(1)} unit="°C" icon={Thermometer} isAbnormal={isTempAbnormal} />
+                <VitalCard label="RR" value={vitals.rr} unit="/min" icon={Wind} isAbnormal={isRRAbnormal} />
+              </div>
             </div>
             <div className="flex justify-between">
               <Button onClick={() => setPhase('intro')} variant="ghost" className="text-muted-foreground">رجوع</Button>
@@ -1630,6 +1701,10 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
         {/* Actions phase */}
         {phase === 'actions' && (
           <div className="p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Syringe className="size-4 text-cyan-400" />
+              <h3 className="font-bold text-foreground text-sm">الإجراءات الطبية</h3>
+            </div>
             <p className="text-sm text-muted-foreground mb-3">اختر الإجراءات المناسبة للحالة:</p>
             <div className="space-y-2 mb-4">
               {actions.map((action, i) => (
@@ -1674,13 +1749,15 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
               </div>
               <p className="text-foreground/90 text-sm leading-7">{diagnosis}</p>
             </div>
-            <div className="p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15 mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Lightbulb className="w-5 h-5 text-neon-cyan" />
-                <h3 className="text-sm font-bold text-neon-cyan">خطة العلاج</h3>
+            {treatment && (
+              <div className="p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/15 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightbulb className="w-5 h-5 text-neon-cyan" />
+                  <h3 className="text-sm font-bold text-neon-cyan">خطة العلاج</h3>
+                </div>
+                <p className="text-foreground/80 text-sm leading-7">{treatment}</p>
               </div>
-              <p className="text-foreground/80 text-sm leading-7">{treatment}</p>
-            </div>
+            )}
             <div className="p-3 rounded-lg bg-muted/20 border border-border mb-4">
               <p className="text-xs text-muted-foreground mb-1">الإجراءات التي اخترتها:</p>
               <div className="flex flex-wrap gap-1.5">
@@ -1689,7 +1766,7 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
                 ))}
               </div>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-end">
               <Button onClick={() => { setPhase('intro'); setSelectedActions([]) }} variant="outline" className="border-border text-foreground">
                 إعادة المحاكاة
               </Button>
@@ -1704,14 +1781,93 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
 // ─── Professional Video Player (No YouTube Branding) ──────────
 function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: number }) {
   const [isPlaying, setIsPlaying] = useState(false)
-  const [isHovering, setIsHovering] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [playerReady, setPlayerReady] = useState(false)
+  const playerRef = useRef<any>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (!isPlaying) return
+    
+    const loadYTAPI = () => {
+      return new Promise<void>((resolve) => {
+        if ((window as any).YT && (window as any).YT.Player) {
+          resolve()
+          return
+        }
+        const tag = document.createElement('script')
+        tag.src = 'https://www.youtube.com/iframe_api'
+        const firstScriptTag = document.getElementsByTagName('script')[0]
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+        ;(window as any).onYouTubeIframeAPIReady = () => resolve()
+      })
+    }
+
+    const initPlayer = async () => {
+      await loadYTAPI()
+      const YT = (window as any).YT
+      if (!YT || !YT.Player || !iframeRef.current) return
+
+      playerRef.current = new YT.Player(iframeRef.current, {
+        events: {
+          onReady: () => {
+            setPlayerReady(true)
+            // Play with sound - user already clicked our play button
+            playerRef.current?.playVideo()
+          },
+          onStateChange: (event: any) => {
+            if (event.data === YT.PlayerState.PAUSED) setIsPaused(true)
+            if (event.data === YT.PlayerState.PLAYING) setIsPaused(false)
+          }
+        }
+      })
+    }
+
+    initPlayer()
+
+    return () => {
+      if (playerRef.current) {
+        try { playerRef.current.destroy() } catch {}
+        playerRef.current = null
+      }
+    }
+  }, [isPlaying])
+
+  // Handle fullscreen change
+  useEffect(() => {
+    const handleFSChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFSChange)
+    return () => document.removeEventListener('fullscreenchange', handleFSChange)
+  }, [])
+
+  const togglePlayPause = () => {
+    if (!playerRef.current) return
+    if (isPaused) {
+      playerRef.current.playVideo()
+    } else {
+      playerRef.current.pauseVideo()
+    }
+  }
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      containerRef.current.requestFullscreen()
+    }
+  }
 
   return (
     <div
+      ref={containerRef}
       className="relative w-full bg-black"
       style={{ aspectRatio: '16/9' }}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
     >
       {!isPlaying ? (
         /* Custom play overlay - no YouTube branding visible */
@@ -1728,7 +1884,6 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
             alt=""
             loading="lazy"
           />
-          {/* Dark overlay */}
           <div className="absolute inset-0 bg-black/40" />
 
           {/* Play button */}
@@ -1744,7 +1899,6 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
             <span className="text-white/80 text-sm font-medium">اضغط للمشاهدة</span>
           </motion.div>
 
-          {/* Duration badge */}
           {duration && (
             <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/70 text-white text-[11px] font-medium z-10">
               {duration} دقيقة
@@ -1752,28 +1906,50 @@ function ProfessionalVideoPlayer({ ytId, duration }: { ytId: string; duration?: 
           )}
         </motion.div>
       ) : (
-        /* YouTube iframe with autoplay - loaded on user click so audio works */
-        <div className="relative w-full h-full overflow-hidden">
+        /* YouTube iframe - no controls, managed by our custom buttons */
+        <div className="relative w-full h-full overflow-hidden bg-black">
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=1&showinfo=0&cc_load_policy=0&annotations=0&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
+            ref={iframeRef}
+            id={`yt-player-${ytId}`}
+            src={`https://www.youtube-nocookie.com/embed/${ytId}?enablejsapi=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&controls=0&showinfo=0&cc_load_policy=0&annotations=0&disablekb=1`}
             className="absolute w-full h-full"
-            style={{
-              border: 'none',
-              /* Shift iframe up by 50px to hide YouTube title bar, and make it taller */
-              top: '-50px',
-              left: '0',
-              height: 'calc(100% + 100px)',
-            }}
+            style={{ border: 'none' }}
             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
             title="Video player"
           />
-          {/* Top overlay - hides YouTube title/channel bar */}
-          <div className="absolute top-0 left-0 right-0 h-[50px] z-10 pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)' }} />
-          {/* Bottom overlay - hides YouTube control bar branding */}
-          <div className="absolute bottom-0 left-0 right-0 h-[48px] z-10 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)' }} />
-          {/* Bottom-right overlay - hides YouTube logo */}
-          <div className="absolute bottom-1 right-0 w-[100px] h-[48px] z-10 pointer-events-none" style={{ background: 'rgba(0,0,0,0.9)' }} />
+          
+          {/* Custom controls overlay - always visible when playing */}
+          <div className="absolute inset-0 z-10 flex flex-col justify-end">
+            {/* Click area for play/pause */}
+            <div className="flex-1 cursor-pointer flex items-center justify-center" onClick={togglePlayPause}>
+              {isPaused && (
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center"
+                >
+                  <Play className="w-7 h-7 text-white fill-white ml-1" />
+                </motion.div>
+              )}
+            </div>
+            
+            {/* Bottom control bar */}
+            <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-t from-black/80 to-transparent">
+              <button onClick={togglePlayPause} className="text-white/80 hover:text-white transition-colors p-1">
+                {isPaused ? <Play className="w-5 h-5 fill-white" /> : <Pause className="w-5 h-5" />}
+              </button>
+              {duration && (
+                <span className="text-white/60 text-xs">{duration} دقيقة</span>
+              )}
+              <button onClick={toggleFullscreen} className="text-white/80 hover:text-white transition-colors p-1">
+                {isFullscreen ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
