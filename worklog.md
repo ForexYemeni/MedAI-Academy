@@ -299,3 +299,23 @@ Stage Summary:
 - Each type is completely separate from the general quizzes/simulation pages
 - All data is stored in the lesson's embedded data within the course document
 - Deployed to https://nabd-academy.vercel.app/
+---
+Task ID: 1
+Agent: Main
+Task: Fix YouTube video branding + quiz/simulation/flashcard lesson types not displaying
+
+Work Log:
+- Investigated course-viewer-page.tsx, course-detail-page.tsx, admin-page.tsx, and API routes
+- Found root cause 1: YouTube iframe had clipboard-write/web-share in allow attribute, no overlays to hide branding
+- Found root cause 2: Lesson data mapping in course-viewer-page.tsx was missing quizData, flashcardData, simulationData fields
+- Found root cause 3: course-detail-page.tsx was using wrong API endpoint (/api/courses/manage/lessons instead of /api/lessons)
+- Fixed video iframe: removed clipboard-write/web-share, added CSS overlays for YouTube title bar and logo, added strict embed parameters
+- Fixed lesson mapping: added quizData, flashcardData, simulationData to mapped lesson objects
+- Fixed course-detail-page: changed to use /api/lessons endpoint, updated Lesson interface, added quiz/simulation/flashcard rendering
+- Built successfully and deployed to production
+
+Stage Summary:
+- Video: YouTube branding (channel name, share button, logo) now hidden with overlays and restricted iframe parameters
+- Quiz/Simulation/Flashcard: Lesson data now properly flows from API to frontend components
+- course-detail-page.tsx now uses correct API and renders all lesson types
+- Deployed to https://nabd-academy.vercel.app
