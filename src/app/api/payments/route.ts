@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
 
     // جلب بيانات الدورة لاسم الدورة
     const { ObjectId } = await import('mongodb')
-    let courseName = ''
+    let resolvedCourseName = courseName || ''
     try {
       const courseObj = await db.collection('courses').findOne(
         { _id: new ObjectId(courseId) },
         { projection: { titleAr: 1, title: 1 } }
       )
-      courseName = courseObj?.titleAr || courseObj?.title || ''
+      resolvedCourseName = resolvedCourseName || courseObj?.titleAr || courseObj?.title || ''
     } catch (e) { /* ignore */ }
 
     // جلب بيانات طريقة الدفع
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       userName: authUser.name,
       userPhone: authUser.phone,
       courseId,
-      courseName,
+      courseName: resolvedCourseName,
       amount,
       walletName,
       walletPhone,
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     try {
       await createAdminNotification({
         title: 'طلب دفع جديد',
-        message: `${authUser.name} أرسل طلب دفع بقيمة ${amount.toLocaleString()} ر.ي${courseName ? ` لدورة "${courseName}"` : ''}`,
+        message: `${authUser.name} أرسل طلب دفع بقيمة ${amount.toLocaleString()} ر.ي${resolvedCourseName ? ` لدورة "${resolvedCourseName}"` : ''}`,
         type: 'payment',
         link: 'admin',
         category: 'payment',
