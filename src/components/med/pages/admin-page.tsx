@@ -1128,15 +1128,19 @@ export function AdminPage() {
   const handleUpdateLesson = async (formData: ApiLesson) => {
     if (!editingLesson) return
     setSaving(true)
+    setError('')
     try {
+      const payload = { courseId: editingLesson.course._id, lessonId: editingLesson.lesson.id, updates: formData }
+      console.log('Updating lesson:', payload)
       const res = await fetch('/api/admin/lessons', {
         method: 'PUT', headers: getAuthHeaders(),
-        body: JSON.stringify({ courseId: editingLesson.course._id, lessonId: editingLesson.lesson.id, updates: formData }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
+      console.log('Update lesson response:', data)
       if (data.success) { setEditingLesson(null); await fetchCourses() }
       else setError(data.error || 'فشل تعديل الدرس')
-    } catch { setError('خطأ في الاتصال') }
+    } catch (e) { console.error('Update lesson error:', e); setError('خطأ في الاتصال') }
     setSaving(false)
   }
 
