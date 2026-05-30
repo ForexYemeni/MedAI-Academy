@@ -855,6 +855,8 @@ export function AdminPage() {
   const [aiChatLogsTotal, setAiChatLogsTotal] = useState(0)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiSaving, setAiSaving] = useState(false)
+  const [aiTestResult, setAiTestResult] = useState<any>(null)
+  const [aiTesting, setAiTesting] = useState(false)
 
   // Gift Course State
   const [giftModalOpen, setGiftModalOpen] = useState(false)
@@ -987,6 +989,21 @@ export function AdminPage() {
       if (!data.success) setError(data.error || 'فشل حفظ إعدادات الذكاء الاصطناعي')
     } catch { setError('خطأ في الاتصال') }
     setAiSaving(false)
+  }
+
+  // Test AI connection
+  const handleTestAiConnection = async () => {
+    setAiTesting(true)
+    setAiTestResult(null)
+    try {
+      const res = await fetch('/api/admin/ai/test', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
+      const data = await res.json()
+      setAiTestResult(data)
+    } catch { setAiTestResult({ overallStatus: 'error', message: 'فشل الاتصال بالخادم' }) }
+    setAiTesting(false)
   }
 
   // Clear AI chat logs
@@ -2958,8 +2975,28 @@ export function AdminPage() {
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block font-medium">حالة الاتصال</label>
-            <div className="h-10 rounded-md border border-border bg-muted/30 flex items-center px-3 text-sm">
-              <span className="text-emerald-400">● متصل بـ Gemini API</span>
+            <div className="space-y-2">
+              <Button onClick={handleTestAiConnection} disabled={aiTesting}
+                className="h-9 text-xs gap-2 bg-gradient-to-l from-neon-purple to-neon-cyan text-white hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                {aiTesting ? '⏳ جاري الاختبار...' : '🔍 اختبار الاتصال'}
+              </Button>
+              {aiTestResult && (
+                <div className={`p-3 rounded-lg border text-xs space-y-1 ${
+                  aiTestResult.overallStatus === 'connected' ? 'bg-emerald-500/10 border-emerald-500/20' :
+                  aiTestResult.overallStatus === 'error' ? 'bg-red-500/10 border-red-500/20' :
+                  'bg-amber-500/10 border-amber-500/20'
+                }`}>
+                  <p className="font-bold">{aiTestResult.message}</p>
+                  {aiTestResult.providers?.map((p: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-[10px] mt-1">
+                      <span>{p.status === 'connected' ? '✅' : p.status === 'error' ? '❌' : '⚪'}</span>
+                      <span className="font-medium">{p.provider}</span>
+                      {p.model && <span className="text-muted-foreground">({p.model})</span>}
+                      {p.error && <span className="text-red-400">- {p.error}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
