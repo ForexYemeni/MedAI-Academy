@@ -3107,28 +3107,111 @@ export function AdminPage() {
         <p className="text-[10px] text-muted-foreground">💡 المستخدمون المشتركون يحصلون على رسائل غير محدودة</p>
       </div>
 
-      {/* Subscription Pricing */}
-      <div className="glass-card p-5 space-y-3">
+      {/* Subscription Pricing & Features */}
+      <div className="glass-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <div className="w-1 h-5 rounded-full bg-neon-orange" />
-          <span className="text-sm font-bold">رسوم الاشتراكات</span>
+          <span className="text-sm font-bold">رسوم ومميزات الاشتراكات</span>
         </div>
-        <p className="text-xs text-muted-foreground">حدد أسعار خطط الاشتراك في الذكاء الاصطناعي (بالريال اليمني)</p>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">⚡ أسبوعي</label>
-            <Input type="number" value={aiWeeklyPrice} onChange={(e) => setAiWeeklyPrice(Number(e.target.value) || 0)}
-              className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+        <p className="text-xs text-muted-foreground">حدد أسعار ومميزات خطط الاشتراك في الذكاء الاصطناعي (السعر بالريال اليمني)</p>
+
+        {/* Plans with pricing and features */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Weekly Plan */}
+          <div className="rounded-xl border border-amber-500/20 bg-gradient-to-b from-amber-500/5 to-transparent p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">⚡</span>
+                <div>
+                  <h4 className="text-sm font-bold text-amber-400">الباقة الأسبوعية</h4>
+                  <p className="text-[10px] text-muted-foreground">7 أيام</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground">السعر (ر.ي)</label>
+              <Input type="number" value={aiWeeklyPrice} onChange={(e) => setAiWeeklyPrice(Number(e.target.value) || 0)}
+                className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] text-muted-foreground font-medium">المميزات:</label>
+              <div className="space-y-1.5 text-[11px] text-foreground/80">
+                <div className="flex items-center gap-1.5"><span className="text-amber-400">✦</span> رسائل AI غير محدودة</div>
+                <div className="flex items-center gap-1.5"><span className="text-amber-400">✦</span> اختبارات طبية سريعة</div>
+                <div className="flex items-center gap-1.5"><span className="text-amber-400">✦</span> حالات سريرية تفاعلية</div>
+                <div className="flex items-center gap-1.5"><span className="text-amber-400">✦</span> تلخيص الدروس</div>
+                <div className="flex items-center gap-1.5"><span className="text-amber-400">✦</span> شرح مبسط للمفاهيم</div>
+              </div>
+            </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">🌟 شهري</label>
-            <Input type="number" value={aiMonthlyPrice} onChange={(e) => setAiMonthlyPrice(Number(e.target.value) || 0)}
-              className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+
+          {/* Monthly Plan */}
+          <div className="rounded-xl border border-purple-500/20 bg-gradient-to-b from-purple-500/5 to-transparent p-4 space-y-3 relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+              <span className="bg-gradient-to-l from-purple-500 to-pink-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                الأكثر شعبية
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🌟</span>
+                <div>
+                  <h4 className="text-sm font-bold text-purple-400">الباقة الشهرية</h4>
+                  <p className="text-[10px] text-muted-foreground">30 يوم</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground">السعر (ر.ي)</label>
+              <Input type="number" value={aiMonthlyPrice} onChange={(e) => setAiMonthlyPrice(Number(e.target.value) || 0)}
+                className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] text-muted-foreground font-medium">المميزات:</label>
+              <div className="space-y-1.5 text-[11px] text-foreground/80">
+                <div className="flex items-center gap-1.5"><span className="text-purple-400">✦</span> كل مميزات الأسبوعية</div>
+                <div className="flex items-center gap-1.5"><span className="text-purple-400">✦</span> بطاقات مراجعة متقدمة</div>
+                <div className="flex items-center gap-1.5"><span className="text-purple-400">✦</span> تشخيص تفريقي شامل</div>
+                <div className="flex items-center gap-1.5"><span className="text-purple-400">✦</span> التفاعلات الدوائية</div>
+                <div className="flex items-center gap-1.5"><span className="text-purple-400">✦</span> خطط تعلم مخصصة</div>
+                <div className="flex items-center gap-1.5"><span className="text-purple-400">✦</span> أولوية في الاستجابة</div>
+              </div>
+            </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">👑 مدى الحياة</label>
-            <Input type="number" value={aiLifetimePrice} onChange={(e) => setAiLifetimePrice(Number(e.target.value) || 0)}
-              className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+
+          {/* Lifetime Plan */}
+          <div className="rounded-xl border border-neon-cyan/20 bg-gradient-to-b from-neon-cyan/5 to-transparent p-4 space-y-3 relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+              <span className="bg-gradient-to-l from-neon-cyan to-emerald-500 text-med-dark text-[9px] font-bold px-2 py-0.5 rounded-full">
+                أفضل قيمة
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">👑</span>
+                <div>
+                  <h4 className="text-sm font-bold text-neon-cyan">باقة مدى الحياة</h4>
+                  <p className="text-[10px] text-muted-foreground">للأبد ♾️</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground">السعر (ر.ي)</label>
+              <Input type="number" value={aiLifetimePrice} onChange={(e) => setAiLifetimePrice(Number(e.target.value) || 0)}
+                className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] text-muted-foreground font-medium">المميزات:</label>
+              <div className="space-y-1.5 text-[11px] text-foreground/80">
+                <div className="flex items-center gap-1.5"><span className="text-neon-cyan">✦</span> كل مميزات الشهرية</div>
+                <div className="flex items-center gap-1.5"><span className="text-neon-cyan">✦</span> وصول دائم بدون تجديد</div>
+                <div className="flex items-center gap-1.5"><span className="text-neon-cyan">✦</span> الميزات الجديدة مجاناً</div>
+                <div className="flex items-center gap-1.5"><span className="text-neon-cyan">✦</span> دعم فني أولوية قصوى</div>
+                <div className="flex items-center gap-1.5"><span className="text-neon-cyan">✦</span> محتوى حصري متقدم</div>
+                <div className="flex items-center gap-1.5"><span className="text-neon-cyan">✦</span> إشعارات تحديثات طبية</div>
+                <div className="flex items-center gap-1.5"><span className="text-neon-cyan">✦</span> شارة مميزة 👑</div>
+              </div>
+            </div>
           </div>
         </div>
         <Button

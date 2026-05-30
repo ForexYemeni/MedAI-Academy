@@ -486,6 +486,32 @@ function SubscriptionCard({
     monthly: 'shadow-[0_0_20px_rgba(168,85,247,0.15)]',
     lifetime: 'shadow-[0_0_20px_rgba(0,245,255,0.15)]',
   }
+  const planFeatures: Record<string, string[]> = {
+    weekly: [
+      '🤖 رسائل AI غير محدودة',
+      '🧪 اختبارات طبية سريعة',
+      '🏥 حالات سريرية تفاعلية',
+      '📋 تلخيص الدروس',
+      '📖 شرح مبسط للمفاهيم',
+    ],
+    monthly: [
+      '✨ كل مميزات الأسبوعية',
+      '🗂️ بطاقات مراجعة متقدمة',
+      '🩺 تشخيص تفريقي شامل',
+      '💊 التفاعلات الدوائية',
+      '📅 خطط تعلم مخصصة',
+      '⚡ أولوية في الاستجابة',
+    ],
+    lifetime: [
+      '🌟 كل مميزات الشهرية',
+      '♾️ وصول دائم بدون تجديد',
+      '🎁 الميزات الجديدة مجاناً',
+      '🔧 دعم فني أولوية قصوى',
+      '💎 محتوى حصري متقدم',
+      '🔔 إشعارات تحديثات طبية',
+      '👑 شارة مميزة',
+    ],
+  }
 
   if (!plans) {
     return (
@@ -533,29 +559,55 @@ function SubscriptionCard({
           </div>
 
           {/* Plans Grid */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {Object.entries(plans).map(([key, plan]: [string, any]) => (
               <button
                 key={key}
                 onClick={() => setSelectedPlan(key)}
-                className={`relative p-3 rounded-xl border text-center transition-all duration-300 ${
+                className={`relative p-4 rounded-xl border text-right transition-all duration-300 ${
                   selectedPlan === key
                     ? `${planBorders[key]} bg-gradient-to-b ${planColors[key]}/10 ${planGlows[key]}`
                     : 'border-border bg-muted/10 hover:bg-muted/20'
                 }`}
               >
+                {/* Recommended badge */}
+                {key === 'monthly' && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                    <span className="bg-gradient-to-l from-purple-500 to-pink-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
+                      الأكثر شعبية
+                    </span>
+                  </div>
+                )}
+                {key === 'lifetime' && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                    <span className="bg-gradient-to-l from-neon-cyan to-emerald-500 text-med-dark text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
+                      أفضل قيمة
+                    </span>
+                  </div>
+                )}
                 {selectedPlan === key && (
-                  <div className="absolute top-1.5 left-1.5">
+                  <div className="absolute top-2 left-2">
                     <CheckCircle2 className="w-4 h-4 text-neon-cyan" />
                   </div>
                 )}
-                <span className="text-2xl">{planIcons[key]}</span>
-                <p className="text-sm font-bold mt-1">{plan.name}</p>
-                <p className="text-[10px] text-muted-foreground">{key === 'lifetime' ? 'للأبد' : plan.durationDays + ' يوم'}</p>
-                <div className="mt-2">
-                  <span className={`text-sm font-black ${selectedPlan === key ? 'text-neon-cyan' : 'text-foreground'}`}>
-                    {plan.price > 0 ? `${plan.price.toLocaleString()} ر.ي` : 'مجاني'}
-                  </span>
+                <div className="text-center mb-3">
+                  <span className="text-3xl">{planIcons[key]}</span>
+                  <p className="text-sm font-bold mt-1">{plan.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{key === 'lifetime' ? 'للأبد ♾️' : plan.durationDays + ' يوم'}</p>
+                  <div className="mt-2">
+                    <span className={`text-base font-black ${selectedPlan === key ? 'text-neon-cyan' : 'text-foreground'}`}>
+                      {plan.price > 0 ? `${plan.price.toLocaleString()} ر.ي` : 'مجاني'}
+                    </span>
+                  </div>
+                </div>
+                {/* Features List */}
+                <div className="space-y-1.5 border-t border-border/30 pt-3">
+                  {(planFeatures[key] || []).map((feature, fi) => (
+                    <div key={fi} className="text-[11px] text-foreground/80 flex items-start gap-1.5">
+                      <span className="shrink-0 mt-px">{feature.substring(0, 2)}</span>
+                      <span>{feature.substring(2)}</span>
+                    </div>
+                  ))}
                 </div>
               </button>
             ))}
@@ -952,7 +1004,6 @@ export function AITutorPage() {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-purple via-neon-blue to-neon-cyan flex items-center justify-center shadow-[0_0_20px_rgba(0,245,255,0.2)]">
                 <Brain className="w-5 h-5 text-white" />
               </div>
-              <div className="absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full bg-neon-green border-2 border-med-dark animate-pulse" />
             </div>
 
             <div>
@@ -960,10 +1011,6 @@ export function AITutorPage() {
                 المساعد الطبي الذكي 🧠
               </h1>
               <div className="flex items-center gap-2">
-                <p className="text-[10px] text-neon-green flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-neon-green inline-block" />
-                  متصل الآن • Groq AI
-                </p>
                 {/* Usage Badge */}
                 {isPremium ? (
                   <Badge className="bg-neon-purple/20 text-neon-purple border-neon-purple/30 text-[9px] px-1.5 py-0">
