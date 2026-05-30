@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { connectToDatabase } from '@/lib/mongodb'
 
-const MEDICAL_SYSTEM_PROMPT = `أنت مساعد طبي ذكي متخصص في التعليم الطبي لمنصة أكاديمية نبض. أنت تتحدث العربية بشكل أساسي.
+const DEFAULT_SYSTEM_PROMPT = `أنت مساعد طبي ذكي متخصص في التعليم الطبي لمنصة أكاديمية نبض. أنت تتحدث العربية بشكل أساسي.
 
 دورك:
 - مساعدة الطلاب في فهم المفاهيم الطبية بشكل مبسط وواضح
@@ -29,6 +30,78 @@ const MEDICAL_SYSTEM_PROMPT = `أنت مساعد طبي ذكي متخصص في �
 
 تذكر: أنت مساعد تعليمي، لا تغني عن الاستشارة الطبية المتخصصة.`
 
+// Call Google Gemini API directly
+async function callGemini(
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt: string,
+  temperature: number = 0.7,
+  maxTokens: number = 2000,
+): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    console.error('GEMINI_API_KEY not set')
+    return null
+  }
+
+  // Convert messages to Gemini format
+  const geminiContents: Array<{ role: string; parts: Array<{ text: string }> }> = []
+
+  for (const msg of messages) {
+    if (msg.role === 'system') continue
+    geminiContents.push({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    })
+  }
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          contents: geminiContents,
+          generationConfig: {
+            temperature,
+            maxOutputTokens: maxTokens,
+            topP: 0.95,
+            topK: 40,
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ]
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      const errText = await response.text()
+      console.error('Gemini API error:', response.status, errText)
+      return null
+    }
+
+    const data = await response.json()
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+
+    if (text && typeof text === 'string' && text.trim().length > 0) {
+      return text.trim()
+    }
+
+    console.error('Gemini empty response:', JSON.stringify(data).slice(0, 500))
+    return null
+  } catch (error: any) {
+    console.error('Gemini fetch error:', error?.message || error)
+    return null
+  }
+}
+
 // Fallback responses when AI is unavailable
 const FALLBACK_RESPONSES: Record<string, string> = {
   'default': 'مرحباً! أنا مساعدك الطبي الذكي. يمكنني مساعدتك في شرح المفاهيم الطبية، توليد حالات سريرية، اختبارات سريعة، والمزيد. كيف يمكنني مساعدتك؟',
@@ -47,24 +120,59 @@ function getFallbackResponse(message: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, context, history } = await req.json()
+    const { message, context, history, userId, userName } = await req.json()
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'الرسالة مطلوبة' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'الرسالة مطلوبة' }, { status: 400 })
     }
 
-    // Limit message length for safety
     const trimmedMessage = message.trim().slice(0, 1000)
 
-    // Build messages array for the AI
-    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: MEDICAL_SYSTEM_PROMPT }
-    ]
+    // Fetch AI settings from DB
+    let aiSettings: any = null
+    try {
+      const { db } = await connectToDatabase()
+      aiSettings = await db.collection('ai_settings').findOne({ id: 'main' })
+    } catch {}
 
-    // Add conversation history if provided (last 10 messages max)
+    // Check if AI is disabled by admin
+    if (aiSettings && aiSettings.enabled === false) {
+      return NextResponse.json({
+        response: '⚠️ المساعد الذكي معطل حالياً من قبل الإدارة.',
+        source: 'disabled',
+        timestamp: Date.now(),
+      })
+    }
+
+    // Get system prompt (custom from admin or default)
+    const systemPrompt = (aiSettings?.systemPrompt && aiSettings.systemPrompt.trim().length > 0)
+      ? aiSettings.systemPrompt
+      : DEFAULT_SYSTEM_PROMPT
+    const temperature = aiSettings?.temperature ?? 0.7
+    const maxTokens = aiSettings?.maxTokens ?? 2000
+
+    // Check custom responses first
+    if (aiSettings?.customResponses && Array.isArray(aiSettings.customResponses)) {
+      for (const cr of aiSettings.customResponses) {
+        if (cr.keyword && cr.response) {
+          const lowerMsg = trimmedMessage.toLowerCase()
+          const keywords = cr.keyword.toLowerCase().split(',').map((k: string) => k.trim())
+          if (keywords.some((k: string) => lowerMsg.includes(k))) {
+            // Log and return custom response
+            saveChatLog(userId, userName, trimmedMessage, cr.response, 'custom')
+            return NextResponse.json({
+              response: cr.response,
+              source: 'custom',
+              timestamp: Date.now(),
+            })
+          }
+        }
+      }
+    }
+
+    // Build messages array
+    const messages: Array<{ role: string; content: string }> = []
+
     if (Array.isArray(history) && history.length > 0) {
       const recentHistory = history.slice(-10)
       for (const msg of recentHistory) {
@@ -77,47 +185,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Add context if provided
     if (context) {
-      messages.push({
-        role: 'user',
-        content: `السياق: ${String(context).slice(0, 500)}`
-      })
-      messages.push({
-        role: 'assistant',
-        content: 'فهمت السياق. أنا مستعد لمساعدتك بناءً على هذه المعلومات.'
-      })
+      messages.push({ role: 'user', content: `السياق: ${String(context).slice(0, 500)}` })
+      messages.push({ role: 'assistant', content: 'فهمت السياق. أنا مستعد لمساعدتك بناءً على هذه المعلومات.' })
     }
 
-    // Add the current user message
     messages.push({ role: 'user', content: trimmedMessage })
 
-    // Try to use z-ai-web-dev-sdk
-    try {
-      const ZAI = (await import('z-ai-web-dev-sdk')).default
-      const zai = await ZAI.create()
-      
-      const completion = await zai.chat.completions.create({
-        messages,
-        temperature: 0.7,
-        max_tokens: 1500,
+    // Try Google Gemini API
+    const aiResponse = await callGemini(messages, systemPrompt, temperature, maxTokens)
+
+    if (aiResponse) {
+      saveChatLog(userId, userName, trimmedMessage, aiResponse, 'gemini')
+      return NextResponse.json({
+        response: aiResponse,
+        source: 'gemini',
+        timestamp: Date.now(),
       })
-
-      const aiResponse = completion?.choices?.[0]?.message?.content
-
-      if (aiResponse && typeof aiResponse === 'string' && aiResponse.trim().length > 0) {
-        return NextResponse.json({
-          response: aiResponse.trim(),
-          source: 'ai',
-          timestamp: Date.now(),
-        })
-      }
-    } catch (aiError: any) {
-      console.error('AI SDK error, falling back to static responses:', aiError?.message || aiError)
     }
 
     // Fallback to static responses
     const fallbackResponse = getFallbackResponse(trimmedMessage)
+    saveChatLog(userId, userName, trimmedMessage, fallbackResponse, 'fallback')
 
     return NextResponse.json({
       response: fallbackResponse,
@@ -127,9 +216,21 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('AI route error:', error)
-    return NextResponse.json(
-      { error: 'حدث خطأ في معالجة الطلب' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'حدث خطأ في معالجة الطلب' }, { status: 500 })
   }
+}
+
+// Save chat log to DB (non-blocking)
+function saveChatLog(userId: string | undefined, userName: string | undefined, userMessage: string, aiResponse: string, source: string) {
+  // Don't await - fire and forget
+  connectToDatabase().then(({ db }) => {
+    db.collection('ai_chat_logs').insertOne({
+      userId: userId || 'anonymous',
+      userName: userName || 'مجهول',
+      userMessage,
+      aiResponse,
+      source,
+      timestamp: new Date(),
+    }).catch(() => {})
+  }).catch(() => {})
 }

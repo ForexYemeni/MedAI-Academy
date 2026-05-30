@@ -9,7 +9,7 @@ import {
   CreditCard, UserPlus, Zap, BarChart3,
   Settings, ChevronDown, Edit3, Save, X, FileText, Video, HelpCircle, FlaskConical, Layers, Plus, Trash2, RefreshCw, Loader2, Wallet, ToggleLeft, ToggleRight, Image as ImageIcon,
   Menu, LogOut, Gift, MessageSquare, Sun, Moon, Lock, Info, Copy, EyeOff, Crown,
-  Trophy, Target, Timer, Shuffle,
+  Trophy, Target, Timer, Shuffle, Sparkles, RotateCcw,
 } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -213,7 +213,7 @@ function getLevelColor(level: string) {
 
 // ─── Sidebar Config ─────────────────────────────────────────
 
-type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database' | 'simulation' | 'community' | 'quizzes' | 'settings'
+type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database' | 'simulation' | 'community' | 'quizzes' | 'ai-assistant' | 'settings'
 
 const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'نظرة عامة', icon: Activity },
@@ -225,6 +225,7 @@ const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[]
   { id: 'community', label: 'المجتمع', icon: MessageSquare },
   { id: 'quizzes', label: 'الاختبارات', icon: HelpCircle },
   { id: 'notifications', label: 'الإشعارات', icon: Bell },
+  { id: 'ai-assistant', label: 'المساعد الذكي', icon: Sparkles },
   { id: 'activity-logs', label: 'سجل العمليات', icon: FileText },
   { id: 'database', label: 'قاعدة البيانات', icon: Shield },
   { id: 'settings', label: 'إعدادات التطبيق', icon: Settings },
@@ -844,6 +845,17 @@ export function AdminPage() {
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [settingsSaving, setSettingsSaving] = useState(false)
 
+  // AI Assistant State
+  const [aiEnabled, setAiEnabled] = useState(true)
+  const [aiSystemPrompt, setAiSystemPrompt] = useState('')
+  const [aiTemperature, setAiTemperature] = useState(0.7)
+  const [aiMaxTokens, setAiMaxTokens] = useState(2000)
+  const [aiCustomResponses, setAiCustomResponses] = useState<Array<{ keyword: string; response: string }>>([])
+  const [aiChatLogs, setAiChatLogs] = useState<any[]>([])
+  const [aiChatLogsTotal, setAiChatLogsTotal] = useState(0)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiSaving, setAiSaving] = useState(false)
+
   // Gift Course State
   const [giftModalOpen, setGiftModalOpen] = useState(false)
   const [giftTargetUser, setGiftTargetUser] = useState<ApiUser | null>(null)
@@ -927,6 +939,68 @@ export function AdminPage() {
     setSettingsLoading(false)
   }, [])
 
+  // Fetch AI settings
+  const fetchAiSettings = useCallback(async () => {
+    setAiLoading(true)
+    try {
+      const res = await fetch('/api/admin/ai', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.success && data.settings) {
+        setAiEnabled(data.settings.enabled ?? true)
+        setAiSystemPrompt(data.settings.systemPrompt || '')
+        setAiTemperature(data.settings.temperature ?? 0.7)
+        setAiMaxTokens(data.settings.maxTokens ?? 2000)
+        setAiCustomResponses(data.settings.customResponses || [])
+      }
+    } catch (err) { console.error('Fetch AI settings error:', err) }
+    setAiLoading(false)
+  }, [])
+
+  // Fetch AI chat logs
+  const fetchAiChatLogs = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/ai/history?limit=50', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.success) {
+        setAiChatLogs(data.logs || [])
+        setAiChatLogsTotal(data.total || 0)
+      }
+    } catch (err) { console.error('Fetch AI logs error:', err) }
+  }, [])
+
+  // Save AI settings
+  const handleSaveAiSettings = async () => {
+    setAiSaving(true)
+    try {
+      const res = await fetch('/api/admin/ai', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          enabled: aiEnabled,
+          systemPrompt: aiSystemPrompt,
+          temperature: aiTemperature,
+          maxTokens: aiMaxTokens,
+          customResponses: aiCustomResponses,
+        }),
+      })
+      const data = await res.json()
+      if (!data.success) setError(data.error || 'فشل حفظ إعدادات الذكاء الاصطناعي')
+    } catch { setError('خطأ في الاتصال') }
+    setAiSaving(false)
+  }
+
+  // Clear AI chat logs
+  const handleClearAiLogs = async () => {
+    try {
+      const res = await fetch('/api/admin/ai/history', {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      const data = await res.json()
+      if (data.success) { setAiChatLogs([]); setAiChatLogsTotal(0) }
+    } catch { setError('خطأ في حذف السجل') }
+  }
+
   const handleSaveSettings = useCallback(async (key: 'privacy' | 'about', text: string) => {
     setSettingsSaving(true)
     try {
@@ -997,6 +1071,9 @@ export function AdminPage() {
           break
         case 'settings':
           await fetchSettings()
+          break
+        case 'ai-assistant':
+          await Promise.all([fetchAiSettings(), fetchAiChatLogs()])
           break
       }
       setLoadedSections(prev => new Set(prev).add(section))
@@ -2791,6 +2868,217 @@ export function AdminPage() {
 
   // No loading screen - admin dashboard shows immediately
 
+  const renderAiAssistant = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-cyan/20 to-neon-purple/20 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-neon-cyan" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold">المساعد الذكي (AI)</h3>
+            <p className="text-xs text-muted-foreground">إدارة وإعدادات المساعد الطبي الذكي</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-medium ${aiEnabled ? 'text-emerald-400' : 'text-red-400'}`}>
+            {aiEnabled ? '✅ مفعّل' : '⏹ معطّل'}
+          </span>
+        </div>
+      </div>
+
+      {/* Enable/Disable Toggle */}
+      <div className="glass-card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-bold">تفعيل المساعد الذكي</h4>
+            <p className="text-xs text-muted-foreground mt-1">عند التعطيل، سيظهر للمستخدمين رسالة بأن المساعد غير متاح</p>
+          </div>
+          <button
+            onClick={() => setAiEnabled(!aiEnabled)}
+            className={`relative w-14 h-7 rounded-full transition-colors ${aiEnabled ? 'bg-emerald-500' : 'bg-muted'}`}
+          >
+            <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${aiEnabled ? 'left-7' : 'left-0.5'}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* System Prompt */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full bg-neon-cyan" />
+          <span className="text-sm font-bold">الشخصية والتعليمات (System Prompt)</span>
+        </div>
+        <p className="text-xs text-muted-foreground">حدد كيف يتصرف المساعد الذكي وما هي تخصصه. اتركه فارغاً لاستخدام التعليمات الافتراضية.</p>
+        <textarea
+          value={aiSystemPrompt}
+          onChange={(e) => setAiSystemPrompt(e.target.value)}
+          rows={8}
+          className="w-full bg-muted/30 border border-border rounded-lg p-3 text-sm resize-none focus:border-neon-cyan/50 focus:outline-none"
+          dir="rtl"
+          placeholder="أنت مساعد طبي ذكي متخصص في التعليم الطبي..."
+        />
+        {!aiSystemPrompt && (
+          <p className="text-[10px] text-emerald-400/70">✅ يتم استخدام التعليمات الافتراضية حالياً</p>
+        )}
+      </div>
+
+      {/* AI Settings */}
+      <div className="glass-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full bg-neon-purple" />
+          <span className="text-sm font-bold">إعدادات النموذج</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block font-medium">النموذج</label>
+            <div className="h-10 rounded-md border border-border bg-muted/30 flex items-center px-3 text-sm text-muted-foreground">
+              Gemini 2.0 Flash
+            </div>
+            <p className="text-[10px] text-muted-foreground/50 mt-1">سريع ومجاني - مناسب للتطبيق</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الحرارة (Temperature): {aiTemperature}</label>
+            <input
+              type="range" min="0" max="1" step="0.1"
+              value={aiTemperature}
+              onChange={(e) => setAiTemperature(parseFloat(e.target.value))}
+              className="w-full mt-2"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground/50 mt-1">
+              <span>دقيق (0)</span>
+              <span>إبداعي (1)</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block font-medium">أقصى عدد كلمات (Max Tokens)</label>
+            <Input type="number" value={aiMaxTokens} onChange={(e) => setAiMaxTokens(parseInt(e.target.value) || 1000)}
+              className="bg-muted/30 border-border h-10 text-sm" min={500} max={4000} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block font-medium">حالة الاتصال</label>
+            <div className="h-10 rounded-md border border-border bg-muted/30 flex items-center px-3 text-sm">
+              <span className="text-emerald-400">● متصل بـ Gemini API</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Custom Responses */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-amber-400" />
+            <span className="text-sm font-bold">ردود مخصصة</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setAiCustomResponses([...aiCustomResponses, { keyword: '', response: '' }])}
+            className="h-7 text-xs gap-1 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/10">
+            <Plus className="h-3 w-3" />
+            إضافة رد
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">ردود ثابتة تُعرض عند ذكر كلمات مفتاحية محددة (أفضلوية أعلى من AI)</p>
+
+        {aiCustomResponses.length === 0 && (
+          <div className="p-4 rounded-lg bg-muted/20 border border-border/50 text-center">
+            <p className="text-xs text-muted-foreground">لا توجد ردود مخصصة بعد</p>
+          </div>
+        )}
+
+        {aiCustomResponses.map((cr, idx) => (
+          <div key={idx} className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-400">رد مخصص {idx + 1}</span>
+              <Button variant="ghost" size="icon" onClick={() => setAiCustomResponses(aiCustomResponses.filter((_, i) => i !== idx))}
+                className="h-6 w-6 hover:bg-red-500/10">
+                <Trash2 className="h-3 w-3 text-red-400" />
+              </Button>
+            </div>
+            <Input value={cr.keyword} onChange={(e) => {
+              const updated = [...aiCustomResponses]
+              updated[idx] = { ...updated[idx], keyword: e.target.value }
+              setAiCustomResponses(updated)
+            }} placeholder="كلمات مفتاحية (مفصولة بفاصلة): قلب,heart,cardiac" className="bg-muted/30 border-border h-9 text-sm" dir="ltr" />
+            <textarea value={cr.response} onChange={(e) => {
+              const updated = [...aiCustomResponses]
+              updated[idx] = { ...updated[idx], response: e.target.value }
+              setAiCustomResponses(updated)
+            }} placeholder="الرد الذي سيظهر عند ذكر أي من الكلمات المفتاحية..." rows={3}
+              className="w-full bg-muted/30 border border-border rounded-md p-2 text-sm resize-none focus:outline-none focus:border-amber-500/50" dir="rtl" />
+          </div>
+        ))}
+      </div>
+
+      {/* Save Button */}
+      <div className="flex gap-3">
+        <Button onClick={handleSaveAiSettings} disabled={aiSaving}
+          className="bg-gradient-to-l from-neon-purple to-neon-cyan text-white font-bold hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all h-10 px-6 disabled:opacity-50">
+          <Save className="h-4 w-4 ml-1.5" />
+          {aiSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+        </Button>
+      </div>
+
+      {/* Chat Logs */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-emerald-400" />
+            <span className="text-sm font-bold">سجل المحادثات</span>
+            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px] px-1.5">{aiChatLogsTotal} رسالة</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={fetchAiChatLogs}
+              className="h-7 text-xs gap-1 border-border text-muted-foreground hover:text-foreground">
+              <RotateCcw className="h-3 w-3" />
+              تحديث
+            </Button>
+            {aiChatLogs.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleClearAiLogs}
+                className="h-7 text-xs gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10">
+                <Trash2 className="h-3 w-3" />
+                حذف الكل
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {aiChatLogs.length === 0 ? (
+          <div className="p-6 text-center">
+            <MessageSquare className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">لا توجد محادثات بعد</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {aiChatLogs.map((log: any, idx: number) => (
+              <div key={idx} className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium">{log.userName || 'مجهول'}</span>
+                    <Badge className={`text-[8px] px-1 ${
+                      log.source === 'gemini' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                      log.source === 'custom' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                      'bg-red-500/10 text-red-400 border-red-500/20'
+                    }`}>
+                      {log.source === 'gemini' ? 'Gemini' : log.source === 'custom' ? 'مخصص' : 'احتياطي'}
+                    </Badge>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {log.timestamp ? new Date(log.timestamp).toLocaleString('ar') : ''}
+                  </span>
+                </div>
+                <div className="text-xs">
+                  <p className="text-neon-cyan/80 mb-1">👤 {log.userMessage?.slice(0, 100)}{log.userMessage?.length > 100 ? '...' : ''}</p>
+                  <p className="text-muted-foreground">🤖 {log.aiResponse?.slice(0, 100)}{log.aiResponse?.length > 100 ? '...' : ''}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
   const renderSettings = () => (
     <SettingsSection
       privacyText={privacyText}
@@ -2951,6 +3239,7 @@ export function AdminPage() {
               {activeSection === 'simulation' && <SimulationManagementSection />}
               {activeSection === 'community' && <CommunityManagementSection />}
               {activeSection === 'quizzes' && <QuizManagementSection />}
+              {activeSection === 'ai-assistant' && renderAiAssistant()}
               {activeSection === 'settings' && renderSettings()}
             </AnimatePresence>
           </motion.div>
