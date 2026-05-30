@@ -49,16 +49,135 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 
-// ─── Quick Action Chips ──────────────────────────────────────────────────────
+// ─── Dynamic Quick Action Chips (generate different prompts each time) ────────
 
-const QUICK_ACTIONS = [
-  { id: 'summarize', label: '📋 تلخيص درس', icon: BookOpen, prompt: 'لخص لي أهم النقاط في درس طب الطوارئ' },
-  { id: 'quiz', label: '🧪 اختبار سريع', icon: FlaskConical, prompt: 'أعطني اختبار سريع من 5 أسئلة في أمراض القلب' },
-  { id: 'case', label: '🏥 حالة سريرية', icon: Hospital, prompt: 'اعرض لي حالة سريرية في طب الطوارئ مع التشخيص التفريقي' },
-  { id: 'explain', label: '📖 شرح مبسط', icon: BookText, prompt: 'اشرح لي نظام ABC في تقييم المريض بطريقة مبسطة' },
-  { id: 'flashcards', label: '🗂️ بطاقات مراجعة', icon: Layers, prompt: 'أنشئ لي 5 بطاقات مراجعة عن أدوية الطوارئ' },
-  { id: 'plan', label: '📅 خطة تعلم', icon: CalendarDays, prompt: 'ضع لي خطة تعلم لمدة شهر في أمراض القلب' },
-  { id: 'dialect', label: '💬 شرح باللهجة', icon: MessageCircle, prompt: 'اشرح لي آلية عمل القلب باللهجة العامية' },
+const MEDICAL_TOPICS = [
+  'أمراض القلب', 'الجهاز التنفسي', 'الجهاز الهضمي', 'الجهاز العصبي', 'أمراض الكلى',
+  'الغدد الصماء والسكري', 'أمراض الدم', 'الأمراض المعدية', 'الروماتيزم والمفاصل',
+  'الأمراض النفسية', 'طب الطوارئ', 'الأورام', 'طب الأطفال', 'طب النساء والتوليد',
+  'الجراحة العامة', 'طب العيون', 'طب الأنف والأذن', 'الأمراض الجلدية',
+  'التخدير والعناية المركزة', 'الأشعة والتصوير الطبي', 'علم الأمراض',
+  'التشريح المرضي', 'علم الأدوية والصيدلة', 'طب الأسرة',
+]
+
+const CLINICAL_SCENARIOS = [
+  'مريض يبلغ من العمر 45 عاماً يعاني من ألم صدري حاد مع ضيق تنفس',
+  'امرأة حامل في الأسبوع 32 شكت من صداع شديد وارتفاع ضغط الدم',
+  'طفل عمره 3 سنوات مع حرارة مرتفعة وطفح جلدي',
+  'مريض مسن يعاني من التبول المتكرر والعطش الشديد وفقدان الوزن',
+  'شاب يبلغ 25 عاماً يعاني من ألم حاد في البطن مع غثيان وقيء',
+  'مريض يعاني من رجفة مفاجئة وفقدان الوعي لمدة دقيقتين',
+  'مريضة تشكو من تورم في الساقين وضيق تنفس عند الاستلقاء',
+  'مريض يعاني من سعال مزمن مع بلدموي وفقدان وزن',
+  'طفل حديث الولادة يعاني من اصفرار شديد في الجلد',
+  'مريض يعاني من ألم مفاجئ شديد في الخاصرة اليسى مع دم في البول',
+  'مريض محمول للطوارئ بعد حادث مروري مع ضيق تنفس وانخفاض ضغط',
+  'مريضة تشكو من ألم مفصلي متعدد مع تعب وطفح على الوجه',
+  'مريض في الخمسينات يعاني من نسيان متزايد وارتباك',
+  'شاب يعاني من صداع نصفي متكرر مع اضطراب بصري',
+  'مريض يعاني من حرقة معدة مزمنة مع صعوبة في البلع',
+]
+
+const SPECIFIC_CONDITIONS = [
+  'احتشاء عضلة القلب الحاد (STEMI)', 'السكتة الدماغية', 'الربو القصبي الحاد',
+  'الفشل الكلوي المزمن', 'تليف الكبد', 'السكري النوع 2', 'التهاب الزائدة الدودية',
+  'الالتهاب الرئوي المكتسب من المجتمع', 'الرجفان الأذيني',
+  'انسداد الأمعاء', 'التهاب السحايا', 'متلازمة الكبد الكظري',
+  'الحماض الكيتوني السكري', 'الصدمة التأقية', 'تسمم الحمل',
+  'الانصباب الجنبي', 'خثار الأوردة العميقة', 'التهاب البنكرياس الحاد',
+  'الانفتال الرئوي', 'ارتفاع ضغط الدم الخبيث',
+]
+
+const DRUG_CATEGORIES = [
+  'مضادات التخثر', 'المضادات الحيوية', 'مضادات الاكتئاب', 'أدوية الضغط',
+  'أدوية السكري', 'المسكنات والأفيونات', 'أدوية الربو', 'أدوية القلب',
+  'أدوية الصرع', 'الكورتيكوستيرويدات', 'أدوية الغدة الدرقية',
+  'أدوية القرحة', 'أدوية النقرس', 'أدوية الأورام',
+]
+
+const PHYSIOLOGY_TOPICS = [
+  'آلية انقباض عضلة القلب', 'تبادل الغازات في الرئتين', 'تصفية الكلى وتكوين البول',
+  'النقل العصبي المشبكي', 'تنظيم سكر الدم', 'آليات المناعة الفطرية',
+  'التخثر وتجلط الدم', 'تنظيم التوازن الحمضي القاعدي', 'الهرمونات وتنظيمها',
+  'حركة الأمعاء والهضم', 'التنفس الخلوي وإنتاج الطاقة',
+]
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+interface QuickAction {
+  id: string
+  label: string
+  icon: any
+  generate: () => string
+}
+
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    id: 'quiz',
+    label: '🧪 اختبار سريع',
+    icon: FlaskConical,
+    generate: () => {
+      const topic = pickRandom(MEDICAL_TOPICS)
+      const difficulty = pickRandom(['سهل', 'متوسط', 'متقدم'])
+      return `أنشئ لي اختبار طبي من 5 أسئلة اختيار متعدد في موضوع "${topic}" بمستوى ${difficulty}. كل سؤال له 4 خيارات مع الإجابة الصحيحة وشرح مختصر. لا تكرر أسئلة شائعة - كن مبتكراً في صياغة الأسئلة.`
+    },
+  },
+  {
+    id: 'case',
+    label: '🏥 حالة سريرية',
+    icon: Hospital,
+    generate: () => {
+      const scenario = pickRandom(CLINICAL_SCENARIOS)
+      return `أعطني حالة سريرية تفصيلية: ${scenario}. اذكر الأعراض بالتفصيل، الفحص السريري، الفحوصات المطلوبة، التشخيص التفريقي (3-4 احتمالات)، والتشخيص الأرجح مع التبرير. كن واقعياً ومبتكراً - لا تكرر الحالات الشائعة.`
+    },
+  },
+  {
+    id: 'summarize',
+    label: '📋 تلخيص درس',
+    icon: BookOpen,
+    generate: () => {
+      const topic = pickRandom(MEDICAL_TOPICS)
+      return `لخص لي أهم النقاط في موضوع "${topic}" بطريقة منظمة تشمل: التعريف، الأسباب، الأعراض، التشخيص، والعلاج. ركز على النقاط التي يخطئ فيها الطلاب كثيراً.`
+    },
+  },
+  {
+    id: 'explain',
+    label: '📖 شرح مبسط',
+    icon: BookText,
+    generate: () => {
+      const topic = pickRandom(PHYSIOLOGY_TOPICS)
+      return `اشرح لي "${topic}" بطريقة مبسطة جداً كأنك تشرح لطالب في السنة الأولى. استخدم أمثلة من الحياة اليومية للتوضيح. اجعل الشرح متسلسل ومنطقي.`
+    },
+  },
+  {
+    id: 'flashcards',
+    label: '🗂️ بطاقات مراجعة',
+    icon: Layers,
+    generate: () => {
+      const category = pickRandom(DRUG_CATEGORIES)
+      return `أنشئ لي 6 بطاقات مراجعة عن "${category}" - كل بطاقة تحتوي على سؤال في الأمام والإجابة المختصرة في الخلف. ركز على النقاط التي تأتي في الامتحانات. كن متنوعاً ولا تكرر أنماط الأسئلة.`
+    },
+  },
+  {
+    id: 'drug',
+    label: '💊 تفاعل دوائي',
+    icon: Wallet,
+    generate: () => {
+      const cat = pickRandom(DRUG_CATEGORIES)
+      return `اكتب لي عن أهم التفاعلات الدوائية الخطيرة المتعلقة بـ "${cat}" مع شرح الآلية والعلامات التحذيرية والإدارة المناسبة. لا تكرر التفاعلات الشائعة فقط - أضف تفاعلات أقل شهرة لكن مهمة.`
+    },
+  },
+  {
+    id: 'condition',
+    label: '🩺 تشخيص تفريقي',
+    icon: Target,
+    generate: () => {
+      const condition = pickRandom(SPECIFIC_CONDITIONS)
+      return `اشرح لي التشخيص التفريقي لحالة "${condition}" - اذكر 4-5 حالات مشابهة وكيف نميز بينها سريرياً ومخبرياً. رتبها حسب الأرجحية.`
+    },
+  },
 ]
 
 // ─── Formatting Helper ───────────────────────────────────────────────────────
@@ -624,9 +743,10 @@ export function AITutorPage() {
     sendToAI(trimmed)
   }, [input, aiLoading, addAiMessage, sendToAI])
 
-  // Quick action click
-  const handleQuickAction = useCallback((prompt: string) => {
+  // Quick action click - generates a NEW random prompt each time
+  const handleQuickAction = useCallback((action: QuickAction) => {
     if (aiLoading) return
+    const prompt = action.generate() // Different every click!
     addAiMessage({
       id: Date.now().toString(),
       role: 'user',
@@ -899,7 +1019,7 @@ export function AITutorPage() {
                   key={action.id}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleQuickAction(action.prompt)}
+                  onClick={() => handleQuickAction(action)}
                   disabled={aiLoading || limitReached}
                   className="flex-shrink-0 glass-card px-3 py-1.5 text-xs text-foreground hover:text-neon-cyan hover:border-neon-cyan/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
