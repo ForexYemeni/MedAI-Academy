@@ -857,6 +857,9 @@ export function AdminPage() {
   const [aiSaving, setAiSaving] = useState(false)
   const [aiTestResult, setAiTestResult] = useState<any>(null)
   const [aiTesting, setAiTesting] = useState(false)
+  const [aiFreeLimit, setAiFreeLimit] = useState(5)
+  const [aiSubscriptions, setAiSubscriptions] = useState<any[]>([])
+  const [aiSubsLoading, setAiSubsLoading] = useState(false)
 
   // Gift Course State
   const [giftModalOpen, setGiftModalOpen] = useState(false)
@@ -952,10 +955,24 @@ export function AdminPage() {
         setAiSystemPrompt(data.settings.systemPrompt || '')
         setAiTemperature(data.settings.temperature ?? 0.7)
         setAiMaxTokens(data.settings.maxTokens ?? 2000)
+        setAiFreeLimit(data.settings.freeMessageLimit ?? 5)
         setAiCustomResponses(data.settings.customResponses || [])
       }
     } catch (err) { console.error('Fetch AI settings error:', err) }
     setAiLoading(false)
+  }, [])
+
+  // Fetch AI subscriptions
+  const fetchAiSubscriptions = useCallback(async () => {
+    setAiSubsLoading(true)
+    try {
+      const res = await fetch('/api/ai/subscription?status=all', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.success) {
+        setAiSubscriptions(data.subscriptions || [])
+      }
+    } catch (err) { console.error('Fetch AI subs error:', err) }
+    setAiSubsLoading(false)
   }, [])
 
   // Fetch AI chat logs
@@ -980,8 +997,10 @@ export function AdminPage() {
         body: JSON.stringify({
           enabled: aiEnabled,
           systemPrompt: aiSystemPrompt,
+          provider: 'groq',
           temperature: aiTemperature,
           maxTokens: aiMaxTokens,
+          freeMessageLimit: aiFreeLimit,
           customResponses: aiCustomResponses,
         }),
       })
@@ -1090,7 +1109,7 @@ export function AdminPage() {
           await fetchSettings()
           break
         case 'ai-assistant':
-          await Promise.all([fetchAiSettings(), fetchAiChatLogs()])
+          await Promise.all([fetchAiSettings(), fetchAiChatLogs(), fetchAiSubscriptions()])
           break
       }
       setLoadedSections(prev => new Set(prev).add(section))
@@ -2950,10 +2969,10 @@ export function AdminPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block font-medium">النموذج</label>
-            <div className="h-10 rounded-md border border-border bg-muted/30 flex items-center px-3 text-sm text-muted-foreground">
-              Gemini 2.0 Flash
+            <div className="h-10 rounded-md border border-border bg-muted/30 flex items-center px-3 text-sm text-emerald-400">
+              Groq (Llama 3.3 70B)
             </div>
-            <p className="text-[10px] text-muted-foreground/50 mt-1">سريع ومجاني - مناسب للتطبيق</p>
+            <p className="text-[10px] text-muted-foreground/50 mt-1">سريع جداً ومجاني - يعمل بثبات</p>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الحرارة (Temperature): {aiTemperature}</label>
@@ -3054,6 +3073,124 @@ export function AdminPage() {
           <Save className="h-4 w-4 ml-1.5" />
           {aiSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
         </Button>
+      </div>
+
+      {/* Free Message Limit */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full bg-neon-green" />
+          <span className="text-sm font-bold">حد الرسائل المجانية</span>
+        </div>
+        <p className="text-xs text-muted-foreground">عدد الرسائل المجانية المسموحة يومياً للمستخدمين غير المشتركين</p>
+        <div className="flex items-center gap-3">
+          <Input type="number" value={aiFreeLimit} onChange={(e) => setAiFreeLimit(parseInt(e.target.value) || 5)}
+            className="bg-muted/30 border-border h-10 text-sm w-24" min={1} max={100} />
+          <span className="text-xs text-muted-foreground">رسالة / يوم</span>
+          <Button variant="outline" size="sm" onClick={() => setAiFreeLimit(5)}
+            className="h-8 text-xs border-border text-muted-foreground">إعادة تعيين (5)</Button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">💡 المستخدمون المشتركون يحصلون على رسائل غير محدودة</p>
+      </div>
+
+      {/* AI Subscriptions Management */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-5 rounded-full bg-neon-purple" />
+            <span className="text-sm font-bold">إدارة اشتراكات AI</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchAiSubscriptions}
+            className="h-7 text-xs gap-1 border-border text-muted-foreground hover:text-foreground">
+            <RotateCcw className="h-3 w-3" />
+            تحديث
+          </Button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 text-center">
+            <div className="text-lg font-bold text-amber-400">{aiSubscriptions.filter(s => s.status === 'pending').length}</div>
+            <div className="text-[9px] text-muted-foreground">بانتظار الموافقة</div>
+          </div>
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2 text-center">
+            <div className="text-lg font-bold text-emerald-400">{aiSubscriptions.filter(s => s.status === 'active').length}</div>
+            <div className="text-[9px] text-muted-foreground">نشط</div>
+          </div>
+          <div className="bg-muted/20 border border-border/50 rounded-lg p-2 text-center">
+            <div className="text-lg font-bold text-muted-foreground">{aiSubscriptions.length}</div>
+            <div className="text-[9px] text-muted-foreground">الإجمالي</div>
+          </div>
+        </div>
+
+        {/* Subscription List */}
+        {aiSubscriptions.length === 0 ? (
+          <div className="p-6 text-center">
+            <CreditCard className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">لا توجد اشتراكات بعد</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {aiSubscriptions.map((sub: any, idx: number) => (
+              <div key={idx} className={`p-3 rounded-lg border space-y-2 ${
+                sub.status === 'pending' ? 'bg-amber-500/5 border-amber-500/20' :
+                sub.status === 'active' ? 'bg-emerald-500/5 border-emerald-500/20' :
+                'bg-muted/20 border-border/50'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium">{sub.userName || 'مجهول'}</span>
+                    <Badge className={`text-[8px] px-1 ${
+                      sub.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                      sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                      sub.status === 'rejected' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                      'bg-muted/20 text-muted-foreground border-border'
+                    }`}>
+                      {sub.status === 'pending' ? '⏳ بانتظار' : sub.status === 'active' ? '✅ نشط' : sub.status === 'rejected' ? '❌ مرفوض' : '🚫 ملغى'}
+                    </Badge>
+                    <Badge className="bg-neon-purple/10 text-neon-purple border-neon-purple/20 text-[8px] px-1">
+                      {sub.planName}
+                    </Badge>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString('ar') : ''}
+                  </span>
+                </div>
+                <div className="text-[10px] text-muted-foreground space-y-0.5">
+                  <p>📱 {sub.userPhone} | 💳 {sub.paymentMethod} ({sub.paymentPhone})</p>
+                  {sub.paymentNote && <p>📝 {sub.paymentNote}</p>}
+                  {sub.expiresAt && <p>⏰ ينتهي: {new Date(sub.expiresAt).toLocaleDateString('ar')}</p>}
+                </div>
+                {sub.status === 'pending' && (
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" onClick={async () => {
+                      const res = await fetch('/api/ai/subscription', {
+                        method: 'PUT',
+                        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ subscriptionId: sub._id, action: 'approve' }),
+                      })
+                      const data = await res.json()
+                      if (data.success) { fetchAiSubscriptions() }
+                    }} className="h-7 text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3">
+                      <CheckCircle2 className="h-3 w-3 ml-1" /> موافقة
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={async () => {
+                      const reason = prompt('سبب الرفض (اختياري):') || ''
+                      const res = await fetch('/api/ai/subscription', {
+                        method: 'PUT',
+                        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ subscriptionId: sub._id, action: 'reject', rejectionReason: reason }),
+                      })
+                      const data = await res.json()
+                      if (data.success) { fetchAiSubscriptions() }
+                    }} className="h-7 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10 px-3">
+                      <X className="h-3 w-3 ml-1" /> رفض
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Chat Logs */}

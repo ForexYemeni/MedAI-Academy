@@ -17,17 +17,17 @@ export async function GET(req: NextRequest) {
     const settings = await db.collection('ai_settings').findOne({ id: 'main' })
 
     if (!settings) {
-      // Return defaults
       return NextResponse.json({
         success: true,
         settings: {
           enabled: true,
           systemPrompt: '',
-          modelName: 'gemini-2.0-flash',
+          modelName: 'llama-3.3-70b-versatile',
+          provider: 'groq',
           temperature: 0.7,
           maxTokens: 2000,
+          freeMessageLimit: 5,
           customResponses: [],
-          chatHistory: [],
         }
       })
     }
@@ -37,11 +37,12 @@ export async function GET(req: NextRequest) {
       settings: {
         enabled: settings.enabled ?? true,
         systemPrompt: settings.systemPrompt || '',
-        modelName: settings.modelName || 'gemini-2.0-flash',
+        modelName: settings.modelName || 'llama-3.3-70b-versatile',
+        provider: settings.provider || 'groq',
         temperature: settings.temperature ?? 0.7,
         maxTokens: settings.maxTokens ?? 2000,
+        freeMessageLimit: settings.freeMessageLimit ?? 5,
         customResponses: settings.customResponses || [],
-        chatHistory: settings.chatHistory || [],
       }
     })
   } catch (error) {
@@ -62,7 +63,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { enabled, systemPrompt, modelName, temperature, maxTokens, customResponses } = body
+    const { enabled, systemPrompt, modelName, provider, temperature, maxTokens, freeMessageLimit, customResponses } = body
 
     const { db } = await connectToDatabase()
 
@@ -73,9 +74,11 @@ export async function PUT(req: NextRequest) {
           id: 'main',
           enabled: enabled ?? true,
           systemPrompt: systemPrompt || '',
-          modelName: modelName || 'gemini-2.0-flash',
+          modelName: modelName || 'llama-3.3-70b-versatile',
+          provider: provider || 'groq',
           temperature: temperature ?? 0.7,
           maxTokens: maxTokens ?? 2000,
+          freeMessageLimit: freeMessageLimit ?? 5,
           customResponses: customResponses || [],
           updatedAt: new Date(),
         }
