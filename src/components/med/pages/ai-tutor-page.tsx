@@ -826,6 +826,12 @@ export function AITutorPage() {
 
   const MAX_CHARS = 500
 
+  // Derived values (must be declared before useEffect that references them)
+  const isPremium = aiUsage?.isPremium || user.subscription === 'premium'
+  const remainingMessages = aiUsage?.remaining ?? 999
+  const totalLimit = aiUsage?.limit ?? 999
+  const limitReached = !isPremium && remainingMessages <= 0
+
   // Fetch AI usage on mount
   useEffect(() => {
     const fetchUsage = async () => {
@@ -1011,11 +1017,6 @@ export function AITutorPage() {
       minute: '2-digit',
     })
   }
-
-  const isPremium = aiUsage?.isPremium || user.subscription === 'premium'
-  const remainingMessages = aiUsage?.remaining ?? 999
-  const totalLimit = aiUsage?.limit ?? 999
-  const limitReached = !isPremium && remainingMessages <= 0
 
   const refreshSubscription = useCallback(() => {
     if (!authToken) return
