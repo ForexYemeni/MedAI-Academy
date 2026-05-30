@@ -479,32 +479,44 @@ export async function POST(req: NextRequest) {
     })
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 🤖 TRY GROQ AI (Primary) + Retry Logic
+    // 🤖 TRY GROQ AI with Smart Retry Logic
     // ═══════════════════════════════════════════════════════════════════════
     let aiResponse: string | null = null
     let source = 'groq'
 
     // 1. Try Groq API
-    console.log('[AI] Trying Groq API...')
+    console.log('[AI] Trying Groq API (attempt 1)...')
     const groqResult = await callGroq(messages, systemPrompt, temperature, maxTokens)
     if (groqResult.text) {
       aiResponse = groqResult.text
       source = 'groq'
     }
 
-    // 2. Retry with higher temperature if first attempt failed
+    // 2. Retry with delay (handles rate limiting) if first attempt failed
     if (!aiResponse) {
-      console.log('[AI] Groq failed, retrying with higher temperature...')
-      const retryResult = await callGroq(messages, systemPrompt, 0.8, maxTokens)
+      console.log('[AI] Groq attempt 1 failed, waiting 2s before retry...')
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const retryResult = await callGroq(messages, systemPrompt, 0.7, maxTokens)
       if (retryResult.text) {
         aiResponse = retryResult.text
         source = 'groq-retry'
       }
     }
 
-    // 3. Final fallback - only when Groq completely fails
+    // 3. Third attempt with longer delay
     if (!aiResponse) {
-      console.log('[AI] Groq completely failed, using fallback message')
+      console.log('[AI] Groq attempt 2 failed, waiting 4s before final retry...')
+      await new Promise(resolve => setTimeout(resolve, 4000))
+      const retry2Result = await callGroq(messages, systemPrompt, 0.8, maxTokens)
+      if (retry2Result.text) {
+        aiResponse = retry2Result.text
+        source = 'groq-retry2'
+      }
+    }
+
+    // 4. Final fallback - only when Groq completely fails after all retries
+    if (!aiResponse) {
+      console.log('[AI] Groq completely failed after 3 attempts, using fallback message')
       aiResponse = getMinimalFallback(trimmedMessage)
       source = 'fallback'
     }
