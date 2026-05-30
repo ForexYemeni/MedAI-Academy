@@ -3,7 +3,7 @@ import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 🧠 PROFESSIONAL MEDICAL AI SYSTEM PROMPT - ANTI-HALLUCINATION
+// 🧠 PROFESSIONAL MEDICAL AI - HIDDEN PRE-PROMPT SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const DEFAULT_SYSTEM_PROMPT = `أنت مساعد طبي تعليمي احترافي في منصة "أكاديمية نبض". تتحدث العربية الفصحى المبسطة.
@@ -58,6 +58,111 @@ const DEFAULT_SYSTEM_PROMPT = `أنت مساعد طبي تعليمي احترا�
 - أجب عن السؤال المحدد أولاً ثم أضف معلومات تكميلية إن لزم
 - لا تكرر المعلومات نفسها بطرق مختلفة`
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🔒 HIDDEN PRE-PROMPT - injected before every user message
+// This is the KEY to professional, varied, non-repetitive answers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function buildHiddenPrePrompt(userMessage: string): string {
+  const seed = Math.floor(Math.random() * 999999)
+  const timestamp = Date.now()
+
+  // Detect the type of request to customize the pre-prompt
+  const lowerMsg = userMessage.toLowerCase()
+  let requestType = 'general'
+  let specializedInstructions = ''
+
+  if (/اختبار|quiz|أسئلة|امتحان|test/.test(lowerMsg)) {
+    requestType = 'quiz'
+    specializedInstructions = `
+═══ تعليمات خاصة: اختبار طبي ═══
+- أنشئ أسئلة اختيار متعدد (MCQ) احترافية بـ 4 خيارات لكل سؤال
+- كل سؤال يجب أن يكون فريداً ومبتكراً - لا تستخدم أسئلة مكررة أو شائعة جداً
+- غيّر مستوى الصعوبة بين الأسئلة
+- أضف شرحاً مختصراً للإجابة الصحيحة
+- غيّر الموضوع الفرعي كل مرة حتى لو طُلب نفس التخصص العام
+- رقم العشوائية: ${seed} - استخدمه لتنويع المحتوى`
+  } else if (/حالة سريرية|حالة مرضية|clinical case|scenario/.test(lowerMsg)) {
+    requestType = 'case'
+    specializedInstructions = `
+═══ تعليمات خاصة: حالة سريرية ═══
+- أنشئ حالة سريرية واقعية ومفصلة بتفاصيل فريدة
+- غيّر: عمر المريض، الجنس، المهنة، القصة المرضية، الأعراض الدقيقة
+- اذكر: الشكوى الرئيسية، القصة المرضية الحالية، السوابق، الفحص السريري
+- قدم التشخيص التفريقي مع 3-5 احتمالات مرتبة حسب الأرجحية
+- اذكر الفحوصات المطلوبة ونتائجها المتوقعة
+- حدد التشخيص الأرجح مع التبرير
+- رقم العشوائية: ${seed} - استخدمه لتنويع الحالة`
+  } else if (/لخص|تلخيص|summary|أهم النقاط/.test(lowerMsg)) {
+    requestType = 'summary'
+    specializedInstructions = `
+═══ تعليمات خاصة: تلخيص ═══
+- لخص بطريقة منظمة وشاملة مع التركيز على النقاط التي يخطئ فيها الطلاب
+- استخدم تنسيقاً واضحاً بالعناوين الفرعية والنقاط
+- أضف "نقاط خاطئة شائعة" و"نصائح للامتحان"
+- غيّر طريقة العرض والتفاصيل كل مرة
+- رقم العشوائية: ${seed} - استخدمه لتنويع الملخص`
+  } else if (/شرح|اشرح|explain|كيف|آلية/.test(lowerMsg)) {
+    requestType = 'explanation'
+    specializedInstructions = `
+═══ تعليمات خاصة: شرح مفصل ═══
+- اشرح بطريقة مبسطة ومتسلسلة مع أمثلة توضيحية
+- استخدم تشبيهات من الحياة اليومية لتسهيل الفهم
+- ابدأ من الأساسيات ثم انتقل للتعمق تدريجياً
+- أضف مخططات سير (flow) بالوصف إن أمكن
+- رقم العشوائية: ${seed} - استخدمه لتنويع الشرح`
+  } else if (/بطاقات|flashcard|مراجعة/.test(lowerMsg)) {
+    requestType = 'flashcards'
+    specializedInstructions = `
+═══ تعليمات خاصة: بطاقات مراجعة ═══
+- أنشئ بطاقات بتنسيق: سؤال في الأمام → إجابة مختصرة في الخلف
+- غيّر نوع الأسئلة: تعريفات، مقارنات، أعراض، أدوية، جرعات
+- ركز على نقاط الامتحانات والاختبارات
+- رقم العشوائية: ${seed} - استخدمه لتنويع البطاقات`
+  } else if (/تفاعل|تداخل|drug interaction/.test(lowerMsg)) {
+    requestType = 'drug_interaction'
+    specializedInstructions = `
+═══ تعليمات خاصة: التفاعلات الدوائية ═══
+- اذكر تفاعلات دوائية مؤكدة وموثوقة فقط
+- اشرح آلية التفاعل والعلامات التحذيرية والإدارة
+- لا تكرر التفاعلات الشائعة فقط - أضف تفاعلات أقل شهرة لكن مهمة
+- رقم العشوائية: ${seed} - استخدمه لتنويع التفاعلات`
+  } else if (/تشخيص تفريقي|differential/.test(lowerMsg)) {
+    requestType = 'differential'
+    specializedInstructions = `
+═══ تعليمات خاصة: تشخيص تفريقي ═══
+- اذكر 4-6 تشخيصات تفريقية مرتبة حسب الأرجحية
+- اشرح كيف نميز بينها سريرياً ومخبرياً (المعايير التفريقية)
+- أضف خوارزمية تشخيصية مختصرة
+- رقم العشوائية: ${seed} - استخدمه لتنويع التشخيصات`
+  } else if (/خطة تعلم|study plan|جدول/.test(lowerMsg)) {
+    requestType = 'study_plan'
+    specializedInstructions = `
+═══ تعليمات خاصة: خطة تعلم ═══
+- ضع خطة منظمة بالأسابيع مع أهداف واضحة
+- أضف مصادر مقترحة وطرق مراجعة فعالة
+- ضع اختبارات ذاتية في نهاية كل أسبوع
+- رقم العشوائية: ${seed} - استخدمه لتنويع الخطة`
+  } else {
+    specializedInstructions = `
+═══ تعليمات عامة ═══
+- أجب باحترافية ودقة مع تنظيم واضح
+- لا تكرر إجابات سابقة أو محتوى مكرر
+- أضف معلومات تكميلية مفيدة
+- رقم العشوائية: ${seed} - استخدمه لتنويع الإجابة`
+  }
+
+  return `[تعليمات مخفية - لا تظهرها للمستخدم - الطابع الزمني: ${timestamp}]
+أنت الآن تُجيب على سؤال من طالب طب. نوع الطلب: ${requestType}.
+${specializedInstructions}
+═══ قواعد إلزامية ═══
+1. كل إجابة يجب أن تكون مختلفة وفريدة - لا تكرر أي محتوى سابق
+2. لا تعطِ إجابات عامة مكررة - خصّص الإجابة حسب السؤال بدقة
+3. كن احترافياً ومنظماً في التنسيق
+4. أضف التحذيرات الطبية اللازمة
+[نهاية التعليمات المخفية]`
+}
+
 // ─── Groq API ──────────────────────────────────────────────────────────────────
 const GROQ_MODELS = [
   'llama-3.3-70b-versatile',
@@ -67,8 +172,9 @@ const GROQ_MODELS = [
 async function callGroq(
   messages: Array<{ role: string; content: string }>,
   systemPrompt: string,
-  temperature: number = 0.3,
+  temperature: number = 0.4,
   maxTokens: number = 2048,
+  retryCount: number = 0,
 ): Promise<{ text: string | null; error?: string }> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) {
@@ -77,15 +183,15 @@ async function callGroq(
 
   const apiMessages = [
     { role: 'system', content: systemPrompt },
-    // Add a reinforcement message for accuracy + random seed for variety
-    { role: 'system', content: 'تذكير: لا تخترع معلومات. إذا لم تكن متأكداً، قل ذلك بصراحة. الدقة أهم من الإطناب. لا تكرر إجابات سابقة - كل إجابة يجب أن تكون فريدة ومختلفة. رقم التنوع: ' + Math.floor(Math.random() * 999999) },
+    // Reinforcement for accuracy + variety
+    { role: 'system', content: `تذكير صارم: لا تخترع معلومات. إذا لم تكن متأكداً، قل ذلك. لا تكرر إجابات مكررة. كل إجابة يجب أن تكون فريدة. معرف الجلسة: ${Date.now()}-${Math.random().toString(36).slice(2,8)}` },
     ...messages,
   ]
 
   for (const model of GROQ_MODELS) {
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 45000)
+      const timeout = setTimeout(() => controller.abort(), 60000)
 
       const response = await fetch(
         'https://api.groq.com/openai/v1/chat/completions',
@@ -102,8 +208,8 @@ async function callGroq(
             temperature,
             max_tokens: maxTokens,
             top_p: 0.85,
-            frequency_penalty: 0.3,
-            presence_penalty: 0.2,
+            frequency_penalty: 0.5,
+            presence_penalty: 0.3,
           }),
         }
       )
@@ -136,221 +242,16 @@ async function callGroq(
   return { text: null, error: 'All Groq models failed' }
 }
 
-// ─── Professional Medical Fallback Responses ────────────────────────────────
+// ─── Minimal Fallback (only when AI completely fails) ──────────────────────
 
-const MEDICAL_RESPONSES: Array<{ keywords: string[]; response: string }> = [
-  {
-    keywords: ['قلب', 'heart', 'cardiac', 'تاجي', 'شرايين', 'احتشاء', ' MI ', 'فشل قلب', 'ذبحة'],
-    response: `🫀 **أمراض القلب والأوعية الدموية**
+function getMinimalFallback(message: string): string {
+  return `⚠️ عذراً، لم أتمكن من الاتصال بالخادم الذكي حالياً.
 
-**1. احتشاء عضلة القلب (Acute MI)**
-- **السبب**: انسداد كامل في الشريان التاجي غالباً بسبب خثرة على لوحة تصلبية
-- **الأعراض**: ألم صدري شديد خلف القوص (أكثر من 20 دقيقة)، ضيق تنفس، تعرق بارد، غثيان
-- **التشخيص**: ECG (ارتفاع ST) + إنزيمات القلب (Troponin)
-- **العلاج الإسعافي**: Aspirin + Nitroglycerin + Oxygen (إذا SpO2 < 94%)
-- **العلاج النهائي**: PCI خلال 90 دقيقة أو أدوية حالّة للخثارة
+💡 يرجى المحاولة مرة أخرى بعد قليل - ستحصل على إجابة احترافية من الذكاء الاصطناعي.
 
-**2. فشل القلب (Heart Failure)**
-- **HFrEF** (انقباضي): EF < 40% → ACEi/ARB + Beta-blocker + MRA + SGLT2i
-- **HFpEF** (انبساطي): EF ≥ 50% → SGLT2i + علاج السبب
-- **الأعراض**: ضيق تنفس (خاصة عند الاستلقاء)، تورم الساقين، إرهاق
-
-⚠️ المعلومات تعليمية فقط - لا تستخدمها كبديل لاستشارة الطبيب`
-  },
-  {
-    keywords: ['cpr', 'إنعاش', 'انعاش', 'إسعاف', 'اسعاف', 'طوارئ', 'emergency', 'abc'],
-    response: `🚑 **الإنعاش القلبي الرئوي (CPR) - إرشادات AHA**
-
-**تقييم ABC:**
-1. **A**irway - افتح مجرى الهواء (إمالة الرأس/رفع الذقن)
-2. **B**reathing - تحقق من التنفس (أقصى 10 ثوانٍ)
-3. **C**irculation - ابدأ الضغط الصدري فوراً
-
-**ضغط صدري عالي الجودة:**
-- المعدل: 100-120 ضغطة/دقيقة
-- العمق: 5-6 سم للبالغين
-- ارتداد كامل للصدر بين الضغطات
-- نسبة الضغط للنفخ: 30:2
-
-**أدوية الإنعاش:**
-- Adrenaline 1 mg IV كل 3-5 دقائق
-- Amiodarone 300 mg IV bolus (لـ VF/pVT المقاوم)
-
-🚑 في حالات الطوارئ اتصل بالإسعاف فوراً!`
-  },
-  {
-    keywords: ['دواء', 'أدوية', 'drug', 'حبوب', 'علاج', 'دوائي', 'تداخل', 'مضاد حيوي', 'مسكن', 'interaction'],
-    response: `💊 **التداخلات الدوائية الخطيرة المعروفة**
-
-1. **Warfarin + Aspirin/NSAIDs**: ⚠️ خطر نزيف مرتفع جداً
-2. **SSRIs + MAOIs**: 🚫 متلازمة السيروتونين (حمى، رجفة، تشنجات)
-3. **NSAIDs + Lithium**: ↑ مستوى الليثيوم → سمية
-4. **Metronidazole + Alcohol**: تأثير الديسلفيرام (غثيان، قيء، تسرع قلب)
-5. **ACEi + K-sparing diuretics**: ↑ البوتاسيوم → خطر على القلب
-6. **Fluoroquinolones + Multivalent cations**: ↓ امتصاص المضاد الحيوي
-
-💡 **قاعدة ذهبية**: راجع دائماً قائمة أدوية المريض كاملة قبل وصف أي دواء جديد!
-
-⚠️ الجرعات تختلف حسب الحالة - راجع الطبيب المعالج`
-  },
-  {
-    keywords: ['سكر', 'diabetes', 'أنسولين', 'insulin', 'سكري', 'glucose', 'hba1c'],
-    response: `🩸 **مرض السكري (Diabetes Mellitus)**
-
-**الأنواع الرئيسية:**
-- **النوع 1**: مناعة ذاتية تدمر خلايا بيتا → لا أنسولين → يبدأ عادة في الصغر
-- **النوع 2**: مقاومة أنسولين + نقص إفراز تدريجي → يبدأ عادة في الكبر
-
-**معايير التشخيص (ADA):**
-- HbA1c ≥ 6.5%
-- صائم ≥ 126 mg/dL (7.0 mmol/L)
-- عشوائي ≥ 200 mg/dL مع أعراض
-
-**خطوط العلاج (النوع 2):**
-1. تعديل نمط الحياة + **Metformin** (الخيار الأول)
-2. إذا HbA1c فوق الهدف → إضافة SGLT2i أو GLP-1 RA (خاصة مع أمراض القلب/الكلى)
-3. إذا استمر الارتفاع → أدوية أخرى أو أنسولين
-
-💡 الهدف العام: HbA1c < 7% (قد يختلف حسب المريض)
-
-⚠️ الجرعات والخطة العلاجية يحددها الطبيب المعالج`
-  },
-  {
-    keywords: ['اختبار', 'quiz', 'امتحان', 'أسئلة', 'test', 'مراجعة'],
-    response: `📝 **اختبار طبي سريع - المستوى المتوسط**
-
-**1.** ما العلاج الإسعافي الأولي لاحتشاء القلب الحاد؟
-→ Aspirin + Nitroglycerin + Oxygen (إذا لزم) → PCI
-
-**2.** ما مضاد التخثر المفضل في الرجفان الأذيني غير الصمامي؟
-→ DOACs (Apixaban/Rivaroxaban) على CHA2DS2-VASc
-
-**3.** ما جرعة Adrenaline في الإنعاش ACLS؟
-→ 1 mg IV كل 3-5 دقائق
-
-**4.** ما أول خطوة في تقييم مريض فاقد الوعي؟
-→ التأكد من مجرى الهواء (Airway)
-
-**5.** ما أكثر سبب لالتهاب الكبد الحاد عالمياً؟
-→ التهاب الكبد الفيروسي (خاصة B و C)
-
-💡 أرسل تخصصاً محدداً (قلب، أعصاب، جراحة...) لاختبار مخصص!`
-  },
-  {
-    keywords: ['كبد', 'liver', 'hepat', 'تليف', 'cirrhosis', 'يرقان', 'jaundice'],
-    response: `🫘 **أمراض الكبد**
-
-**أسباب التليف الكبدي (Cirrhosis):**
-1. الكحول (الأكثر شيوعاً عالمياً)
-2. التهاب الكبد الفيروسي المزمن (B, C)
-3. الكبد الدهني غير الكحولي (NAFLD/NASH)
-4. أمراض مناعية (PBC, PSC)
-
-**علامات التليف:**
-- يرقان، حكة، وذمة، استسقاء، ضمور العضلات
-- علامات احتضان بابي: دوالي المريء، طحال متضخم
-
-**تصنيف Child-Pugh:**
-- A (5-6): بقاء جيد
-- B (7-9): بقاء متوسط
-- C (10-15): بقاء ضعيف
-
-⚠️ التشخيص والعلاج يحددهما الطبيب المعالج`
-  },
-  {
-    keywords: ['كلية', 'kidney', 'renal', 'فشل كلوي', 'dialysis', 'غسيل'],
-    response: `🫘 **أمراض الكلى**
-
-**الفشل الكلوي الحاد (AKI):**
-- **قبل الكلية**: نقص حجم، فشل قلب، تضيق شريان كلوي
-- **الكلية نفسها**: ATN، التهاب كبيبات، أدوية سامة للكلية
-- **بعد الكلية**: انسداد مجرى البول
-
-**معايير KDIGO لـ AKI:**
-- ↑ الكرياتينين ≥ 0.3 mg/dL خلال 48 ساعة
-- أو ↑ ≥ 1.5 ضعف الأساسي خلال 7 أيام
-- أو البول < 0.5 mL/kg/h لمدة 6 ساعات
-
-**مؤشرات الغسيل الكلوي العاجل:**
-- فرط بوتاسيوم المقاوم للعلاج
-- الحماض الأيضي الشديد
-- احتقان رئوي مقاوم لل مدرات
-- اعتلال دماغي يحملي
-
-⚠️ التشخيص والعلاج يحددهما الطبيب المعالج`
-  },
-  {
-    keywords: ['رئة', 'lung', 'pulmonary', 'تنفس', 'respiratory', 'ربو', 'asthma', 'copd'],
-    response: `🫁 **أمراض الجهاز التنفسي**
-
-**الربو القصبي (Asthma):**
-- **الفيزيولوجيا**: تشنج قصبات + التهاب + مخاط → انسداد متنقل ومتبدل
-- **العلاج**: 
-  - سريع: SABA (Salbutamol) للإغاثة
-  - طويل: ICS (الخط الأول للوقاية) ± LABA
-- **نوبة الربو الشديدة**: العلاج بأكسجين + نيبولايزر Salbutamol + Steroids IV
-
-**COPD:**
-- **الفيزيولوجيا**: انسداد غير قابل للعكس الكامل (تشريحياً أمفسيما + التهاب قصبات)
-- **العلاج**: LAMA ± LABA ± ICS حسب الشدة
-- **الإقلاع عن التدخين**: أهم تدخل!
-
-⚠️ الجرعات والخطة العلاجية يحددها الطبيب المعالج`
-  },
-  {
-    keywords: ['دماغ', 'brain', 'neuro', 'أعصاب', 'سكتة', 'stroke', 'صرع', 'seizure', 'صداع'],
-    response: `🧠 **أمراض الجهاز العصبي**
-
-**السكتة الدماغية (Stroke):**
-- **نقص التروية (80%)**: tPA خلال 4.5 ساعات أو Thrombectomy خلال 24 ساعة
-- **نزفية (20%)**: ضبط الضغط + مراقبة + جراحة إن لزم
-- **FAST**: Face drooping, Arm weakness, Speech difficulty, Time to call
-
-**الصرع (Epilepsy):**
-- **نوبة رمعية معممة**: Tonic-clonic → اللقطة الأولى غالباً Levetiracetam أو Valproate
-- **نوبة بؤرية**: Carbamazepine أو Levetiracetam
-- **حالة الصرع (Status Epilepticus)**: Benzodiazepine → Phenytoin/Fosphenytoin → ICU
-
-⚠️ في حالة الاشتباه بسكتة - اتصل بالإسعاف فوراً! كل دقيقة مهمة!`
-  },
-  {
-    keywords: ['حمل', 'pregnancy', 'ولادة', 'obstetric', 'نساء', 'gynecology', 'حامل'],
-    response: `🤰 **طب النساء والتوليد**
-
-**متابعة الحمل الطبيعي:**
-- الزيارة الأولى: تأكيد الحمل + فحوصات أساسية (دم، بول، ضغط)
-- كل 4 أسابيع حتى الأسبوع 28
-- كل أسبوعين حتى الأسبوع 36
-- أسبوعياً حتى الولادة
-
-**علامات الخطر أثناء الحمل:**
-- نزيف مهبلي
-- صداع شديد أو اضطراب بصر → قد يشير لارتعاج (Preeclampsia)
-- ارتفاع ضغط الدم ≥ 140/90 بعد الأسبوع 20
-- حركة الجنين تقل أو تتوقف
-
-⚠️ أي علامة خطر = مراجعة الطوارئ فوراً!`
-  },
-]
-
-function getSmartFallback(message: string): string {
-  const lowerMsg = message?.toLowerCase() || ''
-  for (const topic of MEDICAL_RESPONSES) {
-    if (topic.keywords.some(kw => lowerMsg.includes(kw.toLowerCase()))) {
-      return topic.response
-    }
-  }
-  return `📚 **مرحباً بك في المساعد الطبي الذكي!**
-
-يمكنني مساعدتك في:
-🫀 أمراض القلب | 💊 الأدوية والتداخلات | 🚑 الطوارئ والإسعاف
-🩸 السكري | 🫁 التنفس | 🧠 الأعصاب | 🫘 الكبد والكلى
-🤰 النساء والتوليد | 👶 الأطفال | 🔪 الجراحة
-
-💡 اكتب سؤالك الطبي وسأجيبك بدقة قدر الإمكان.
-⚠️ إذا لم أكن متأكداً من إجابة سأخبرك بصراحة بدلاً من التخمين.
-
-⚠️ المعلومات للأغراض التعليمية فقط - لا تغني عن استشارة الطبيب`
+📌 يمكنك أيضاً تجربة:
+- إعادة صياغة السؤال
+- اختيار أحد الأزرار السريعة أدناه`
 }
 
 // ─── Usage Tracking ────────────────────────────────────────────────────────────
@@ -379,11 +280,9 @@ async function checkAIUsage(userId: string | undefined): Promise<UsageCheckResul
   try {
     const { db } = await connectToDatabase()
 
-    // Get AI settings for free limit
     const aiSettings = await db.collection('ai_settings').findOne({ id: 'main' })
     const freeLimit = aiSettings?.freeMessageLimit ?? 5
 
-    // Check user's active AI subscription
     const now = new Date()
     const activeSub = await db.collection('ai_subscriptions').findOne({
       userId,
@@ -402,7 +301,6 @@ async function checkAIUsage(userId: string | undefined): Promise<UsageCheckResul
       }
     }
 
-    // Check daily usage for free users
     const todayStart = new Date(now)
     todayStart.setHours(0, 0, 0, 0)
 
@@ -419,7 +317,7 @@ async function checkAIUsage(userId: string | undefined): Promise<UsageCheckResul
     }
   } catch (error) {
     console.error('[AI] Usage check error:', error)
-    return defaultResult // Allow on error
+    return defaultResult
   }
 }
 
@@ -470,7 +368,6 @@ export async function POST(req: NextRequest) {
       const { db } = await connectToDatabase()
       aiSettings = await db.collection('ai_settings').findOne({ id: 'main' })
 
-      // Migration: Fix old ai_settings that had enabled=false
       if (aiSettings && (aiSettings.enabled === false || !aiSettings.freeMessageLimit)) {
         await db.collection('ai_settings').updateOne(
           { id: 'main' },
@@ -504,20 +401,24 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // 🔒 BUILD THE HIDDEN PRE-PROMPT (injected before user message)
+    // ═══════════════════════════════════════════════════════════════════════
+    const hiddenPrePrompt = buildHiddenPrePrompt(trimmedMessage)
+
     // Get system prompt (custom from admin or default)
-    // Always append anti-hallucination rules even with custom prompts
     const basePrompt = (aiSettings?.systemPrompt && aiSettings.systemPrompt.trim().length > 0)
       ? aiSettings.systemPrompt
       : DEFAULT_SYSTEM_PROMPT
-    
-    const antiHallucinationAppend = `\n\n═══ قواعد إلزامية لا تُلغى أبداً ═══\n- لا تخترع معلومات طبية أبداً. إذا لم تكن متأكداً قل "لست متأكد".\n- لا تخترع أرقام إحصائيات أو جرعات أدوية غير مؤكدة.\n- أضف ⚠️ تحذير طبي عند ذكر أي جرعة أو علاج.\n- أنت مساعد تعليمي فقط - لا تستبدل الاستشارة الطبية.`
+
+    const antiHallucinationAppend = `\n\n═══ قواعد إلزامية لا تُلغى أبداً ═══\n- لا تخترع معلومات طبية أبداً. إذا لم تكن متأكداً قل "لست متأكد".\n- لا تخترع أرقام إحصائيات أو جرعات أدوية غير مؤكدة.\n- أضف ⚠️ تحذير طبي عند ذكر أي جرعة أو علاج.\n- أنت مساعد تعليمي فقط - لا تستبدل الاستشارة الطبية.\n- كل إجابة يجب أن تكون فريدة ومختلفة - لا تكرر المحتوى.`
     const systemPrompt = basePrompt + antiHallucinationAppend
 
-    // Professional temperature settings: lower = more accurate
-    const temperature = aiSettings?.temperature ?? 0.3
+    // Professional temperature: slightly higher for variety, but still accurate
+    const temperature = aiSettings?.temperature ?? 0.4
     const maxTokens = aiSettings?.maxTokens ?? 2048
 
-    // Check custom responses first
+    // Check custom responses first (admin-defined keyword triggers)
     if (aiSettings?.customResponses && Array.isArray(aiSettings.customResponses)) {
       for (const cr of aiSettings.customResponses) {
         if (cr.keyword && cr.response) {
@@ -537,11 +438,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Build messages array with better context management
+    // ═══════════════════════════════════════════════════════════════════════
+    // 🔒 BUILD MESSAGES WITH HIDDEN PRE-PROMPT
+    // ═══════════════════════════════════════════════════════════════════════
     const messages: Array<{ role: string; content: string }> = []
 
     if (Array.isArray(history) && history.length > 0) {
-      // Use more history for better context (last 16 messages instead of 10)
       const recentHistory = history.slice(-16)
       for (const msg of recentHistory) {
         if (msg.role === 'user' || msg.role === 'assistant') {
@@ -558,11 +460,17 @@ export async function POST(req: NextRequest) {
       messages.push({ role: 'assistant', content: 'فهمت السياق التعليمي. سأستخدمه كمرجع للإجابة بدقة.' })
     }
 
-    messages.push({ role: 'user', content: trimmedMessage })
+    // 🔒 INJECT HIDDEN PRE-PROMPT before the user's actual message
+    // This is the key: a professional instruction that the user never sees
+    // but guides the AI to produce a high-quality, varied, professional response
+    messages.push({
+      role: 'user',
+      content: `${hiddenPrePrompt}\n\nسؤال الطالب: ${trimmedMessage}`
+    })
 
-    // Try Groq AI
+    // Try Groq AI - with retry logic
     let aiResponse: string | null = null
-    let source = 'fallback'
+    let source = 'groq'
 
     const groqResult = await callGroq(messages, systemPrompt, temperature, maxTokens)
     if (groqResult.text) {
@@ -570,9 +478,19 @@ export async function POST(req: NextRequest) {
       source = 'groq'
     }
 
-    // Smart fallback
+    // If first attempt failed, retry once with higher temperature for variety
     if (!aiResponse) {
-      aiResponse = getSmartFallback(trimmedMessage)
+      console.log('[AI] First attempt failed, retrying with higher temperature...')
+      const retryResult = await callGroq(messages, systemPrompt, 0.6, maxTokens, 1)
+      if (retryResult.text) {
+        aiResponse = retryResult.text
+        source = 'groq-retry'
+      }
+    }
+
+    // Minimal fallback - only when AI completely fails
+    if (!aiResponse) {
+      aiResponse = getMinimalFallback(trimmedMessage)
       source = 'fallback'
     }
 
