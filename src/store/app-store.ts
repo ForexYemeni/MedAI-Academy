@@ -444,19 +444,45 @@ export const useAppStore = create<AppState>((set, get) => ({
     return { user: newUser }
   }),
   
-  // AI Tutor
-  aiMessages: [
-    {
+  // AI Tutor - persist messages to localStorage
+  aiMessages: (() => {
+    if (typeof window === 'undefined') {
+      return [{
+        id: '1',
+        role: 'assistant' as const,
+        content: 'مرحباً! أنا مساعدك الطبي الذكي 🧠\\n\\nيمكنني مساعدتك في:\\n- شرح أي مفهوم طبي\\n- توليد حالات سريرية\\n- اختبارات سريعة\\n- خطط تعلم مخصصة\\n- تلخيص المحتوى\\n- بطاقات مراجعة\\n\\nكيف يمكنني مساعدتك اليوم؟',
+        timestamp: Date.now(),
+      }]
+    }
+    try {
+      const saved = localStorage.getItem('medai-ai-messages')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch { /* ignore */ }
+    return [{
       id: '1',
-      role: 'assistant',
+      role: 'assistant' as const,
       content: 'مرحباً! أنا مساعدك الطبي الذكي 🧠\\n\\nيمكنني مساعدتك في:\\n- شرح أي مفهوم طبي\\n- توليد حالات سريرية\\n- اختبارات سريعة\\n- خطط تعلم مخصصة\\n- تلخيص المحتوى\\n- بطاقات مراجعة\\n\\nكيف يمكنني مساعدتك اليوم؟',
       timestamp: Date.now(),
-    }
-  ],
+    }]
+  })(),
   aiLoading: false,
-  addAiMessage: (message) => set((state) => ({ aiMessages: [...state.aiMessages, message] })),
+  addAiMessage: (message) => set((state) => {
+    const updated = [...state.aiMessages, message]
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('medai-ai-messages', JSON.stringify(updated)) } catch { /* quota exceeded */ }
+    }
+    return { aiMessages: updated }
+  }),
   setAiLoading: (loading) => set({ aiLoading: loading }),
-  clearAiMessages: () => set({ aiMessages: [] }),
+  clearAiMessages: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('medai-ai-messages')
+    }
+    set({ aiMessages: [] })
+  },
   
   // Courses (fetched from API)
   courses: [],
@@ -735,6 +761,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       localStorage.removeItem('medai-auth')
       localStorage.removeItem('medai-progress')
       localStorage.removeItem('medai-token')
+      // Keep AI messages so user doesn't lose chat history on re-login
+      // Only clear when user explicitly deletes via the clear button
     }
     set({
       isLoggedIn: false,
