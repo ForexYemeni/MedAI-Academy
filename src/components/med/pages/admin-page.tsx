@@ -520,7 +520,6 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
                 <SelectTrigger className="bg-muted/30 border-border h-10 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-med-card">
                   <SelectItem value="article">📝 مقال</SelectItem>
-                  <SelectItem value="video">🎬 فيديو</SelectItem>
                   <SelectItem value="quiz">❓ اختبار</SelectItem>
                   <SelectItem value="simulation">🧪 محاكاة</SelectItem>
                   <SelectItem value="flashcard">🃏 بطاقات</SelectItem>
@@ -572,15 +571,6 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
                 rows={10} className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm resize-none font-mono leading-relaxed" dir="rtl"
                 placeholder="اكتب محتوى الدرس هنا...&#10;&#10;## العنوان الفرعي&#10;المحتوى...&#10;&#10;- نقطة أولى&#10;- نقطة ثانية" />
               <p className="text-[10px] text-muted-foreground/50 mt-1">يدعم تنسيق Markdown: ## عناوين، **عريض**، - قوائم، &gt; اقتباسات</p>
-            </div>
-          )}
-
-          {form.type === 'video' && (
-            <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">رابط الفيديو</label>
-              <Input value={form.videoUrl || ''} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
-                placeholder="https://www.youtube.com/watch?v=..." className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" dir="ltr" />
-              <p className="text-[10px] text-muted-foreground/50 mt-1">يدعم روابط YouTube والروابط المباشرة</p>
             </div>
           )}
 
