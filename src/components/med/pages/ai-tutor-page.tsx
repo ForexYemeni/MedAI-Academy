@@ -35,6 +35,7 @@ import {
   Check,
   ChevronLeft,
   ImageIcon,
+  Share2,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
@@ -384,6 +385,138 @@ function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<stri
     reader.onerror = () => reject(new Error('فشل قراءة الملف'))
     reader.readAsDataURL(file)
   })
+}
+
+// ─── Message Action Menu (Copy / Share) ──────────────────────────────────────
+
+function MessageActionMenu({
+  message,
+  onClose,
+  position,
+}: {
+  message: { content: string; role: 'user' | 'assistant' }
+  onClose: () => void
+  position: { x: number; y: number }
+}) {
+  const [copied, setCopied] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  // Clean markdown from message for sharing
+  const cleanText = message.content
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^#{1,3}\s/gm, '')
+    .replace(/^[\s]*[-*•]\s/gm, '• ')
+
+  const APP_URL = 'https://nabd-academy.vercel.app/'
+  const APP_NAME = 'نبض أكاديمي - المساعد الطبي الذكي'
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(cleanText)
+      setCopied(true)
+      setTimeout(() => {
+        setCopied(false)
+        onClose()
+      }, 800)
+    } catch {
+      // Fallback
+      const textarea = document.createElement('textarea')
+      textarea.value = cleanText
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      setCopied(true)
+      setTimeout(() => {
+        setCopied(false)
+        onClose()
+      }, 800)
+    }
+  }
+
+  const handleShare = async () => {
+    const shareText = `${cleanText}\n\n━━━━━━━━━━━━━━━\n🧠 ${APP_NAME}\n📱 حمّل التطبيق الآن: ${APP_URL}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: APP_NAME,
+          text: shareText,
+          url: APP_URL,
+        })
+      } catch {
+        // User cancelled share
+      }
+    } else {
+      // Fallback: copy to clipboard with app info
+      try {
+        await navigator.clipboard.writeText(shareText)
+      } catch {
+        const textarea = document.createElement('textarea')
+        textarea.value = shareText
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
+    }
+    onClose()
+  }
+
+  // Calculate menu position (ensure it stays within viewport)
+  const menuStyle: React.CSSProperties = {
+    position: 'fixed',
+    left: Math.min(position.x, window.innerWidth - 200),
+    top: Math.min(position.y, window.innerHeight - 120),
+    zIndex: 9999,
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-[9998]" onClick={onClose} />
+      <motion.div
+        ref={menuRef}
+        initial={{ opacity: 0, scale: 0.8, y: -5 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.8, y: -5 }}
+        transition={{ duration: 0.15 }}
+        style={menuStyle}
+        className="rounded-xl border border-white/10 bg-med-darker/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden min-w-[160px]"
+      >
+        <button
+          onClick={handleCopy}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-white/5 transition-colors"
+        >
+          {copied ? (
+            <><Check className="w-4 h-4 text-emerald-400" /><span className="text-emerald-400">تم النسخ ✓</span></>
+          ) : (
+            <><Copy className="w-4 h-4 text-neon-cyan" /><span>نسخ الرسالة</span></>
+          )}
+        </button>
+        <div className="border-t border-white/5" />
+        <button
+          onClick={handleShare}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-white/5 transition-colors"
+        >
+          <Share2 className="w-4 h-4 text-neon-purple" />
+          <span>مشاركة الرسالة</span>
+        </button>
+      </motion.div>
+    </>
+  )
 }
 
 // ─── Subscription Card (Professional) ──────────────────────────────────────
@@ -820,6 +953,7 @@ export function AITutorPage() {
   const [aiUsage, setAiUsage] = useState<{ remaining: number; limit: number; isPremium: boolean } | null>(null)
   const [pendingSub, setPendingSub] = useState<any>(null)
   const [activeSub, setActiveSub] = useState<any>(null)
+  const [messageMenu, setMessageMenu] = useState<{ msgId: string; content: string; role: 'user' | 'assistant'; position: { x: number; y: number } } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -1182,7 +1316,19 @@ export function AITutorPage() {
                   )}
 
                   <div
-                    className={`max-w-[80%] ${
+                    onClick={(e) => {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                      setMessageMenu({
+                        msgId: msg.id,
+                        content: msg.content,
+                        role: msg.role,
+                        position: {
+                          x: msg.role === 'user' ? rect.left - 10 : rect.right + 10,
+                          y: rect.top,
+                        },
+                      })
+                    }}
+                    className={`max-w-[80%] cursor-pointer active:scale-[0.98] transition-transform ${
                       msg.role === 'user'
                         ? 'bg-gradient-to-br from-neon-cyan/20 to-neon-blue/20 border border-neon-cyan/20 rounded-2xl rounded-tr-sm'
                         : 'glass-card rounded-2xl rounded-tl-sm border-neon-purple/20'
@@ -1203,6 +1349,17 @@ export function AITutorPage() {
                   </div>
                 </motion.div>
               ))}
+            </AnimatePresence>
+
+            {/* ─── Message Action Menu (Copy / Share) ─────── */}
+            <AnimatePresence>
+              {messageMenu && (
+                <MessageActionMenu
+                  message={{ content: messageMenu.content, role: messageMenu.role }}
+                  position={messageMenu.position}
+                  onClose={() => setMessageMenu(null)}
+                />
+              )}
             </AnimatePresence>
 
             {aiLoading && <TypingIndicator />}
