@@ -3,10 +3,8 @@ import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 🧠 PROFESSIONAL MEDICAL AI - Groq Primary + ZAI SDK Fallback
+// 🧠 PROFESSIONAL MEDICAL AI - Groq Only (Fast & Reliable)
 // ═══════════════════════════════════════════════════════════════════════════════
-
-import ZAI from 'z-ai-web-dev-sdk'
 
 const DEFAULT_SYSTEM_PROMPT = `أنت مساعد طبي تعليمي احترافي في منصة "أكاديمية نبض". تتحدث العربية الفصحى المبسطة.
 
@@ -260,45 +258,7 @@ async function callGroq(
   return { text: null, error: 'All Groq models failed' }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 🔄 ZAI SDK Fallback Provider (used when Groq fails)
-// ═══════════════════════════════════════════════════════════════════════════════
 
-async function callZAI(
-  messages: Array<{ role: string; content: string }>,
-  systemPrompt: string,
-  maxTokens: number = 2048,
-): Promise<{ text: string | null; error?: string }> {
-  try {
-    const zai = await ZAI.create()
-
-    const apiMessages = [
-      { role: 'system' as const, content: systemPrompt },
-      ...messages.map(m => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content })),
-    ]
-
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 45000)
-
-    const completion = await zai.chat.completions.create({
-      messages: apiMessages,
-      max_tokens: maxTokens,
-      temperature: 0.6,
-    })
-
-    clearTimeout(timeout)
-
-    const text = completion?.choices?.[0]?.message?.content
-    if (text && text.trim().length > 0) {
-      console.log(`[AI] ZAI SDK fallback success, length: ${text.length}`)
-      return { text: text.trim() }
-    }
-    return { text: null, error: 'ZAI empty response' }
-  } catch (error: any) {
-    console.error('[AI] ZAI SDK error:', error?.message || error)
-    return { text: null, error: error?.message || 'ZAI failed' }
-  }
-}
 
 // ─── Minimal Fallback (only when AI completely fails) ──────────────────────
 
@@ -533,44 +493,52 @@ export async function POST(req: NextRequest) {
     })
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 🤖 TRY AI PROVIDERS (Groq primary → ZAI fallback)
+    // 🤖 TRY GROQ AI (Fast & Reliable - Primary Provider)
     // ═══════════════════════════════════════════════════════════════════════
     let aiResponse: string | null = null
     let source = 'groq'
+    let lastError: string | undefined = undefined
 
-    // 1. Try Groq API (fast provider)
+    // 1. Try Groq API
     console.log('[AI] Trying Groq API...')
     const groqResult = await callGroq(messages, systemPrompt, temperature, maxTokens)
     if (groqResult.text) {
       aiResponse = groqResult.text
       source = 'groq'
+    } else {
+      lastError = groqResult.error
     }
 
-    // 2. Retry Groq once (handles rate limiting) - only if not key error
-    if (!aiResponse && groqResult.error !== 'API_KEY_INVALID') {
+    // 2. Retry Groq (handles rate limiting) - only if not key error
+    if (!aiResponse && lastError !== 'API_KEY_INVALID') {
       console.log('[AI] Groq attempt 1 failed, retrying in 1s...')
       await new Promise(resolve => setTimeout(resolve, 1000))
       const retryResult = await callGroq(messages, systemPrompt, 0.7, maxTokens)
       if (retryResult.text) {
         aiResponse = retryResult.text
         source = 'groq-retry'
+      } else {
+        lastError = retryResult.error
       }
     }
 
-    // 3. Fallback to ZAI SDK immediately when Groq fails (no extra delay)
-    if (!aiResponse) {
-      console.log('[AI] Groq failed, trying ZAI SDK fallback immediately...')
-      const zaiResult = await callZAI(messages, systemPrompt, maxTokens)
-      if (zaiResult.text) {
-        aiResponse = zaiResult.text
-        source = 'zai'
+    // 3. Third retry with different temperature (handles transient errors)
+    if (!aiResponse && lastError !== 'API_KEY_INVALID') {
+      console.log('[AI] Groq attempt 2 failed, final retry in 2s...')
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const retry3Result = await callGroq(messages, systemPrompt, 0.5, maxTokens)
+      if (retry3Result.text) {
+        aiResponse = retry3Result.text
+        source = 'groq-retry3'
+      } else {
+        lastError = retry3Result.error
       }
     }
 
-    // 4. Final fallback message - only when ALL providers fail
+    // 4. Final fallback message - only when Groq completely fails
     if (!aiResponse) {
-      console.log('[AI] All AI providers failed, using fallback message')
-      aiResponse = getMinimalFallback(trimmedMessage, groqResult.error === 'API_KEY_INVALID' ? 'API_KEY_INVALID' : undefined)
+      console.log('[AI] All Groq retries failed, using fallback message')
+      aiResponse = getMinimalFallback(trimmedMessage, lastError === 'API_KEY_INVALID' ? 'API_KEY_INVALID' : undefined)
       source = 'fallback'
     }
 
