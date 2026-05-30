@@ -862,7 +862,7 @@ export function AITutorPage() {
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [aiMessages, aiLoading])
+  }, [aiMessages, aiLoading, limitReached])
 
   // Check if response is a fallback error message
   const isFallbackError = (text: string): boolean => {
@@ -1205,32 +1205,31 @@ export function AITutorPage() {
             </AnimatePresence>
 
             {aiLoading && <TypingIndicator />}
+
+            {/* ─── Professional Subscription Card (when limit reached) ─────── */}
+            {limitReached && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className="mt-6"
+              >
+                <div className="relative rounded-2xl border border-neon-purple/20 bg-gradient-to-b from-med-dark/90 via-med-darker/90 to-med-dark/90 backdrop-blur-xl p-5 shadow-[0_0_40px_rgba(168,85,247,0.1)]">
+                  {/* Decorative corner accents */}
+                  <div className="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-neon-purple/10 to-transparent rounded-br-full" />
+                  <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-neon-cyan/10 to-transparent rounded-tl-full" />
+
+                  <SubscriptionCard
+                    authToken={authToken}
+                    onSubscribed={refreshSubscription}
+                  />
+                </div>
+              </motion.div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         </div>
-
-        {/* ─── Professional Subscription Card (when limit reached) ─────── */}
-        {limitReached && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="relative z-10 px-4 pb-2"
-          >
-            <div className="max-w-3xl mx-auto">
-              <div className="relative rounded-2xl border border-neon-purple/20 bg-gradient-to-b from-med-dark/90 via-med-darker/90 to-med-dark/90 backdrop-blur-xl p-5 shadow-[0_0_40px_rgba(168,85,247,0.1)] overflow-hidden">
-                {/* Decorative corner accents */}
-                <div className="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-neon-purple/10 to-transparent rounded-br-full" />
-                <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-neon-cyan/10 to-transparent rounded-tl-full" />
-
-                <SubscriptionCard
-                  authToken={authToken}
-                  onSubscribed={refreshSubscription}
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {/* ─── Quick Actions ───────────────────────────────────────────────── */}
         <div className="relative z-10 px-4 pb-2">
