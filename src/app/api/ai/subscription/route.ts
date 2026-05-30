@@ -286,8 +286,9 @@ export async function PUT(req: NextRequest) {
 
     // Gift free subscription to user
     if (body.action === 'gift') {
-      const { userId, plan } = body
-      if (!userId || !plan) {
+      const { userId, userPhone: giftPhone, plan } = body
+      const identifier = userId || giftPhone // accept either userId or phone
+      if (!identifier || !plan) {
         return NextResponse.json({ error: 'بيانات مطلوبة' }, { status: 400 })
       }
 
@@ -299,9 +300,28 @@ export async function PUT(req: NextRequest) {
       const selectedPlan = plans[plan as PlanKey]
       const { db } = await connectToDatabase()
 
+      // Find user by phone number or ObjectId
+      let targetUser: any = null
+      try {
+        // Try phone number first (format: 7xxxxxxxx)
+        targetUser = await db.collection('users').findOne({ phone: identifier })
+      } catch {}
+      if (!targetUser) {
+        try {
+          targetUser = await db.collection('users').findOne({ _id: new ObjectId(identifier) })
+        } catch {}
+      }
+      if (!targetUser) {
+        return NextResponse.json({ error: 'المستخدم غير موجود. تأكد من رقم الهاتف.' }, { status: 404 })
+      }
+
+      const targetUserId = targetUser._id.toString()
+      const targetUserName = targetUser.name || 'مستخدم'
+      const targetUserPhone = targetUser.phone || ''
+
       // Check if user already has active subscription
       const existingSub = await db.collection('ai_subscriptions').findOne({
-        userId,
+        userId: targetUserId,
         status: 'active',
         expiresAt: { $gt: new Date() },
       })
@@ -313,19 +333,10 @@ export async function PUT(req: NextRequest) {
       const now = new Date()
       const expiresAt = new Date(now.getTime() + selectedPlan.durationDays * 24 * 60 * 60 * 1000)
 
-      // Get user info
-      let userName = 'مستخدم'
-      let userPhone = ''
-      try {
-        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) })
-        userName = user?.name || 'مستخدم'
-        userPhone = user?.phone || ''
-      } catch {}
-
       const subscription = {
-        userId,
-        userName,
-        userPhone,
+        userId: targetUserId,
+        userName: targetUserName,
+        userPhone: targetUserPhone,
         plan: plan as PlanKey,
         planName: selectedPlan.name,
         durationDays: selectedPlan.durationDays,
@@ -349,7 +360,7 @@ export async function PUT(req: NextRequest) {
 
       // Update user subscription
       await db.collection('users').updateOne(
-        { _id: new ObjectId(userId) },
+        { _id: new ObjectId(targetUserId) },
         { $set: { subscription: 'premium', aiSubscription: plan } }
       )
 

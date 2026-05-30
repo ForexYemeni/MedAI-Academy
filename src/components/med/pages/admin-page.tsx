@@ -864,7 +864,7 @@ export function AdminPage() {
   const [aiMonthlyPrice, setAiMonthlyPrice] = useState(0)
   const [aiLifetimePrice, setAiLifetimePrice] = useState(0)
   const [aiPricingSaving, setAiPricingSaving] = useState(false)
-  const [aiGiftUserId, setAiGiftUserId] = useState('')
+  const [aiGiftPhone, setAiGiftPhone] = useState('')
   const [aiGiftPlan, setAiGiftPlan] = useState<'weekly' | 'monthly' | 'lifetime'>('monthly')
   const [aiGiftSending, setAiGiftSending] = useState(false)
   const [aiGiftResult, setAiGiftResult] = useState<string | null>(null)
@@ -3167,9 +3167,9 @@ export function AdminPage() {
         <p className="text-xs text-muted-foreground">امنح مستخدماً اشتراكاً مجانياً في الذكاء الاصطناعي كهدية</p>
         <div className="flex gap-2 items-end">
           <div className="flex-1 space-y-1">
-            <label className="text-xs text-muted-foreground">معرف المستخدم (User ID)</label>
-            <Input value={aiGiftUserId} onChange={(e) => setAiGiftUserId(e.target.value)}
-              className="bg-muted/30 border-border h-9 text-xs" placeholder="أدخل معرف المستخدم من قائمة المستخدمين" dir="ltr" />
+            <label className="text-xs text-muted-foreground">رقم هاتف المستخدم</label>
+            <Input value={aiGiftPhone} onChange={(e) => setAiGiftPhone(e.target.value)}
+              className="bg-muted/30 border-border h-9 text-sm" placeholder="7xxxxxxxx" dir="ltr" type="tel" />
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">الخطة</label>
@@ -3182,22 +3182,22 @@ export function AdminPage() {
           </div>
           <Button
             onClick={async () => {
-              if (!aiGiftUserId) return
+              if (!aiGiftPhone) return
               setAiGiftSending(true)
               setAiGiftResult(null)
               try {
                 const res = await fetch('/api/ai/subscription', {
                   method: 'PUT',
                   headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: 'gift', userId: aiGiftUserId, plan: aiGiftPlan }),
+                  body: JSON.stringify({ action: 'gift', userPhone: aiGiftPhone, plan: aiGiftPlan }),
                 })
                 const data = await res.json()
                 setAiGiftResult(data.success ? `✅ ${data.message}` : `❌ ${data.error || 'فشل'}`)
-                if (data.success) { fetchAiSubscriptions(); setAiGiftUserId('') }
+                if (data.success) { fetchAiSubscriptions(); setAiGiftPhone('') }
               } catch { setAiGiftResult('❌ فشل الاتصال') }
               setAiGiftSending(false)
             }}
-            disabled={!aiGiftUserId || aiGiftSending}
+            disabled={!aiGiftPhone || aiGiftSending}
             className="bg-gradient-to-l from-neon-green to-emerald-500 text-white font-bold h-9 px-4 text-xs disabled:opacity-50"
           >
             <Gift className="h-3 w-3 ml-1" />
