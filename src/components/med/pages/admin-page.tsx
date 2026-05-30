@@ -860,6 +860,15 @@ export function AdminPage() {
   const [aiFreeLimit, setAiFreeLimit] = useState(5)
   const [aiSubscriptions, setAiSubscriptions] = useState<any[]>([])
   const [aiSubsLoading, setAiSubsLoading] = useState(false)
+  const [aiWeeklyPrice, setAiWeeklyPrice] = useState(0)
+  const [aiMonthlyPrice, setAiMonthlyPrice] = useState(0)
+  const [aiLifetimePrice, setAiLifetimePrice] = useState(0)
+  const [aiPricingSaving, setAiPricingSaving] = useState(false)
+  const [aiGiftUserId, setAiGiftUserId] = useState('')
+  const [aiGiftPlan, setAiGiftPlan] = useState<'weekly' | 'monthly' | 'lifetime'>('monthly')
+  const [aiGiftSending, setAiGiftSending] = useState(false)
+  const [aiGiftResult, setAiGiftResult] = useState<string | null>(null)
+  const [aiSubScreenshotView, setAiSubScreenshotView] = useState<string | null>(null)
 
   // Gift Course State
   const [giftModalOpen, setGiftModalOpen] = useState(false)
@@ -970,6 +979,12 @@ export function AdminPage() {
       const data = await res.json()
       if (data.success) {
         setAiSubscriptions(data.subscriptions || [])
+        // Extract pricing from response
+        if (data.plans) {
+          setAiWeeklyPrice(data.plans.weekly?.price ?? 0)
+          setAiMonthlyPrice(data.plans.monthly?.price ?? 0)
+          setAiLifetimePrice(data.plans.lifetime?.price ?? 0)
+        }
       }
     } catch (err) { console.error('Fetch AI subs error:', err) }
     setAiSubsLoading(false)
@@ -3092,6 +3107,106 @@ export function AdminPage() {
         <p className="text-[10px] text-muted-foreground">💡 المستخدمون المشتركون يحصلون على رسائل غير محدودة</p>
       </div>
 
+      {/* Subscription Pricing */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full bg-neon-orange" />
+          <span className="text-sm font-bold">رسوم الاشتراكات</span>
+        </div>
+        <p className="text-xs text-muted-foreground">حدد أسعار خطط الاشتراك في الذكاء الاصطناعي (بالريال اليمني)</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">⚡ أسبوعي</label>
+            <Input type="number" value={aiWeeklyPrice} onChange={(e) => setAiWeeklyPrice(Number(e.target.value) || 0)}
+              className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">🌟 شهري</label>
+            <Input type="number" value={aiMonthlyPrice} onChange={(e) => setAiMonthlyPrice(Number(e.target.value) || 0)}
+              className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">👑 مدى الحياة</label>
+            <Input type="number" value={aiLifetimePrice} onChange={(e) => setAiLifetimePrice(Number(e.target.value) || 0)}
+              className="bg-muted/30 border-border h-9 text-sm" min={0} placeholder="0" />
+          </div>
+        </div>
+        <Button
+          onClick={async () => {
+            setAiPricingSaving(true)
+            try {
+              const res = await fetch('/api/ai/subscription', {
+                method: 'PUT',
+                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'update_pricing',
+                  weeklyPrice: aiWeeklyPrice,
+                  monthlyPrice: aiMonthlyPrice,
+                  lifetimePrice: aiLifetimePrice,
+                }),
+              })
+              const data = await res.json()
+              if (!data.success) setError(data.error || 'فشل حفظ الأسعار')
+            } catch { setError('خطأ في الاتصال') }
+            setAiPricingSaving(false)
+          }}
+          disabled={aiPricingSaving}
+          className="bg-gradient-to-l from-neon-orange to-amber-500 text-white font-bold h-9 px-4 text-xs disabled:opacity-50"
+        >
+          <Save className="h-3 w-3 ml-1" />
+          {aiPricingSaving ? 'جاري الحفظ...' : 'حفظ الأسعار'}
+        </Button>
+      </div>
+
+      {/* Gift Free Subscription */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full bg-neon-green" />
+          <span className="text-sm font-bold flex items-center gap-1">🎁 إهداء اشتراك مجاني</span>
+        </div>
+        <p className="text-xs text-muted-foreground">امنح مستخدماً اشتراكاً مجانياً في الذكاء الاصطناعي كهدية</p>
+        <div className="flex gap-2 items-end">
+          <div className="flex-1 space-y-1">
+            <label className="text-xs text-muted-foreground">معرف المستخدم (User ID)</label>
+            <Input value={aiGiftUserId} onChange={(e) => setAiGiftUserId(e.target.value)}
+              className="bg-muted/30 border-border h-9 text-xs" placeholder="أدخل معرف المستخدم من قائمة المستخدمين" dir="ltr" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">الخطة</label>
+            <select value={aiGiftPlan} onChange={(e) => setAiGiftPlan(e.target.value as any)}
+              className="h-9 rounded-md border border-border bg-muted/30 px-2 text-xs outline-none focus:border-neon-cyan/50">
+              <option value="weekly">⚡ أسبوعي</option>
+              <option value="monthly">🌟 شهري</option>
+              <option value="lifetime">👑 مدى الحياة</option>
+            </select>
+          </div>
+          <Button
+            onClick={async () => {
+              if (!aiGiftUserId) return
+              setAiGiftSending(true)
+              setAiGiftResult(null)
+              try {
+                const res = await fetch('/api/ai/subscription', {
+                  method: 'PUT',
+                  headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'gift', userId: aiGiftUserId, plan: aiGiftPlan }),
+                })
+                const data = await res.json()
+                setAiGiftResult(data.success ? `✅ ${data.message}` : `❌ ${data.error || 'فشل'}`)
+                if (data.success) { fetchAiSubscriptions(); setAiGiftUserId('') }
+              } catch { setAiGiftResult('❌ فشل الاتصال') }
+              setAiGiftSending(false)
+            }}
+            disabled={!aiGiftUserId || aiGiftSending}
+            className="bg-gradient-to-l from-neon-green to-emerald-500 text-white font-bold h-9 px-4 text-xs disabled:opacity-50"
+          >
+            <Gift className="h-3 w-3 ml-1" />
+            {aiGiftSending ? 'جاري...' : 'إهداء'}
+          </Button>
+        </div>
+        {aiGiftResult && <p className="text-xs mt-1">{aiGiftResult}</p>}
+      </div>
+
       {/* AI Subscriptions Management */}
       <div className="glass-card p-5 space-y-3">
         <div className="flex items-center justify-between">
@@ -3109,11 +3224,11 @@ export function AdminPage() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 text-center">
-            <div className="text-lg font-bold text-amber-400">{aiSubscriptions.filter(s => s.status === 'pending').length}</div>
+            <div className="text-lg font-bold text-amber-400">{aiSubscriptions.filter((s: any) => s.status === 'pending').length}</div>
             <div className="text-[9px] text-muted-foreground">بانتظار الموافقة</div>
           </div>
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2 text-center">
-            <div className="text-lg font-bold text-emerald-400">{aiSubscriptions.filter(s => s.status === 'active').length}</div>
+            <div className="text-lg font-bold text-emerald-400">{aiSubscriptions.filter((s: any) => s.status === 'active').length}</div>
             <div className="text-[9px] text-muted-foreground">نشط</div>
           </div>
           <div className="bg-muted/20 border border-border/50 rounded-lg p-2 text-center">
@@ -3129,7 +3244,7 @@ export function AdminPage() {
             <p className="text-sm text-muted-foreground">لا توجد اشتراكات بعد</p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          <div className="space-y-2 max-h-[500px] overflow-y-auto">
             {aiSubscriptions.map((sub: any, idx: number) => (
               <div key={idx} className={`p-3 rounded-lg border space-y-2 ${
                 sub.status === 'pending' ? 'bg-amber-500/5 border-amber-500/20' :
@@ -3150,16 +3265,44 @@ export function AdminPage() {
                     <Badge className="bg-neon-purple/10 text-neon-purple border-neon-purple/20 text-[8px] px-1">
                       {sub.planName}
                     </Badge>
+                    {sub.isGift && (
+                      <Badge className="bg-neon-green/10 text-neon-green border-neon-green/20 text-[8px] px-1">
+                        🎁 هدية
+                      </Badge>
+                    )}
                   </div>
                   <span className="text-[10px] text-muted-foreground">
                     {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString('ar') : ''}
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground space-y-0.5">
-                  <p>📱 {sub.userPhone} | 💳 {sub.paymentMethod} ({sub.paymentPhone})</p>
+                  <p>📱 {sub.userPhone} | 💳 {sub.paymentMethodName || sub.paymentMethod || '-'}
+                    {sub.price > 0 ? ` | 💰 ${sub.price.toLocaleString()} ر.ي` : sub.isGift ? ' | 🎁 مجاني' : ''}
+                  </p>
+                  {sub.paymentMethodAccount && <p>🔢 حساب الدفع: {sub.paymentMethodAccount}</p>}
                   {sub.paymentNote && <p>📝 {sub.paymentNote}</p>}
                   {sub.expiresAt && <p>⏰ ينتهي: {new Date(sub.expiresAt).toLocaleDateString('ar')}</p>}
                 </div>
+
+                {/* Payment Screenshot */}
+                {sub.paymentScreenshot && sub.status === 'pending' && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setAiSubScreenshotView(sub.paymentScreenshot)}
+                      className="relative group rounded-lg overflow-hidden border border-neon-cyan/20 hover:border-neon-cyan/40 transition-colors"
+                    >
+                      <img
+                        src={sub.paymentScreenshot}
+                        alt="صورة الدفع"
+                        className="w-full max-h-32 object-contain bg-black/50"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-xs text-white font-medium">🔍 اضغط للعرض بالكامل</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
+
                 {sub.status === 'pending' && (
                   <div className="flex gap-2 pt-1">
                     <Button size="sm" onClick={async () => {
@@ -3192,6 +3335,32 @@ export function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Screenshot Fullscreen View */}
+      <AnimatePresence>
+        {aiSubScreenshotView && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setAiSubScreenshotView(null)}
+          >
+            <button
+              onClick={() => setAiSubScreenshotView(null)}
+              className="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors z-10"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+            <img
+              src={aiSubScreenshotView}
+              alt="صورة تأكيد الدفع"
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Chat Logs */}
       <div className="glass-card p-5 space-y-3">

@@ -29,6 +29,12 @@ import {
   CreditCard,
   CheckCircle2,
   Loader2,
+  Upload,
+  Wallet,
+  Copy,
+  Check,
+  ChevronLeft,
+  ImageIcon,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
@@ -42,13 +48,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-
-// ─── Subscription Plans ────────────────────────────────────────────────────────
-const SUBSCRIPTION_PLANS = [
-  { id: 'weekly', name: 'أسبوعي', duration: '7 أيام', price: 'رمزي', icon: '⚡', color: 'neon-cyan' },
-  { id: 'monthly', name: 'شهري', duration: '30 يوم', price: 'رمزي', icon: '🌟', color: 'neon-purple' },
-  { id: 'lifetime', name: 'مدى الحياة', duration: 'للأبد', price: 'رمزي', icon: '👑', color: 'neon-orange' },
-] as const
 
 // ─── Quick Action Chips ──────────────────────────────────────────────────────
 
@@ -123,28 +122,92 @@ function TypingIndicator() {
   )
 }
 
-// ─── Subscription Modal ───────────────────────────────────────────────────────
+// ─── Image Compress Helper ────────────────────────────────────────────────
+function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        const compressed = canvas.toDataURL('image/jpeg', quality)
+        resolve(compressed)
+      }
+      img.onerror = () => reject(new Error('فشل تحميل الصورة'))
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => reject(new Error('فشل قراءة الملف'))
+    reader.readAsDataURL(file)
+  })
+}
 
-function SubscriptionModal({
-  open,
-  onClose,
+// ─── Subscription Card (Professional) ──────────────────────────────────────
+
+function SubscriptionCard({
   authToken,
-  userPhone,
+  onSubscribed,
 }: {
-  open: boolean
-  onClose: () => void
   authToken: string | null
-  userPhone: string
+  onSubscribed: () => void
 }) {
+  const [plans, setPlans] = useState<any>(null)
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([])
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState('')
-  const [paymentPhone, setPaymentPhone] = useState(userPhone)
+  const [selectedMethod, setSelectedMethod] = useState<any>(null)
+  const [screenshot, setScreenshot] = useState<string | null>(null)
   const [paymentNote, setPaymentNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [step, setStep] = useState<'plan' | 'payment' | 'confirm'>('plan')
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!authToken) return
+      try {
+        const res = await fetch('/api/ai/subscription', {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        const data = await res.json()
+        if (data.success) {
+          setPlans(data.plans)
+          const methods = data.paymentMethods || []
+          setPaymentMethods(methods)
+          if (methods.length > 0) setSelectedMethod(methods[0])
+        }
+      } catch {}
+    }
+    fetchData()
+  }, [authToken])
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
+
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) return
+    try {
+      const compressed = await compressImage(file)
+      setScreenshot(compressed)
+    } catch {}
+  }
 
   const handleSubmit = async () => {
-    if (!selectedPlan || !paymentMethod || !paymentPhone) return
+    if (!selectedPlan || !screenshot || !selectedMethod) return
     setSubmitting(true)
     try {
       const res = await fetch('/api/ai/subscription', {
@@ -155,8 +218,8 @@ function SubscriptionModal({
         },
         body: JSON.stringify({
           plan: selectedPlan,
-          paymentMethod,
-          paymentPhone,
+          paymentMethodId: selectedMethod._id,
+          paymentScreenshot: screenshot,
           paymentNote,
         }),
       })
@@ -165,138 +228,264 @@ function SubscriptionModal({
         success: data.success,
         message: data.message || data.error || 'حدث خطأ',
       })
+      if (data.success) onSubscribed()
     } catch {
       setResult({ success: false, message: 'فشل الاتصال بالخادم' })
     }
     setSubmitting(false)
   }
 
-  if (!open) return null
+  const planIcons: Record<string, string> = { weekly: '⚡', monthly: '🌟', lifetime: '👑' }
+  const planColors: Record<string, string> = {
+    weekly: 'from-amber-500 to-orange-500',
+    monthly: 'from-purple-500 to-pink-500',
+    lifetime: 'from-neon-cyan to-emerald-500',
+  }
+  const planBorders: Record<string, string> = {
+    weekly: 'border-amber-500/30',
+    monthly: 'border-purple-500/30',
+    lifetime: 'border-neon-cyan/30',
+  }
+  const planGlows: Record<string, string> = {
+    weekly: 'shadow-[0_0_20px_rgba(245,158,11,0.15)]',
+    monthly: 'shadow-[0_0_20px_rgba(168,85,247,0.15)]',
+    lifetime: 'shadow-[0_0_20px_rgba(0,245,255,0.15)]',
+  }
+
+  if (!plans) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-6 h-6 text-neon-cyan animate-spin" />
+      </div>
+    )
+  }
+
+  if (result) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="p-6 rounded-2xl bg-gradient-to-b from-med-dark/80 to-med-darker/80 border border-neon-cyan/10 text-center space-y-4"
+      >
+        <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${result.success ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+          {result.success ? <CheckCircle2 className="w-8 h-8 text-emerald-400" /> : <AlertCircle className="w-8 h-8 text-red-400" />}
+        </div>
+        <p className="text-sm font-bold">{result.message}</p>
+        {result.success && (
+          <p className="text-xs text-muted-foreground">سيتم تفعيل اشتراكك بعد مراجعة الإدارة</p>
+        )}
+        <Button onClick={() => { setResult(null); setStep('plan') }} className="bg-gradient-to-r from-neon-cyan to-neon-blue text-white h-9">
+          حسناً
+        </Button>
+      </motion.div>
+    )
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="glass-card w-full max-w-md p-6 rounded-2xl border border-neon-purple/20 max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        dir="rtl"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <Crown className="w-5 h-5 text-neon-purple" />
-            اشترك في المساعد الذكي
-          </h2>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {result ? (
-          <div className={`p-4 rounded-lg text-center ${result.success ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
-            <span className="text-3xl">{result.success ? '🎉' : '❌'}</span>
-            <p className="mt-2 text-sm font-bold">{result.message}</p>
-            {result.success && (
-              <p className="text-xs text-muted-foreground mt-1">سيتم تفعيل اشتراكك بعد مراجعة الإدارة</p>
-            )}
-            <Button onClick={onClose} className="mt-3 bg-gradient-to-r from-neon-cyan to-neon-blue text-white h-9">
-              حسناً
-            </Button>
+    <div className="space-y-4">
+      {/* Step: Select Plan */}
+      {step === 'plan' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-neon-purple to-neon-cyan shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+              <Crown className="w-7 h-7 text-white" />
+            </div>
+            <h3 className="text-lg font-bold bg-gradient-to-l from-neon-cyan to-neon-purple bg-clip-text text-transparent">
+              اشترك في المساعد الذكي
+            </h3>
+            <p className="text-xs text-muted-foreground">احصل على رسائل غير محدودة مع المساعد الطبي الذكي</p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Plans */}
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">اختر الخطة:</p>
-              {SUBSCRIPTION_PLANS.map((plan) => (
+
+          {/* Plans Grid */}
+          <div className="grid grid-cols-3 gap-2">
+            {Object.entries(plans).map(([key, plan]: [string, any]) => (
+              <button
+                key={key}
+                onClick={() => setSelectedPlan(key)}
+                className={`relative p-3 rounded-xl border text-center transition-all duration-300 ${
+                  selectedPlan === key
+                    ? `${planBorders[key]} bg-gradient-to-b ${planColors[key]}/10 ${planGlows[key]}`
+                    : 'border-border bg-muted/10 hover:bg-muted/20'
+                }`}
+              >
+                {selectedPlan === key && (
+                  <div className="absolute top-1.5 left-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-neon-cyan" />
+                  </div>
+                )}
+                <span className="text-2xl">{planIcons[key]}</span>
+                <p className="text-sm font-bold mt-1">{plan.name}</p>
+                <p className="text-[10px] text-muted-foreground">{key === 'lifetime' ? 'للأبد' : plan.durationDays + ' يوم'}</p>
+                <div className="mt-2">
+                  <span className={`text-sm font-black ${selectedPlan === key ? 'text-neon-cyan' : 'text-foreground'}`}>
+                    {plan.price > 0 ? `${plan.price.toLocaleString()} ر.ي` : 'مجاني'}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <Button
+            onClick={() => selectedPlan && setStep('payment')}
+            disabled={!selectedPlan}
+            className="w-full bg-gradient-to-r from-neon-purple to-neon-cyan text-white font-bold h-11 disabled:opacity-50"
+          >
+            متابعة الدفع
+            <ChevronLeft className="w-4 h-4 mr-1" />
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Step: Payment Method & Upload */}
+      {step === 'payment' && (
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+          {/* Back button */}
+          <button onClick={() => setStep('plan')} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <ChevronLeft className="w-3 h-3 rotate-180" />
+            رجوع لاختيار الخطة
+          </button>
+
+          {/* Selected Plan Summary */}
+          {selectedPlan && plans[selectedPlan] && (
+            <div className={`p-3 rounded-xl border ${planBorders[selectedPlan]} bg-gradient-to-r ${planColors[selectedPlan]}/5`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{planIcons[selectedPlan]}</span>
+                  <div>
+                    <p className="text-sm font-bold">{plans[selectedPlan].name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {selectedPlan === 'lifetime' ? 'للأبد' : `${plans[selectedPlan].durationDays} يوم`}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-neon-cyan">
+                  {plans[selectedPlan].price > 0 ? `${plans[selectedPlan].price.toLocaleString()} ر.ي` : 'مجاني'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Method Selection */}
+          {paymentMethods.length === 0 ? (
+            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 text-center">
+              <AlertCircle className="w-5 h-5 text-amber-400 mx-auto mb-2" />
+              <p className="text-xs text-amber-400">لا توجد طرق دفع متاحة حالياً</p>
+              <p className="text-[10px] text-muted-foreground mt-1">يرجى التواصل مع الإدارة</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-muted-foreground">💳 اختر طريقة الدفع</p>
+              {paymentMethods.map((method: any) => (
                 <button
-                  key={plan.id}
-                  onClick={() => setSelectedPlan(plan.id)}
+                  key={method._id}
+                  onClick={() => setSelectedMethod(method)}
                   className={`w-full p-3 rounded-xl border text-right transition-all ${
-                    selectedPlan === plan.id
-                      ? `border-${plan.color}/50 bg-${plan.color}/10`
-                      : 'border-border bg-muted/20 hover:bg-muted/30'
+                    selectedMethod?._id === method._id
+                      ? 'border-neon-cyan/40 bg-neon-cyan/5'
+                      : 'border-border bg-muted/10 hover:bg-muted/20'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{plan.icon}</span>
-                      <div>
-                        <p className="text-sm font-bold">{plan.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{plan.duration}</p>
-                      </div>
+                      <Wallet className="w-4 h-4 text-neon-cyan" />
+                      <span className="text-sm font-bold">{method.name}</span>
                     </div>
-                    <span className="text-xs font-bold text-neon-cyan">{plan.price}</span>
+                    {selectedMethod?._id === method._id && (
+                      <CheckCircle2 className="w-4 h-4 text-neon-cyan" />
+                    )}
                   </div>
+                  {/* Show account details when selected */}
+                  {selectedMethod?._id === method._id && (
+                    <div className="mt-3 space-y-2 pt-2 border-t border-border/30">
+                      {method.accountNumber && (
+                        <div className="flex items-center justify-between bg-muted/20 rounded-lg px-3 py-2">
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">رقم الحساب</p>
+                            <p className="text-sm font-bold font-mono" dir="ltr">{method.accountNumber}</p>
+                          </div>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-neon-cyan hover:bg-neon-cyan/10"
+                            onClick={(e) => { e.stopPropagation(); copyToClipboard(method.accountNumber, 'acc') }}>
+                            {copiedField === 'acc' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                      )}
+                      {method.accountName && (
+                        <div className="flex items-center justify-between bg-muted/20 rounded-lg px-3 py-2">
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">اسم صاحب الحساب</p>
+                            <p className="text-sm font-bold">{method.accountName}</p>
+                          </div>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-neon-cyan hover:bg-neon-cyan/10"
+                            onClick={(e) => { e.stopPropagation(); copyToClipboard(method.accountName, 'name') }}>
+                            {copiedField === 'name' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                      )}
+                      {method.instructions && (
+                        <p className="text-[10px] text-muted-foreground bg-muted/10 rounded-lg p-2">{method.instructions}</p>
+                      )}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
+          )}
 
-            {/* Payment Info */}
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">طريقة الدفع:</p>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm outline-none focus:border-neon-cyan/50"
-              >
-                <option value="">اختر طريقة الدفع</option>
-                <option value="zain">زين كاش</option>
-                <option value="mtc">MTC</option>
-                <option value="bank">تحويل بنكي</option>
-                <option value="other">أخرى</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">رقم هاتف الدفع:</p>
-              <input
-                type="tel"
-                value={paymentPhone}
-                onChange={(e) => setPaymentPhone(e.target.value)}
-                placeholder="رقم الهاتف"
-                className="w-full h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm outline-none focus:border-neon-cyan/50"
-                dir="ltr"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">ملاحظات (اختياري):</p>
-              <input
-                type="text"
-                value={paymentNote}
-                onChange={(e) => setPaymentNote(e.target.value)}
-                placeholder="رقم العملية أو أي ملاحظة"
-                className="w-full h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm outline-none focus:border-neon-cyan/50"
-              />
-            </div>
-
-            <Button
-              onClick={handleSubmit}
-              disabled={!selectedPlan || !paymentMethod || !paymentPhone || submitting}
-              className="w-full bg-gradient-to-r from-neon-purple to-neon-cyan text-white font-bold h-10 disabled:opacity-50"
-            >
-              {submitting ? (
-                <><Loader2 className="w-4 h-4 animate-spin ml-2" />جاري الإرسال...</>
-              ) : (
-                <><CreditCard className="w-4 h-4 ml-2" />إرسال طلب الاشتراك</>
-              )}
-            </Button>
-
-            <p className="text-[9px] text-muted-foreground text-center">
-              سيتم مراجعة طلبك من قبل الإدارة خلال ساعات قليلة
-            </p>
+          {/* Screenshot Upload */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-muted-foreground">📸 صورة تأكيد الدفع <span className="text-red-400">*</span></p>
+            {screenshot ? (
+              <div className="relative rounded-xl overflow-hidden border border-neon-cyan/20">
+                <img src={screenshot} alt="تأكيد الدفع" className="w-full max-h-40 object-contain bg-black/50" />
+                <button
+                  onClick={() => setScreenshot(null)}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/80 flex items-center justify-center hover:bg-red-500"
+                >
+                  <X className="h-4 w-4 text-white" />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-white/10 hover:border-neon-cyan/30 cursor-pointer transition-colors bg-white/[0.02]">
+                <Upload className="h-6 w-6 text-muted-foreground mb-2" />
+                <span className="text-xs text-muted-foreground">اضغط لرفع صورة تأكيد الدفع</span>
+                <span className="text-[10px] text-muted-foreground/60 mt-1">PNG, JPG حتى 10MB</span>
+                <input type="file" accept="image/*" onChange={handleScreenshotUpload} className="hidden" />
+              </label>
+            )}
           </div>
-        )}
-      </motion.div>
-    </motion.div>
+
+          {/* Payment Note */}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">ملاحظات (اختياري):</p>
+            <input
+              type="text"
+              value={paymentNote}
+              onChange={(e) => setPaymentNote(e.target.value)}
+              placeholder="رقم العملية أو أي ملاحظة"
+              className="w-full h-9 rounded-lg border border-border bg-muted/30 px-3 text-xs outline-none focus:border-neon-cyan/50"
+            />
+          </div>
+
+          {/* Submit */}
+          <Button
+            onClick={handleSubmit}
+            disabled={!selectedPlan || !screenshot || !selectedMethod || submitting}
+            className="w-full bg-gradient-to-r from-neon-purple to-neon-cyan text-white font-bold h-11 disabled:opacity-50"
+          >
+            {submitting ? (
+              <><Loader2 className="w-4 h-4 animate-spin ml-2" />جاري الإرسال...</>
+            ) : (
+              <><CreditCard className="w-4 h-4 ml-2" />إرسال طلب الاشتراك</>
+            )}
+          </Button>
+
+          <p className="text-[9px] text-muted-foreground text-center">
+            سيتم مراجعة طلبك من قبل الإدارة خلال ساعات قليلة
+          </p>
+        </motion.div>
+      )}
+    </div>
   )
 }
 
@@ -318,7 +507,6 @@ export function AITutorPage() {
   const [input, setInput] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showSubModal, setShowSubModal] = useState(false)
   const [aiUsage, setAiUsage] = useState<{ remaining: number; limit: number; isPremium: boolean } | null>(null)
   const [pendingSub, setPendingSub] = useState<any>(null)
   const [activeSub, setActiveSub] = useState<any>(null)
@@ -482,15 +670,25 @@ export function AITutorPage() {
   const totalLimit = aiUsage?.limit ?? 999
   const limitReached = !isPremium && remainingMessages <= 0
 
+  const refreshSubscription = useCallback(() => {
+    if (!authToken) return
+    fetch('/api/ai/subscription', {
+      headers: { Authorization: `Bearer ${authToken}` },
+    }).then(res => res.json()).then(data => {
+      if (data.success) {
+        setActiveSub(data.activeSubscription)
+        setPendingSub(data.pendingSubscription)
+      }
+    }).catch(() => {})
+    fetch('/api/ai', {
+      headers: { Authorization: `Bearer ${authToken}` },
+    }).then(res => res.json()).then(data => {
+      if (data.success && data.usage) setAiUsage(data.usage)
+    }).catch(() => {})
+  }, [authToken])
+
   return (
     <div dir="rtl" className="flex h-screen w-full bg-med-dark overflow-hidden">
-      <SubscriptionModal
-        open={showSubModal}
-        onClose={() => setShowSubModal(false)}
-        authToken={authToken}
-        userPhone={user.phone}
-      />
-
       {/* ─── Main Chat Area ──────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 relative">
 
@@ -553,28 +751,6 @@ export function AITutorPage() {
               <Globe className="w-4 h-4" />
             </Button>
 
-            {/* Subscribe button for free users */}
-            {!isPremium && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowSubModal(true)}
-                className="text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10 h-8 w-8"
-                title="اشترك الآن"
-              >
-                <Crown className="w-4 h-4" />
-              </Button>
-            )}
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 hidden lg:flex"
-            >
-              <BarChart3 className="w-4 h-4" />
-            </Button>
-
             <Sheet>
               <SheetTrigger asChild>
                 <Button
@@ -606,6 +782,15 @@ export function AITutorPage() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 hidden lg:flex"
+            >
+              <BarChart3 className="w-4 h-4" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleClearChat}
               className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10 h-8 w-8"
               title="مسح المحادثة"
@@ -614,30 +799,6 @@ export function AITutorPage() {
             </Button>
           </div>
         </motion.header>
-
-        {/* ─── Limit Reached Banner ─────────────────────────────────────────── */}
-        {limitReached && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="relative z-10 bg-gradient-to-r from-red-500/10 to-neon-purple/10 border-b border-red-500/20 px-4 py-2"
-          >
-            <div className="max-w-3xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-red-400" />
-                <span className="text-xs text-red-400 font-medium">
-                  لقد استنفدت حد الرسائل المجانية اليومية ({totalLimit} رسائل)
-                </span>
-              </div>
-              <Button
-                onClick={() => setShowSubModal(true)}
-                className="h-7 text-xs bg-gradient-to-r from-neon-purple to-neon-cyan text-white px-3"
-              >
-                <Crown className="w-3 h-3 ml-1" /> اشترك الآن
-              </Button>
-            </div>
-          </motion.div>
-        )}
 
         {/* ─── Pending Subscription Banner ──────────────────────────────────── */}
         {pendingSub && !limitReached && (
@@ -705,6 +866,29 @@ export function AITutorPage() {
             <div ref={messagesEndRef} />
           </div>
         </div>
+
+        {/* ─── Professional Subscription Card (when limit reached) ─────── */}
+        {limitReached && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="relative z-10 px-4 pb-2"
+          >
+            <div className="max-w-3xl mx-auto">
+              <div className="relative rounded-2xl border border-neon-purple/20 bg-gradient-to-b from-med-dark/90 via-med-darker/90 to-med-dark/90 backdrop-blur-xl p-5 shadow-[0_0_40px_rgba(168,85,247,0.1)] overflow-hidden">
+                {/* Decorative corner accents */}
+                <div className="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-neon-purple/10 to-transparent rounded-br-full" />
+                <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-neon-cyan/10 to-transparent rounded-tl-full" />
+
+                <SubscriptionCard
+                  authToken={authToken}
+                  onSubscribed={refreshSubscription}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* ─── Quick Actions ───────────────────────────────────────────────── */}
         <div className="relative z-10 px-4 pb-2">
@@ -878,14 +1062,8 @@ function SidebarContent({ isPremium, remainingMessages, totalLimit, activeSub }:
                   className={`h-2 bg-slate-800 ${remainingMessages <= 2 ? '[&>div]:bg-red-500' : '[&>div]:bg-neon-cyan'}`}
                 />
               </div>
-              <Button
-                onClick={() => {}}
-                className="w-full bg-gradient-to-r from-neon-purple to-neon-cyan text-white text-xs h-8"
-              >
-                <Crown className="w-3 h-3 ml-1" /> ترقية للاشتراك المميز
-              </Button>
               <p className="text-[10px] text-muted-foreground text-center">
-                رسائل غير محدودة مع الاشتراك المميز ✨
+                اشترك للحصول على رسائل غير محدودة ✨
               </p>
             </>
           )}
