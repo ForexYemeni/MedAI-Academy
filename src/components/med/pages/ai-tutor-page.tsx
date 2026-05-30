@@ -841,9 +841,19 @@ export function AITutorPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [aiMessages, aiLoading])
 
-  // Real AI response via API
-  const sendToAI = useCallback(async (userMessage: string) => {
+  // Check if response is a fallback error message
+  const isFallbackError = (text: string): boolean => {
+    return text.includes('عذراً، لم أتمكن من الاتصال بالخادم الذكي') ||
+           text.includes('مفتاح API غير صالح') ||
+           text.includes('المساعد الذكي متوقف مؤقتاً') ||
+           text.includes('حدث خطأ في الاتصال بالمساعد الذكي') ||
+           text.includes('لم أتمكن من الاتصال بالخادم')
+  }
+
+  // Real AI response via API with auto-retry
+  const sendToAI = useCallback(async (userMessage: string, retryCount: number = 0) => {
     setAiLoading(true)
+    const MAX_RETRIES = 2 // Auto-retry up to 2 times before showing error
     try {
       const history = aiMessages.slice(-10).map(m => ({
         role: m.role,
@@ -870,6 +880,13 @@ export function AITutorPage() {
       }
 
       if (data.response) {
+        // If response is a fallback error and we haven't exhausted retries, auto-retry silently
+        if (isFallbackError(data.response) && retryCount < MAX_RETRIES) {
+          console.log(`[AI] Got fallback response, auto-retry ${retryCount + 1}/${MAX_RETRIES}...`)
+          await new Promise(resolve => setTimeout(resolve, 1500)) // Wait 1.5s before retry
+          return sendToAI(userMessage, retryCount + 1)
+        }
+
         addAiMessage({
           id: Date.now().toString(),
           role: 'assistant',
@@ -877,6 +894,12 @@ export function AITutorPage() {
           timestamp: Date.now(),
         })
       } else {
+        // No response at all - retry if possible
+        if (retryCount < MAX_RETRIES) {
+          console.log(`[AI] No response, auto-retry ${retryCount + 1}/${MAX_RETRIES}...`)
+          await new Promise(resolve => setTimeout(resolve, 1500))
+          return sendToAI(userMessage, retryCount + 1)
+        }
         addAiMessage({
           id: Date.now().toString(),
           role: 'assistant',
@@ -885,6 +908,12 @@ export function AITutorPage() {
         })
       }
     } catch (error) {
+      // Network error - retry if possible
+      if (retryCount < MAX_RETRIES) {
+        console.log(`[AI] Network error, auto-retry ${retryCount + 1}/${MAX_RETRIES}...`)
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        return sendToAI(userMessage, retryCount + 1)
+      }
       addAiMessage({
         id: Date.now().toString(),
         role: 'assistant',

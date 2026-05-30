@@ -183,6 +183,72 @@ const GROQ_MODELS = [
   'llama-3.1-8b-instant',
 ]
 
+// Call a single Groq model
+async function callGroqModel(
+  model: string,
+  apiMessages: Array<{ role: string; content: string }>,
+  apiKey: string,
+  temperature: number,
+  maxTokens: number,
+): Promise<{ text: string | null; error?: string; model: string }> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000) // 15s per model attempt
+
+    const response = await fetch(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          messages: apiMessages,
+          temperature,
+          max_tokens: maxTokens,
+          top_p: 0.85,
+          frequency_penalty: 0.5,
+          presence_penalty: 0.3,
+        }),
+      }
+    )
+
+    clearTimeout(timeout)
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        console.log(`[AI] Groq ${model} rate limited`)
+        return { text: null, error: 'RATE_LIMITED', model }
+      }
+      if (response.status === 403) {
+        return { text: null, error: 'API_KEY_INVALID', model }
+      }
+      const errText = await response.text().catch(() => '')
+      console.error(`[AI] Groq ${model} error:`, response.status, errText.slice(0, 200))
+      return { text: null, error: `HTTP_${response.status}`, model }
+    }
+
+    const data = await response.json()
+    const text = data?.choices?.[0]?.message?.content
+    if (text && text.trim().length > 0) {
+      console.log(`[AI] Groq ${model} success, length: ${text.length}`)
+      return { text: text.trim(), model }
+    }
+    return { text: null, error: 'EMPTY_RESPONSE', model }
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      console.log(`[AI] Groq ${model} timed out after 15s`)
+      return { text: null, error: 'TIMEOUT', model }
+    }
+    console.error(`[AI] Groq ${model} error:`, error?.message || error)
+    return { text: null, error: error?.message || 'UNKNOWN', model }
+  }
+}
+
+// Try all Groq models in PARALLEL - first successful response wins
 async function callGroq(
   messages: Array<{ role: string; content: string }>,
   systemPrompt: string,
@@ -200,58 +266,36 @@ async function callGroq(
     ...messages,
   ]
 
-  for (const model of GROQ_MODELS) {
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 45000)
+  // Strategy 1: Try all models in parallel - fastest wins
+  const parallelResults = await Promise.allSettled(
+    GROQ_MODELS.map(model => callGroqModel(model, apiMessages, apiKey, temperature, maxTokens))
+  )
 
-      const response = await fetch(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          signal: controller.signal,
-          body: JSON.stringify({
-            model,
-            messages: apiMessages,
-            temperature,
-            max_tokens: maxTokens,
-            top_p: 0.85,
-            frequency_penalty: 0.5,
-            presence_penalty: 0.3,
-          }),
-        }
-      )
+  // Check for successful response from any model
+  for (const result of parallelResults) {
+    if (result.status === 'fulfilled' && result.value.text) {
+      return { text: result.value.text }
+    }
+  }
 
-      clearTimeout(timeout)
+  // Check for API key invalid (fatal error)
+  for (const result of parallelResults) {
+    if (result.status === 'fulfilled' && result.value.error === 'API_KEY_INVALID') {
+      return { text: null, error: 'API_KEY_INVALID' }
+    }
+  }
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          console.log(`[AI] Groq ${model} rate limited, trying next...`)
-          continue
-        }
-        const errText = await response.text()
-        console.error(`[AI] Groq ${model} error:`, response.status, errText.slice(0, 200))
-        // If 403 Forbidden, the API key is invalid/expired - no point retrying
-        if (response.status === 403) {
-          return { text: null, error: 'API_KEY_INVALID' }
-        }
-        continue
-      }
+  // Strategy 2: If all rate limited, wait briefly and retry with primary model only
+  const errors = parallelResults
+    .filter((r): r is PromiseFulfilledResult<{ text: string | null; error?: string; model: string }> => r.status === 'fulfilled')
+    .map(r => r.value.error)
 
-      const data = await response.json()
-      const text = data?.choices?.[0]?.message?.content
-      if (text && text.trim().length > 0) {
-        console.log(`[AI] Groq ${model} success, length: ${text.length}`)
-        return { text: text.trim() }
-      }
-      continue
-    } catch (error: any) {
-      console.error(`[AI] Groq ${model} error:`, error?.message || error)
-      continue
+  if (errors.includes('RATE_LIMITED') || errors.includes('TIMEOUT')) {
+    console.log('[AI] All models rate limited/timed out, retrying primary model after 2s...')
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    const retryResult = await callGroqModel(GROQ_MODELS[0], apiMessages, apiKey, 0.7, maxTokens)
+    if (retryResult.text) {
+      return { text: retryResult.text }
     }
   }
 
@@ -493,52 +537,18 @@ export async function POST(req: NextRequest) {
     })
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 🤖 TRY GROQ AI (Fast & Reliable - Primary Provider)
+    // 🤖 TRY GROQ AI (Parallel model calls for maximum speed)
     // ═══════════════════════════════════════════════════════════════════════
-    let aiResponse: string | null = null
-    let source = 'groq'
-    let lastError: string | undefined = undefined
-
-    // 1. Try Groq API
-    console.log('[AI] Trying Groq API...')
+    console.log('[AI] Calling Groq API (parallel models)...')
     const groqResult = await callGroq(messages, systemPrompt, temperature, maxTokens)
-    if (groqResult.text) {
-      aiResponse = groqResult.text
-      source = 'groq'
-    } else {
-      lastError = groqResult.error
-    }
 
-    // 2. Retry Groq (handles rate limiting) - only if not key error
-    if (!aiResponse && lastError !== 'API_KEY_INVALID') {
-      console.log('[AI] Groq attempt 1 failed, retrying in 1s...')
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      const retryResult = await callGroq(messages, systemPrompt, 0.7, maxTokens)
-      if (retryResult.text) {
-        aiResponse = retryResult.text
-        source = 'groq-retry'
-      } else {
-        lastError = retryResult.error
-      }
-    }
+    let aiResponse: string | null = groqResult.text
+    let source = groqResult.text ? 'groq' : 'fallback'
 
-    // 3. Third retry with different temperature (handles transient errors)
-    if (!aiResponse && lastError !== 'API_KEY_INVALID') {
-      console.log('[AI] Groq attempt 2 failed, final retry in 2s...')
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      const retry3Result = await callGroq(messages, systemPrompt, 0.5, maxTokens)
-      if (retry3Result.text) {
-        aiResponse = retry3Result.text
-        source = 'groq-retry3'
-      } else {
-        lastError = retry3Result.error
-      }
-    }
-
-    // 4. Final fallback message - only when Groq completely fails
+    // Fallback message only when Groq completely fails
     if (!aiResponse) {
-      console.log('[AI] All Groq retries failed, using fallback message')
-      aiResponse = getMinimalFallback(trimmedMessage, lastError === 'API_KEY_INVALID' ? 'API_KEY_INVALID' : undefined)
+      console.log('[AI] Groq failed, using fallback message. Error:', groqResult.error)
+      aiResponse = getMinimalFallback(trimmedMessage, groqResult.error === 'API_KEY_INVALID' ? 'API_KEY_INVALID' : undefined)
       source = 'fallback'
     }
 
