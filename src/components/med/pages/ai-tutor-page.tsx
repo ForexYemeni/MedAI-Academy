@@ -406,6 +406,13 @@ function SubscriptionCard({
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [step, setStep] = useState<'plan' | 'payment' | 'confirm'>('plan')
 
+  // Default plans fallback - ensures ALL 3 plans always exist
+  const DEFAULT_PLANS = {
+    weekly: { name: 'أسبوعي', nameEn: 'Weekly', durationDays: 7, price: 0 },
+    monthly: { name: 'شهري', nameEn: 'Monthly', durationDays: 30, price: 0 },
+    lifetime: { name: 'مدى الحياة', nameEn: 'Lifetime', durationDays: 36500, price: 0 },
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       if (!authToken) return
@@ -415,12 +422,24 @@ function SubscriptionCard({
         })
         const data = await res.json()
         if (data.success) {
-          setPlans(data.plans)
+          // Merge with defaults to ensure ALL plans always exist (especially lifetime)
+          const apiPlans = data.plans || {}
+          const mergedPlans = {
+            weekly: apiPlans.weekly || DEFAULT_PLANS.weekly,
+            monthly: apiPlans.monthly || DEFAULT_PLANS.monthly,
+            lifetime: apiPlans.lifetime || DEFAULT_PLANS.lifetime,
+          }
+          console.log('[Subscription] Plans loaded:', Object.keys(mergedPlans), mergedPlans)
+          setPlans(mergedPlans)
           const methods = data.paymentMethods || []
           setPaymentMethods(methods)
           if (methods.length > 0) setSelectedMethod(methods[0])
         }
-      } catch {}
+      } catch (err) {
+        console.error('[Subscription] Fetch error:', err)
+        // On error, use default plans so UI still shows all options
+        setPlans(DEFAULT_PLANS)
+      }
     }
     fetchData()
   }, [authToken])
@@ -558,9 +577,12 @@ function SubscriptionCard({
             <p className="text-xs text-muted-foreground">احصل على رسائل غير محدودة مع المساعد الطبي الذكي</p>
           </div>
 
-          {/* Plans Grid */}
+          {/* Plans Grid - explicitly render all 3 plans in guaranteed order */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {Object.entries(plans).map(([key, plan]: [string, any]) => (
+            {['weekly', 'monthly', 'lifetime'].map((key) => {
+              const plan = plans[key]
+              if (!plan) return null
+              return (
               <button
                 key={key}
                 onClick={() => setSelectedPlan(key)}
@@ -610,7 +632,8 @@ function SubscriptionCard({
                   ))}
                 </div>
               </button>
-            ))}
+              )
+            })}
           </div>
 
           <Button

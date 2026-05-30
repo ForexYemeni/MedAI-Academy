@@ -11,20 +11,28 @@ const DEFAULT_PLANS = {
 
 type PlanKey = keyof typeof DEFAULT_PLANS
 
-// Helper to get plans with prices from DB
+// Helper to get plans with prices from DB - ALWAYS returns all 3 plans
 async function getPlansWithPricing() {
+  const basePlans = {
+    weekly: { name: 'أسبوعي', nameEn: 'Weekly', durationDays: 7, price: 0 },
+    monthly: { name: 'شهري', nameEn: 'Monthly', durationDays: 30, price: 0 },
+    lifetime: { name: 'مدى الحياة', nameEn: 'Lifetime', durationDays: 36500, price: 0 },
+  }
   try {
     const { db } = await connectToDatabase()
     const pricing = await db.collection('ai_subscription_pricing').findOne({ id: 'main' })
     if (pricing) {
+      // Always return all 3 plans - use pricing from DB if available, else default to 0
       return {
-        weekly: { name: 'أسبوعي', nameEn: 'Weekly', durationDays: 7, price: pricing.weeklyPrice ?? 0 },
-        monthly: { name: 'شهري', nameEn: 'Monthly', durationDays: 30, price: pricing.monthlyPrice ?? 0 },
-        lifetime: { name: 'مدى الحياة', nameEn: 'Lifetime', durationDays: 36500, price: pricing.lifetimePrice ?? 0 },
+        weekly: { name: 'أسبوعي', nameEn: 'Weekly', durationDays: 7, price: Number(pricing.weeklyPrice) || 0 },
+        monthly: { name: 'شهري', nameEn: 'Monthly', durationDays: 30, price: Number(pricing.monthlyPrice) || 0 },
+        lifetime: { name: 'مدى الحياة', nameEn: 'Lifetime', durationDays: 36500, price: Number(pricing.lifetimePrice) || 0 },
       }
     }
-  } catch {}
-  return DEFAULT_PLANS
+  } catch (err) {
+    console.error('[Subscription] getPlansWithPricing error:', err)
+  }
+  return basePlans
 }
 
 // POST - Request a new subscription (user)
