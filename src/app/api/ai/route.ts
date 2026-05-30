@@ -510,7 +510,7 @@ export async function POST(req: NextRequest) {
     const messages: Array<{ role: string; content: string }> = []
 
     if (Array.isArray(history) && history.length > 0) {
-      const recentHistory = history.slice(-16)
+      const recentHistory = history.slice(-6) // Reduced from 16 to 6 for faster responses
       for (const msg of recentHistory) {
         if (msg.role === 'user' || msg.role === 'assistant') {
           messages.push({
@@ -533,65 +533,44 @@ export async function POST(req: NextRequest) {
     })
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 🤖 TRY GROQ AI with Smart Retry Logic
+    // 🤖 TRY AI PROVIDERS (Groq primary → ZAI fallback)
     // ═══════════════════════════════════════════════════════════════════════
     let aiResponse: string | null = null
     let source = 'groq'
 
-    // Track if the error is an API key issue (no point retrying)
-    let apiKeyInvalid = false
-
-    // 1. Try Groq API
-    console.log('[AI] Trying Groq API (attempt 1)...')
+    // 1. Try Groq API (fast provider)
+    console.log('[AI] Trying Groq API...')
     const groqResult = await callGroq(messages, systemPrompt, temperature, maxTokens)
     if (groqResult.text) {
       aiResponse = groqResult.text
       source = 'groq'
-    } else if (groqResult.error === 'API_KEY_INVALID') {
-      apiKeyInvalid = true
     }
 
-    // 2. Retry with delay (handles rate limiting) if first attempt failed
-    // Skip retries if API key is invalid (403)
-    if (!aiResponse && !apiKeyInvalid) {
-      console.log('[AI] Groq attempt 1 failed, waiting 2s before retry...')
-      await new Promise(resolve => setTimeout(resolve, 2000))
+    // 2. Retry Groq once (handles rate limiting) - only if not key error
+    if (!aiResponse && groqResult.error !== 'API_KEY_INVALID') {
+      console.log('[AI] Groq attempt 1 failed, retrying in 1s...')
+      await new Promise(resolve => setTimeout(resolve, 1000))
       const retryResult = await callGroq(messages, systemPrompt, 0.7, maxTokens)
       if (retryResult.text) {
         aiResponse = retryResult.text
         source = 'groq-retry'
-      } else if (retryResult.error === 'API_KEY_INVALID') {
-        apiKeyInvalid = true
       }
     }
 
-    // 3. Third attempt with longer delay
-    if (!aiResponse && !apiKeyInvalid) {
-      console.log('[AI] Groq attempt 2 failed, waiting 4s before final retry...')
-      await new Promise(resolve => setTimeout(resolve, 4000))
-      const retry2Result = await callGroq(messages, systemPrompt, 0.8, maxTokens)
-      if (retry2Result.text) {
-        aiResponse = retry2Result.text
-        source = 'groq-retry2'
-      } else if (retry2Result.error === 'API_KEY_INVALID') {
-        apiKeyInvalid = true
-      }
-    }
-
-    // 4. Try ZAI as fallback when Groq fails completely
+    // 3. Fallback to ZAI SDK immediately when Groq fails (no extra delay)
     if (!aiResponse) {
-      console.log('[AI] Groq failed, trying ZAI fallback...')
+      console.log('[AI] Groq failed, trying ZAI SDK fallback immediately...')
       const zaiResult = await callZAI(messages, systemPrompt, maxTokens)
       if (zaiResult.text) {
         aiResponse = zaiResult.text
-        source = 'zai-fallback'
+        source = 'zai'
       }
     }
 
-    // 5. Final fallback message - only when ALL providers fail
+    // 4. Final fallback message - only when ALL providers fail
     if (!aiResponse) {
       console.log('[AI] All AI providers failed, using fallback message')
-      aiResponse = getMinimalFallback(trimmedMessage, apiKeyInvalid ? 'API_KEY_INVALID' : undefined)
+      aiResponse = getMinimalFallback(trimmedMessage, groqResult.error === 'API_KEY_INVALID' ? 'API_KEY_INVALID' : undefined)
       source = 'fallback'
     }
 
