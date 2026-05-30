@@ -3,8 +3,7 @@ import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 🧠 PROFESSIONAL MEDICAL AI - HIDDEN PRE-PROMPT SYSTEM
-// Uses ZAI API as primary provider + Groq as fallback
+// 🧠 PROFESSIONAL MEDICAL AI - Groq Only + Hidden Pre-Prompt System
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const DEFAULT_SYSTEM_PROMPT = `أنت مساعد طبي تعليمي احترافي في منصة "أكاديمية نبض". تتحدث العربية الفصحى المبسطة.
@@ -30,7 +29,6 @@ const DEFAULT_SYSTEM_PROMPT = `أنت مساعد طبي تعليمي احترا�
 - عند ذكر تشخيصات، استخدم كلمة "قد يشير إلى" بدلاً من "هو"
 - لا تعطِ تشخيصاً نهائياً أبداً - أنت تقدم معلومات تعليمية فقط
 - ميّز دائماً بين الحقائق الراسخة والآراء الطبية المتفاوتة
-- عند وجود خلاف طبي في مسألة ما، اذكر الرأي السائد والرأي المخالف بإيجاز
 
 ═══ التنوع وعدم التكرار (مهم جداً!) ═══
 - ❌ لا تكرر نفس المحتوى أو نفس الأمثلة مرة أخرى - كل إجابة يجب أن تكون فريدة ومختلفة
@@ -38,37 +36,41 @@ const DEFAULT_SYSTEM_PROMPT = `أنت مساعد طبي تعليمي احترا�
 - ❌ لا تكرر نفس الأسئلة في الاختبارات - كن مبتكراً في صياغة أسئلة جديدة
 - ✅ غيّر التخصص والسياق في كل إجابة - لا تركز دائماً على نفس الأمراض
 - ✅ استخدم تفاصيل مختلفة (عمر المريض، الجنس، الأعراض، القصة المرضية) في كل حالة
-- ✅ غيّر مستوى الصعوبة والأسلوب - لا تكن رتيباً
 
-═══ تنسيق الإجابة ═══
-- استخدم **للعريض** للمصطلحات الطبية الإنجليزية والعربية المهمة
-- رتّب بالأرقام (1. 2. 3.) عند سرد خطوات أو قوائم
-- استخدم العناوين الفرعية بـ **العنوان** لتنظيم الإجابات الطويلة
-- أضف الرموز المناسبة: 🫀 قلب | 💊 دواء | 🚑 طوارئ | 🧠 أعصاب | ⚠️ تحذير | 💡 نصيحة | 🎯 نقطة مهمة
-- ابدأ إجابات الحالات السريرية بـ 🏥 والإسعافات بـ 🚑 والأدوية بـ 💊
+═══ تنسيق الإجابة الاحترافي (مهم جداً!) ═══
+- 🔴 استخدم الإيموجي بكثرة وبشكل احترافي في كل قسم وكل نقطة
+- 🟢 كل عنوان فرعي يجب أن يبدأ بإيموجي مناسب وملون
+- 🔵 كل نقطة في القوائم يجب أن تبدأ بإيموجي مختلف
+- 🟡 استخدم **للعريض** للمصطلحات الطبية المهمة
+- 🟣 رتّب بالأرقام مع إيموجي (1️⃣ 2️⃣ 3️⃣) عند سرد خطوات
+- استخدم العناوين الفرعية بـ **📌 العنوان** لتنظيم الإجابات الطويلة
+
+═══ إيموجي إلزامية حسب نوع المحتوى ═══
+🫀 أمراض القلب | 🫁 الجهاز التنفسي | 🧠 الأعصاب | 🦴 العظام | 🩸 الدم
+💊 الأدوية | 💉 الحقن | 🧬 الجينات | 🔬 الفحوصات | 📋 التقارير
+🚑 الطوارئ | 🏥 المستشفى | ⚕️ العلاج | 🩺 التشخيص | 🧪 المخبر
+⚠️ التحذيرات | 💡 النصائح | 🎯 النقاط المهمة | ❌ الأخطاء | ✅ الصحيح
+📖 الشرح | 📝 الملاحظات | 🔑 المفاتيح | 💎 النادر | 🌟 المميز
+🔴 الخطير | 🟡 المتوسط | 🟢 الآمن | 🔵 المعلومات | 🟣 المتقدم
 
 ═══ التحذيرات الإلزامية ═══
 - كل إجابة تتضمن جرعات أدوية → أضف ⚠️ "هذه المعلومات تعليمية فقط - لا تستخدمها كبديل لاستشارة الطبيب"
 - كل إجابة عن حالات طوارئ → أضف 🚑 "في حالات الطوارئ اتصل بالإسعاف فوراً"
 - كل إجابة عن تشخيص → أضف "التشخيص النهائي يحدده الطبيب المعالج فقط"
-- لا تقدم خطة علاجية متكاملة لمريض - يمكنك شرح الخطوط العلاجية العامة فقط
 
 ═══ اللغة والأسلوب ═══
 - العربية الفصحى المبسطة مع المصطلحات الطبية الإنجليزية بين قوسين عند الحاجة
 - كن دقيقاً ومختصراً - لا تطيل بلا داعٍ
-- أجب عن السؤال المحدد أولاً ثم أضف معلومات تكميلية إن لزم
-- لا تكرر المعلومات نفسها بطرق مختلفة`
+- أجب عن السؤال المحدد أولاً ثم أضف معلومات تكميلية إن لزم`
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 🔒 HIDDEN PRE-PROMPT - injected before every user message
-// This is the KEY to professional, varied, non-repetitive answers
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function buildHiddenPrePrompt(userMessage: string): string {
   const seed = Math.floor(Math.random() * 999999)
   const timestamp = Date.now()
 
-  // Detect the type of request to customize the pre-prompt
   const lowerMsg = userMessage.toLowerCase()
   let requestType = 'general'
   let specializedInstructions = ''
@@ -80,180 +82,102 @@ function buildHiddenPrePrompt(userMessage: string): string {
 - أنشئ أسئلة اختيار متعدد (MCQ) احترافية بـ 4 خيارات لكل سؤال
 - كل سؤال يجب أن يكون فريداً ومبتكراً - لا تستخدم أسئلة مكررة أو شائعة جداً
 - غيّر مستوى الصعوبة بين الأسئلة
-- أضف شرحاً مختصراً للإجابة الصحيحة
-- غيّر الموضوع الفرعي كل مرة حتى لو طُلب نفس التخصص العام
-- رقم العشوائية: ${seed} - استخدمه لتنويع المحتوى`
+- أضف شرحاً مختصراً للإجابة الصحيحة مع 💡
+- غيّر الموضوع الفرعي كل مرة
+- استخدم إيموجي مختلفة لكل سؤال: 🧪 🩺 💊 🔬 🧬
+- رقم العشوائية: ${seed}`
   } else if (/حالة سريرية|حالة مرضية|clinical case|scenario/.test(lowerMsg)) {
     requestType = 'case'
     specializedInstructions = `
 ═══ تعليمات خاصة: حالة سريرية ═══
 - أنشئ حالة سريرية واقعية ومفصلة بتفاصيل فريدة
 - غيّر: عمر المريض، الجنس، المهنة، القصة المرضية، الأعراض الدقيقة
-- اذكر: الشكوى الرئيسية، القصة المرضية الحالية، السوابق، الفحص السريري
-- قدم التشخيص التفريقي مع 3-5 احتمالات مرتبة حسب الأرجحية
-- اذكر الفحوصات المطلوبة ونتائجها المتوقعة
-- حدد التشخيص الأرجح مع التبرير
-- رقم العشوائية: ${seed} - استخدمه لتنويع الحالة`
+- اذكر: 👤 الشكوى الرئيسية | 📋 القصة المرضية | 🏥 الفحص السريري | 🔬 الفحوصات | 🩺 التشخيص التفريقي
+- قدم التشخيص الأرجح مع التبرير 🎯
+- رقم العشوائية: ${seed}`
   } else if (/لخص|تلخيص|summary|أهم النقاط/.test(lowerMsg)) {
     requestType = 'summary'
     specializedInstructions = `
 ═══ تعليمات خاصة: تلخيص ═══
-- لخص بطريقة منظمة وشاملة مع التركيز على النقاط التي يخطئ فيها الطلاب
-- استخدم تنسيقاً واضحاً بالعناوين الفرعية والنقاط
-- أضف "نقاط خاطئة شائعة" و"نصائح للامتحان"
+- لخص بطريقة منظمة وشاملة مع إيموجي لكل قسم
+- أضف 📌 لأهم النقاط و ❌ للأخطاء الشائعة و 💡 لنصائح الامتحان
 - غيّر طريقة العرض والتفاصيل كل مرة
-- رقم العشوائية: ${seed} - استخدمه لتنويع الملخص`
+- رقم العشوائية: ${seed}`
   } else if (/شرح|اشرح|explain|كيف|آلية/.test(lowerMsg)) {
     requestType = 'explanation'
     specializedInstructions = `
 ═══ تعليمات خاصة: شرح مفصل ═══
-- اشرح بطريقة مبسطة ومتسلسلة مع أمثلة توضيحية
-- استخدم تشبيهات من الحياة اليومية لتسهيل الفهم
-- ابدأ من الأساسيات ثم انتقل للتعمق تدريجياً
-- أضف مخططات سير (flow) بالوصف إن أمكن
-- رقم العشوائية: ${seed} - استخدمه لتنويع الشرح`
+- اشرح بطريقة مبسطة ومتسلسلة مع أمثلة توضيحية وإيموجي
+- استخدم تشبيهات من الحياة اليومية 💡
+- ابدأ من 🟢 الأساسيات ثم 🟡 المتوسط ثم 🔴 المتقدم
+- رقم العشوائية: ${seed}`
   } else if (/بطاقات|flashcard|مراجعة/.test(lowerMsg)) {
     requestType = 'flashcards'
     specializedInstructions = `
 ═══ تعليمات خاصة: بطاقات مراجعة ═══
-- أنشئ بطاقات بتنسيق: سؤال في الأمام → إجابة مختصرة في الخلف
-- غيّر نوع الأسئلة: تعريفات، مقارنات، أعراض، أدوية، جرعات
-- ركز على نقاط الامتحانات والاختبارات
-- رقم العشوائية: ${seed} - استخدمه لتنويع البطاقات`
+- أنشئ بطاقات بتنسيق: 📴 سؤال → 📩 إجابة مختصرة
+- غيّر نوع الأسئلة: تعريفات 📖، مقارنات ⚖️، أعراض 🩺، أدوية 💊
+- ركز على نقاط الامتحانات 🎯
+- رقم العشوائية: ${seed}`
   } else if (/تفاعل|تداخل|drug interaction/.test(lowerMsg)) {
     requestType = 'drug_interaction'
     specializedInstructions = `
 ═══ تعليمات خاصة: التفاعلات الدوائية ═══
 - اذكر تفاعلات دوائية مؤكدة وموثوقة فقط
-- اشرح آلية التفاعل والعلامات التحذيرية والإدارة
-- لا تكرر التفاعلات الشائعة فقط - أضف تفاعلات أقل شهرة لكن مهمة
-- رقم العشوائية: ${seed} - استخدمه لتنويع التفاعلات`
+- اشرح ⚙️ الآلية | ⚠️ العلامات التحذيرية | 🛡️ الإدارة
+- أضف تفاعلات أقل شهرة لكن مهمة 💎
+- رقم العشوائية: ${seed}`
   } else if (/تشخيص تفريقي|differential/.test(lowerMsg)) {
     requestType = 'differential'
     specializedInstructions = `
 ═══ تعليمات خاصة: تشخيص تفريقي ═══
-- اذكر 4-6 تشخيصات تفريقية مرتبة حسب الأرجحية
-- اشرح كيف نميز بينها سريرياً ومخبرياً (المعايير التفريقية)
-- أضف خوارزمية تشخيصية مختصرة
-- رقم العشوائية: ${seed} - استخدمه لتنويع التشخيصات`
+- اذكر 4-6 تشخيصات تفريقية مرتبة حسب الأرجحية 1️⃣2️⃣3️⃣4️⃣
+- اشرح المعايير التفريقية 🔍 بينها
+- أضف خوارزمية تشخيصية مختصرة 🗺️
+- رقم العشوائية: ${seed}`
   } else if (/خطة تعلم|study plan|جدول/.test(lowerMsg)) {
     requestType = 'study_plan'
     specializedInstructions = `
 ═══ تعليمات خاصة: خطة تعلم ═══
-- ضع خطة منظمة بالأسابيع مع أهداف واضحة
-- أضف مصادر مقترحة وطرق مراجعة فعالة
-- ضع اختبارات ذاتية في نهاية كل أسبوع
-- رقم العشوائية: ${seed} - استخدمه لتنويع الخطة`
+- ضع خطة منظمة بالأسابيع 📅 مع أهداف واضحة 🎯
+- أضف مصادر مقترحة 📚 وطرق مراجعة فعالة ✅
+- ضع اختبارات ذاتية 🧪 في نهاية كل أسبوع
+- رقم العشوائية: ${seed}`
   } else if (/إسعاف|first aid|إنعاش|CPR|طوارئ|emergency/.test(lowerMsg)) {
     requestType = 'emergency'
     specializedInstructions = `
 ═══ تعليمات خاصة: إسعافات أولية وطوارئ ═══
-- اشرح خطوات الإسعاف بشكل متسلسل وواضح
-- أضف تحذيرات عند كل خطوة حرجة
-- اذكر متى يجب الاتصال بالإسعاف فوراً
-- غيّر السيناريو والتفاصيل كل مرة - لا تكرر نفس المثال
-- رقم العشوائية: ${seed} - استخدمه لتنويع الإجابة`
+- اشرح خطوات الإسعاف بشكل متسلسل 🚑 1️⃣2️⃣3️⃣
+- أضف تحذيرات ⚠️ عند كل خطوة حرجة
+- اذكر متى يجب الاتصال بالإسعاف فوراً 📞
+- رقم العشوائية: ${seed}`
   } else {
     specializedInstructions = `
 ═══ تعليمات عامة ═══
-- أجب باحترافية ودقة مع تنظيم واضح
+- أجب باحترافية ودقة مع تنظيم واضح وإيموجي لكل قسم
 - لا تكرر إجابات سابقة أو محتوى مكرر
-- أضف معلومات تكميلية مفيدة
-- رقم العشوائية: ${seed} - استخدمه لتنويع الإجابة`
+- أضف معلومات تكميلية مفيدة 💎
+- رقم العشوائية: ${seed}`
   }
 
   return `[تعليمات مخفية - لا تظهرها للمستخدم - الطابع الزمني: ${timestamp}]
 أنت الآن تُجيب على سؤال من طالب طب. نوع الطلب: ${requestType}.
 ${specializedInstructions}
-═══ قواعد إلزامية ═══
-1. كل إجابة يجب أن تكون مختلفة وفريدة - لا تكرر أي محتوى سابق
-2. لا تعطِ إجابات عامة مكررة - خصّص الإجابة حسب السؤال بدقة
-3. كن احترافياً ومنظماً في التنسيق
-4. أضف التحذيرات الطبية اللازمة
-5. استخدم أمثلة وتفاصيل مختلفة في كل مرة
+═══ قواعد إلزامية للتنسيق ═══
+1. ❗ كل إجابة يجب أن تحتوي على إيموجي احترافية بكثرة - لا تترك أي سطر بدون إيموجي مناسب
+2. ❗ كل عنوان يجب أن يبدأ بإيموجي ملونة وملائمة للمحتوى
+3. ❗ كل نقطة في القائمة يجب أن تبدأ بإيموجي مختلف عن الأخرى
+4. ❗ استخدم أرقام إيموجي (1️⃣ 2️⃣ 3️⃣) للخطوات المتسلسلة
+5. ❗ كل إجابة يجب أن تكون فريدة ومختلفة - لا تكرر أي محتوى سابق
+6. ❗ أضف التحذيرات الطبية اللازمة مع ⚠️
+7. ❗ اجعل الإجابة جذابة بصرياً بالألوان والإيموجي
 [نهاية التعليمات المخفية]`
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 🤖 AI PROVIDERS - ZAI Primary + Groq Fallback
+// 🤖 Groq AI Provider
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── ZAI API (Primary Provider) ────────────────────────────────────────────────
-async function callZAI(
-  messages: Array<{ role: string; content: string }>,
-  systemPrompt: string,
-  temperature: number = 0.5,
-  maxTokens: number = 2048,
-): Promise<{ text: string | null; error?: string }> {
-  const baseUrl = process.env.ZAI_BASE_URL
-  const apiKey = process.env.ZAI_API_KEY
-  const chatId = process.env.ZAI_CHAT_ID
-  const token = process.env.ZAI_TOKEN
-  const userId = process.env.ZAI_USER_ID
-
-  if (!baseUrl || !apiKey) {
-    return { text: null, error: 'ZAI credentials not configured' }
-  }
-
-  const apiMessages = [
-    { role: 'system', content: systemPrompt },
-    // Reinforcement for accuracy + variety
-    { role: 'system', content: `تذكير صارم: لا تخترع معلومات. إذا لم تكن متأكداً، قل ذلك. لا تكرر إجابات مكررة. كل إجابة يجب أن تكون فريدة. معرف الجلسة: ${Date.now()}-${Math.random().toString(36).slice(2,8)}` },
-    ...messages,
-  ]
-
-  try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 60000)
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'X-Z-AI-From': 'Z',
-    }
-    if (chatId) headers['X-Chat-Id'] = chatId
-    if (userId) headers['X-User-Id'] = userId
-    if (token) headers['X-Token'] = token
-
-    const response = await fetch(
-      `${baseUrl}/chat/completions`,
-      {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: 'glm-4-plus',
-          messages: apiMessages,
-          temperature,
-          max_tokens: maxTokens,
-          thinking: { type: 'disabled' },
-        }),
-      }
-    )
-
-    clearTimeout(timeout)
-
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error(`[AI] ZAI API error:`, response.status, errText.slice(0, 200))
-      return { text: null, error: `ZAI API error: ${response.status}` }
-    }
-
-    const data = await response.json()
-    const text = data?.choices?.[0]?.message?.content
-    if (text && text.trim().length > 0) {
-      console.log(`[AI] ZAI API success, length: ${text.length}`)
-      return { text: text.trim() }
-    }
-
-    return { text: null, error: 'Empty response from ZAI' }
-  } catch (error: any) {
-    console.error(`[AI] ZAI API error:`, error?.message || error)
-    return { text: null, error: error?.message || 'ZAI request failed' }
-  }
-}
-
-// ─── Groq API (Fallback Provider) ─────────────────────────────────────────────
 const GROQ_MODELS = [
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
@@ -262,7 +186,7 @@ const GROQ_MODELS = [
 async function callGroq(
   messages: Array<{ role: string; content: string }>,
   systemPrompt: string,
-  temperature: number = 0.4,
+  temperature: number = 0.6,
   maxTokens: number = 2048,
 ): Promise<{ text: string | null; error?: string }> {
   const apiKey = process.env.GROQ_API_KEY
@@ -279,7 +203,7 @@ async function callGroq(
   for (const model of GROQ_MODELS) {
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 30000)
+      const timeout = setTimeout(() => controller.abort(), 45000)
 
       const response = await fetch(
         'https://api.groq.com/openai/v1/chat/completions',
@@ -309,7 +233,8 @@ async function callGroq(
           console.log(`[AI] Groq ${model} rate limited, trying next...`)
           continue
         }
-        console.error(`[AI] Groq ${model} error:`, response.status)
+        const errText = await response.text()
+        console.error(`[AI] Groq ${model} error:`, response.status, errText.slice(0, 200))
         continue
       }
 
@@ -329,7 +254,7 @@ async function callGroq(
   return { text: null, error: 'All Groq models failed' }
 }
 
-// ─── Minimal Fallback (only when ALL AI providers completely fail) ──────────
+// ─── Minimal Fallback (only when AI completely fails) ──────────────────────
 
 function getMinimalFallback(message: string): string {
   return `⚠️ عذراً، لم أتمكن من الاتصال بالخادم الذكي حالياً.
@@ -337,8 +262,8 @@ function getMinimalFallback(message: string): string {
 💡 يرجى المحاولة مرة أخرى بعد قليل - ستحصل على إجابة احترافية من الذكاء الاصطناعي.
 
 📌 يمكنك أيضاً تجربة:
-- إعادة صياغة السؤال
-- اختيار أحد الأزرار السريعة أدناه`
+- إعادة صياغة السؤال 🔄
+- اختيار أحد الأزرار السريعة أدناه ⬇️`
 }
 
 // ─── Usage Tracking ────────────────────────────────────────────────────────────
@@ -458,10 +383,10 @@ export async function POST(req: NextRequest) {
       if (aiSettings && (aiSettings.enabled === false || !aiSettings.freeMessageLimit)) {
         await db.collection('ai_settings').updateOne(
           { id: 'main' },
-          { $set: { enabled: true, provider: 'zai', freeMessageLimit: aiSettings.freeMessageLimit || 5, updatedAt: new Date() } }
+          { $set: { enabled: true, provider: 'groq', freeMessageLimit: aiSettings.freeMessageLimit || 5, updatedAt: new Date() } }
         )
         aiSettings.enabled = true
-        aiSettings.provider = 'zai'
+        aiSettings.provider = 'groq'
         aiSettings.freeMessageLimit = aiSettings.freeMessageLimit || 5
       }
     } catch {}
@@ -498,11 +423,11 @@ export async function POST(req: NextRequest) {
       ? aiSettings.systemPrompt
       : DEFAULT_SYSTEM_PROMPT
 
-    const antiHallucinationAppend = `\n\n═══ قواعد إلزامية لا تُلغى أبداً ═══\n- لا تخترع معلومات طبية أبداً. إذا لم تكن متأكداً قل "لست متأكد".\n- لا تخترع أرقام إحصائيات أو جرعات أدوية غير مؤكدة.\n- أضف ⚠️ تحذير طبي عند ذكر أي جرعة أو علاج.\n- أنت مساعد تعليمي فقط - لا تستبدل الاستشارة الطبية.\n- كل إجابة يجب أن تكون فريدة ومختلفة - لا تكرر المحتوى.`
+    const antiHallucinationAppend = `\n\n═══ قواعد إلزامية لا تُلغى أبداً ═══\n- لا تخترع معلومات طبية أبداً. إذا لم تكن متأكداً قل "لست متأكد".\n- لا تخترع أرقام إحصائيات أو جرعات أدوية غير مؤكدة.\n- أضف ⚠️ تحذير طبي عند ذكر أي جرعة أو علاج.\n- أنت مساعد تعليمي فقط - لا تستبدل الاستشارة الطبية.\n- كل إجابة يجب أن تكون فريدة ومختلفة - لا تكرر المحتوى.\n- استخدم إيموجي احترافية بكثرة في كل قسم وكل نقطة.`
     const systemPrompt = basePrompt + antiHallucinationAppend
 
     // Professional temperature for variety while maintaining accuracy
-    const temperature = aiSettings?.temperature ?? 0.5
+    const temperature = aiSettings?.temperature ?? 0.6
     const maxTokens = aiSettings?.maxTokens ?? 2048
 
     // Check custom responses first (admin-defined keyword triggers)
@@ -554,42 +479,32 @@ export async function POST(req: NextRequest) {
     })
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 🤖 TRY AI PROVIDERS (ZAI Primary → Groq Fallback → Retry)
+    // 🤖 TRY GROQ AI (Primary) + Retry Logic
     // ═══════════════════════════════════════════════════════════════════════
     let aiResponse: string | null = null
-    let source = 'zai'
+    let source = 'groq'
 
-    // 1. Try ZAI API (Primary)
-    console.log('[AI] Trying ZAI API (primary)...')
-    const zaiResult = await callZAI(messages, systemPrompt, temperature, maxTokens)
-    if (zaiResult.text) {
-      aiResponse = zaiResult.text
-      source = 'zai'
+    // 1. Try Groq API
+    console.log('[AI] Trying Groq API...')
+    const groqResult = await callGroq(messages, systemPrompt, temperature, maxTokens)
+    if (groqResult.text) {
+      aiResponse = groqResult.text
+      source = 'groq'
     }
 
-    // 2. Try Groq API (Fallback) if ZAI failed
+    // 2. Retry with higher temperature if first attempt failed
     if (!aiResponse) {
-      console.log('[AI] ZAI failed, trying Groq (fallback)...')
-      const groqResult = await callGroq(messages, systemPrompt, 0.4, maxTokens)
-      if (groqResult.text) {
-        aiResponse = groqResult.text
-        source = 'groq'
-      }
-    }
-
-    // 3. Retry with higher temperature for variety
-    if (!aiResponse) {
-      console.log('[AI] All providers failed, retrying ZAI with higher temperature...')
-      const retryResult = await callZAI(messages, systemPrompt, 0.7, maxTokens)
+      console.log('[AI] Groq failed, retrying with higher temperature...')
+      const retryResult = await callGroq(messages, systemPrompt, 0.8, maxTokens)
       if (retryResult.text) {
         aiResponse = retryResult.text
-        source = 'zai-retry'
+        source = 'groq-retry'
       }
     }
 
-    // 4. Final fallback - only when ALL AI providers completely fail
+    // 3. Final fallback - only when Groq completely fails
     if (!aiResponse) {
-      console.log('[AI] All AI providers failed, using fallback message')
+      console.log('[AI] Groq completely failed, using fallback message')
       aiResponse = getMinimalFallback(trimmedMessage)
       source = 'fallback'
     }

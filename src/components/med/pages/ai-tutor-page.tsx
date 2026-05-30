@@ -180,32 +180,148 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
 ]
 
-// ─── Formatting Helper ───────────────────────────────────────────────────────
+// ─── Professional Formatting Helper with Multi-Color System ──────────────────
 
 function formatAIText(text: string) {
   const lines = text.split('\n')
   return lines.map((line, i) => {
-    let formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-neon-cyan font-bold">$1</strong>')
-    formatted = formatted.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+    let formatted = line
 
-    if (line.startsWith('🚨') || line.startsWith('🚫') || line.startsWith('⚠️') || line.startsWith('🔒')) {
+    // Bold text with gradient cyan color
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold" style="color:#00f5ff">$1</strong>')
+    // Italic text with soft purple
+    formatted = formatted.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em style="color:#a78bfa">$1</em>')
+
+    // ─── Emoji-based Color Mapping (Professional Multi-Color) ───
+
+    // 🔴 RED - Dangers, warnings, critical info
+    if (/^[🚨🚫⚠️🔒🔴❌🛑]/.test(line)) {
       return (
-        <div key={i} className="text-red-400 font-semibold my-1" dangerouslySetInnerHTML={{ __html: formatted }} />
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-red-500/10 border-r-2 border-red-500/40" 
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#f87171;font-weight:600">${formatted}</span>` }} />
       )
     }
-    if (line.startsWith('📌') || line.startsWith('💡') || line.startsWith('🎯') || line.startsWith('⚡') || line.startsWith('🔑')) {
+
+    // 🟢 GREEN - Success, correct, safe
+    if (/^[✅🟢💚✔️✓🌱💪🏆]/.test(line)) {
       return (
-        <div key={i} className="text-neon-cyan font-semibold my-1" dangerouslySetInnerHTML={{ __html: formatted }} />
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 border-r-2 border-emerald-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#34d399;font-weight:600">${formatted}</span>` }} />
       )
     }
-    if (line.startsWith('✅') || line.startsWith('🔄') || line.startsWith('⬜')) {
+
+    // 🔵 BLUE - Info, notes, general knowledge
+    if (/^[🔵ℹ️📘📝📌🔖🏷️📋]/.test(line)) {
       return (
-        <div key={i} className="my-0.5 mr-2" dangerouslySetInnerHTML={{ __html: formatted }} />
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-blue-500/10 border-r-2 border-blue-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#60a5fa;font-weight:600">${formatted}</span>` }} />
       )
     }
+
+    // 🟡 YELLOW/AMBER - Tips, advice, medium importance
+    if (/^[💡🟡⚡🌟⭐✨💛🔔💎🎯🔑]/.test(line)) {
+      return (
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-amber-500/10 border-r-2 border-amber-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#fbbf24;font-weight:600">${formatted}</span>` }} />
+      )
+    }
+
+    // 🟣 PURPLE - Advanced, special, pharmacology
+    if (/^[🟣💜🔮🧬⚗️💊]/.test(line)) {
+      return (
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-purple-500/10 border-r-2 border-purple-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#a78bfa;font-weight:600">${formatted}</span>` }} />
+      )
+    }
+
+    // 🏥 Medical emojis - hospital, diagnosis, etc.
+    if (/^[🏥🩺⚕️🫀🫁🧠🦴🩸💉🧪🔬🩻]/.test(line)) {
+      return (
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-teal-500/10 border-r-2 border-teal-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#2dd4bf;font-weight:600">${formatted}</span>` }} />
+      )
+    }
+
+    // 🚑 Emergency / First Aid
+    if (/^[🚑🆘📞🏥⛑️]/.test(line)) {
+      return (
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-orange-500/10 border-r-2 border-orange-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#fb923c;font-weight:600">${formatted}</span>` }} />
+      )
+    }
+
+    // 📖 Education / Study
+    if (/^[📖📚🎓🏫📖✏️🖊️]/.test(line)) {
+      return (
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-indigo-500/10 border-r-2 border-indigo-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#818cf8;font-weight:600">${formatted}</span>` }} />
+      )
+    }
+
+    // 🔄 Process / Steps
+    if (/^[🔄🔄🔃♻️]/.test(line)) {
+      return (
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-cyan-500/10 border-r-2 border-cyan-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#22d3ee;font-weight:500">${formatted}</span>` }} />
+      )
+    }
+
+    // Numbered emoji steps (1️⃣ 2️⃣ 3️⃣ etc)
+    if (/^[1-9️⃣⃣]/.test(line) || /^\d️⃣/.test(line)) {
+      return (
+        <div key={i} className="my-1 px-3 py-1.5 rounded-lg bg-sky-500/10 border-r-2 border-sky-500/40"
+          dangerouslySetInnerHTML={{ __html: `<span style="color:#38bdf8;font-weight:500">${formatted}</span>` }} />
+      )
+    }
+
+    // ─── Markdown Headers (### ##) ───
+    if (/^#{1,3}\s/.test(line)) {
+      const headerText = line.replace(/^#{1,3}\s/, '')
+      const isH3 = line.startsWith('###')
+      return (
+        <div key={i} className={`my-2 font-bold ${isH3 ? 'text-base' : 'text-lg'}`} 
+          style={{ color: '#00f5ff' }}
+          dangerouslySetInnerHTML={{ __html: headerText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+      )
+    }
+
+    // ─── Bullet points (-, *, •) with colored dots ───
+    if (/^[\s]*[-*•]\s/.test(line)) {
+      const indent = line.match(/^(\s*)/)?.[1].length || 0
+      const bulletContent = line.replace(/^[\s]*[-*•]\s/, '')
+      return (
+        <div key={i} className="my-0.5 flex items-start gap-2" style={{ paddingRight: `${indent * 8}px` }}>
+          <span style={{ color: '#00f5ff', marginTop: '2px' }}>●</span>
+          <span className="flex-1" dangerouslySetInnerHTML={{ __html: formatted.replace(/^[\s]*[-*•]\s/, '') }} />
+        </div>
+      )
+    }
+
+    // ─── Numbered lists (1. 2. etc) ───
+    if (/^\d+[.)]\s/.test(line)) {
+      const num = line.match(/^(\d+)/)?.[1] || '1'
+      return (
+        <div key={i} className="my-0.5 flex items-start gap-2">
+          <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" 
+            style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', color: 'white' }}>
+            {num}
+          </span>
+          <span className="flex-1" dangerouslySetInnerHTML={{ __html: formatted.replace(/^\d+[.)]\s/, '') }} />
+        </div>
+      )
+    }
+
+    // ─── Divider lines ───
+    if (/^[─═─━-]{3,}$/.test(line.trim())) {
+      return <div key={i} className="my-2 border-t border-white/10" />
+    }
+
+    // ─── Empty lines ───
     if (line.trim() === '') {
       return <div key={i} className="h-2" />
     }
+
+    // ─── Default line ───
     return (
       <div key={i} className="my-0.5" dangerouslySetInnerHTML={{ __html: formatted }} />
     )
@@ -846,7 +962,7 @@ export function AITutorPage() {
               <div className="flex items-center gap-2">
                 <p className="text-[10px] text-neon-green flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-neon-green inline-block" />
-                  متصل الآن • ZAI
+                  متصل الآن • Groq AI
                 </p>
                 {/* Usage Badge */}
                 {isPremium ? (
