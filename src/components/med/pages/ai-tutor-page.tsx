@@ -756,12 +756,19 @@ export function AITutorPage() {
     sendToAI(prompt)
   }, [aiLoading, addAiMessage, sendToAI])
 
-  // Toggle voice input
+  // Toggle voice input - placeholder for future voice recognition
   const toggleVoice = useCallback(() => {
     setIsListening((prev) => !prev)
     if (!isListening) {
       setTimeout(() => {
-        setInput('ما هي خطوات الإنعاش القلبي الرئوي CPR؟')
+        const voicePrompts = [
+          'اشرح لي آلية عمل القلب',
+          'ما هي أسباب ضيق التنفس؟',
+          'ما الفرق بين السكري النوع 1 و2؟',
+          'اشرح لي التشخيص التفريقي لألم الصدر',
+          'ما هي أخطاء شائعة في استخدام المضادات الحيوية؟',
+        ]
+        setInput(voicePrompts[Math.floor(Math.random() * voicePrompts.length)])
         setIsListening(false)
       }, 2000)
     }
@@ -839,7 +846,7 @@ export function AITutorPage() {
               <div className="flex items-center gap-2">
                 <p className="text-[10px] text-neon-green flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-neon-green inline-block" />
-                  متصل الآن • Groq AI
+                  متصل الآن • ZAI
                 </p>
                 {/* Usage Badge */}
                 {isPremium ? (

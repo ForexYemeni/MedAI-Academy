@@ -4,6 +4,7 @@ import { verifyToken } from '@/lib/auth'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 🧠 PROFESSIONAL MEDICAL AI - HIDDEN PRE-PROMPT SYSTEM
+// Uses ZAI API as primary provider + Groq as fallback
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const DEFAULT_SYSTEM_PROMPT = `أنت مساعد طبي تعليمي احترافي في منصة "أكاديمية نبض". تتحدث العربية الفصحى المبسطة.
@@ -143,6 +144,15 @@ function buildHiddenPrePrompt(userMessage: string): string {
 - أضف مصادر مقترحة وطرق مراجعة فعالة
 - ضع اختبارات ذاتية في نهاية كل أسبوع
 - رقم العشوائية: ${seed} - استخدمه لتنويع الخطة`
+  } else if (/إسعاف|first aid|إنعاش|CPR|طوارئ|emergency/.test(lowerMsg)) {
+    requestType = 'emergency'
+    specializedInstructions = `
+═══ تعليمات خاصة: إسعافات أولية وطوارئ ═══
+- اشرح خطوات الإسعاف بشكل متسلسل وواضح
+- أضف تحذيرات عند كل خطوة حرجة
+- اذكر متى يجب الاتصال بالإسعاف فوراً
+- غيّر السيناريو والتفاصيل كل مرة - لا تكرر نفس المثال
+- رقم العشوائية: ${seed} - استخدمه لتنويع الإجابة`
   } else {
     specializedInstructions = `
 ═══ تعليمات عامة ═══
@@ -160,10 +170,90 @@ ${specializedInstructions}
 2. لا تعطِ إجابات عامة مكررة - خصّص الإجابة حسب السؤال بدقة
 3. كن احترافياً ومنظماً في التنسيق
 4. أضف التحذيرات الطبية اللازمة
+5. استخدم أمثلة وتفاصيل مختلفة في كل مرة
 [نهاية التعليمات المخفية]`
 }
 
-// ─── Groq API ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🤖 AI PROVIDERS - ZAI Primary + Groq Fallback
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── ZAI API (Primary Provider) ────────────────────────────────────────────────
+async function callZAI(
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt: string,
+  temperature: number = 0.5,
+  maxTokens: number = 2048,
+): Promise<{ text: string | null; error?: string }> {
+  const baseUrl = process.env.ZAI_BASE_URL
+  const apiKey = process.env.ZAI_API_KEY
+  const chatId = process.env.ZAI_CHAT_ID
+  const token = process.env.ZAI_TOKEN
+  const userId = process.env.ZAI_USER_ID
+
+  if (!baseUrl || !apiKey) {
+    return { text: null, error: 'ZAI credentials not configured' }
+  }
+
+  const apiMessages = [
+    { role: 'system', content: systemPrompt },
+    // Reinforcement for accuracy + variety
+    { role: 'system', content: `تذكير صارم: لا تخترع معلومات. إذا لم تكن متأكداً، قل ذلك. لا تكرر إجابات مكررة. كل إجابة يجب أن تكون فريدة. معرف الجلسة: ${Date.now()}-${Math.random().toString(36).slice(2,8)}` },
+    ...messages,
+  ]
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60000)
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'X-Z-AI-From': 'Z',
+    }
+    if (chatId) headers['X-Chat-Id'] = chatId
+    if (userId) headers['X-User-Id'] = userId
+    if (token) headers['X-Token'] = token
+
+    const response = await fetch(
+      `${baseUrl}/chat/completions`,
+      {
+        method: 'POST',
+        headers,
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: 'glm-4-plus',
+          messages: apiMessages,
+          temperature,
+          max_tokens: maxTokens,
+          thinking: { type: 'disabled' },
+        }),
+      }
+    )
+
+    clearTimeout(timeout)
+
+    if (!response.ok) {
+      const errText = await response.text()
+      console.error(`[AI] ZAI API error:`, response.status, errText.slice(0, 200))
+      return { text: null, error: `ZAI API error: ${response.status}` }
+    }
+
+    const data = await response.json()
+    const text = data?.choices?.[0]?.message?.content
+    if (text && text.trim().length > 0) {
+      console.log(`[AI] ZAI API success, length: ${text.length}`)
+      return { text: text.trim() }
+    }
+
+    return { text: null, error: 'Empty response from ZAI' }
+  } catch (error: any) {
+    console.error(`[AI] ZAI API error:`, error?.message || error)
+    return { text: null, error: error?.message || 'ZAI request failed' }
+  }
+}
+
+// ─── Groq API (Fallback Provider) ─────────────────────────────────────────────
 const GROQ_MODELS = [
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
@@ -174,7 +264,6 @@ async function callGroq(
   systemPrompt: string,
   temperature: number = 0.4,
   maxTokens: number = 2048,
-  retryCount: number = 0,
 ): Promise<{ text: string | null; error?: string }> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) {
@@ -183,7 +272,6 @@ async function callGroq(
 
   const apiMessages = [
     { role: 'system', content: systemPrompt },
-    // Reinforcement for accuracy + variety
     { role: 'system', content: `تذكير صارم: لا تخترع معلومات. إذا لم تكن متأكداً، قل ذلك. لا تكرر إجابات مكررة. كل إجابة يجب أن تكون فريدة. معرف الجلسة: ${Date.now()}-${Math.random().toString(36).slice(2,8)}` },
     ...messages,
   ]
@@ -191,7 +279,7 @@ async function callGroq(
   for (const model of GROQ_MODELS) {
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 60000)
+      const timeout = setTimeout(() => controller.abort(), 30000)
 
       const response = await fetch(
         'https://api.groq.com/openai/v1/chat/completions',
@@ -217,12 +305,11 @@ async function callGroq(
       clearTimeout(timeout)
 
       if (!response.ok) {
-        const errText = await response.text()
         if (response.status === 429) {
           console.log(`[AI] Groq ${model} rate limited, trying next...`)
           continue
         }
-        console.error(`[AI] Groq ${model} error:`, response.status, errText.slice(0, 200))
+        console.error(`[AI] Groq ${model} error:`, response.status)
         continue
       }
 
@@ -242,7 +329,7 @@ async function callGroq(
   return { text: null, error: 'All Groq models failed' }
 }
 
-// ─── Minimal Fallback (only when AI completely fails) ──────────────────────
+// ─── Minimal Fallback (only when ALL AI providers completely fail) ──────────
 
 function getMinimalFallback(message: string): string {
   return `⚠️ عذراً، لم أتمكن من الاتصال بالخادم الذكي حالياً.
@@ -371,10 +458,10 @@ export async function POST(req: NextRequest) {
       if (aiSettings && (aiSettings.enabled === false || !aiSettings.freeMessageLimit)) {
         await db.collection('ai_settings').updateOne(
           { id: 'main' },
-          { $set: { enabled: true, provider: 'groq', freeMessageLimit: aiSettings.freeMessageLimit || 5, updatedAt: new Date() } }
+          { $set: { enabled: true, provider: 'zai', freeMessageLimit: aiSettings.freeMessageLimit || 5, updatedAt: new Date() } }
         )
         aiSettings.enabled = true
-        aiSettings.provider = 'groq'
+        aiSettings.provider = 'zai'
         aiSettings.freeMessageLimit = aiSettings.freeMessageLimit || 5
       }
     } catch {}
@@ -414,8 +501,8 @@ export async function POST(req: NextRequest) {
     const antiHallucinationAppend = `\n\n═══ قواعد إلزامية لا تُلغى أبداً ═══\n- لا تخترع معلومات طبية أبداً. إذا لم تكن متأكداً قل "لست متأكد".\n- لا تخترع أرقام إحصائيات أو جرعات أدوية غير مؤكدة.\n- أضف ⚠️ تحذير طبي عند ذكر أي جرعة أو علاج.\n- أنت مساعد تعليمي فقط - لا تستبدل الاستشارة الطبية.\n- كل إجابة يجب أن تكون فريدة ومختلفة - لا تكرر المحتوى.`
     const systemPrompt = basePrompt + antiHallucinationAppend
 
-    // Professional temperature: slightly higher for variety, but still accurate
-    const temperature = aiSettings?.temperature ?? 0.4
+    // Professional temperature for variety while maintaining accuracy
+    const temperature = aiSettings?.temperature ?? 0.5
     const maxTokens = aiSettings?.maxTokens ?? 2048
 
     // Check custom responses first (admin-defined keyword triggers)
@@ -461,35 +548,48 @@ export async function POST(req: NextRequest) {
     }
 
     // 🔒 INJECT HIDDEN PRE-PROMPT before the user's actual message
-    // This is the key: a professional instruction that the user never sees
-    // but guides the AI to produce a high-quality, varied, professional response
     messages.push({
       role: 'user',
       content: `${hiddenPrePrompt}\n\nسؤال الطالب: ${trimmedMessage}`
     })
 
-    // Try Groq AI - with retry logic
+    // ═══════════════════════════════════════════════════════════════════════
+    // 🤖 TRY AI PROVIDERS (ZAI Primary → Groq Fallback → Retry)
+    // ═══════════════════════════════════════════════════════════════════════
     let aiResponse: string | null = null
-    let source = 'groq'
+    let source = 'zai'
 
-    const groqResult = await callGroq(messages, systemPrompt, temperature, maxTokens)
-    if (groqResult.text) {
-      aiResponse = groqResult.text
-      source = 'groq'
+    // 1. Try ZAI API (Primary)
+    console.log('[AI] Trying ZAI API (primary)...')
+    const zaiResult = await callZAI(messages, systemPrompt, temperature, maxTokens)
+    if (zaiResult.text) {
+      aiResponse = zaiResult.text
+      source = 'zai'
     }
 
-    // If first attempt failed, retry once with higher temperature for variety
+    // 2. Try Groq API (Fallback) if ZAI failed
     if (!aiResponse) {
-      console.log('[AI] First attempt failed, retrying with higher temperature...')
-      const retryResult = await callGroq(messages, systemPrompt, 0.6, maxTokens, 1)
-      if (retryResult.text) {
-        aiResponse = retryResult.text
-        source = 'groq-retry'
+      console.log('[AI] ZAI failed, trying Groq (fallback)...')
+      const groqResult = await callGroq(messages, systemPrompt, 0.4, maxTokens)
+      if (groqResult.text) {
+        aiResponse = groqResult.text
+        source = 'groq'
       }
     }
 
-    // Minimal fallback - only when AI completely fails
+    // 3. Retry with higher temperature for variety
     if (!aiResponse) {
+      console.log('[AI] All providers failed, retrying ZAI with higher temperature...')
+      const retryResult = await callZAI(messages, systemPrompt, 0.7, maxTokens)
+      if (retryResult.text) {
+        aiResponse = retryResult.text
+        source = 'zai-retry'
+      }
+    }
+
+    // 4. Final fallback - only when ALL AI providers completely fail
+    if (!aiResponse) {
+      console.log('[AI] All AI providers failed, using fallback message')
       aiResponse = getMinimalFallback(trimmedMessage)
       source = 'fallback'
     }
