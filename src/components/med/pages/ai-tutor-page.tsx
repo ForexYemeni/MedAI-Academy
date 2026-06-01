@@ -36,6 +36,13 @@ import {
   ChevronLeft,
   ImageIcon,
   Share2,
+  Activity,
+  RefreshCw,
+  Bot,
+  Stethoscope,
+  Pill,
+  Heart,
+  Thermometer,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
@@ -339,17 +346,37 @@ function TypingIndicator() {
       exit={{ opacity: 0, y: -10 }}
       className="flex items-start gap-3 mb-4"
     >
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-neon-purple to-neon-blue flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.3)]">
-        <Brain className="w-4 h-4 text-white" />
+      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-neon-purple to-neon-cyan flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.4)]">
+        <motion.div
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <Brain className="w-4.5 h-4.5 text-white" />
+        </motion.div>
       </div>
-      <div className="glass-card px-4 py-3 max-w-[80%]">
+      <div className="glass-card px-5 py-4 max-w-[80%] border-l-2 border-l-neon-purple/30">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs text-muted-foreground font-medium">جاري التفكير</span>
+          <motion.span
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+            className="text-muted-foreground"
+          >
+            ...
+          </motion.span>
+        </div>
         <div className="flex gap-1.5 items-center">
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              className="w-2 h-2 rounded-full bg-neon-purple"
-              animate={{ y: [0, -8, 0], opacity: [0.4, 1, 0.4] }}
-              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+              className="w-2 h-2 rounded-full"
+              style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)' }}
+              animate={{ 
+                y: [0, -6, 0], 
+                opacity: [0.3, 1, 0.3],
+                scale: [0.8, 1.1, 0.8]
+              }}
+              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
             />
           ))}
         </div>
@@ -1196,50 +1223,107 @@ export function AITutorPage() {
     }).catch(() => {})
   }, [authToken])
 
+  // Check if conversation is just starting (welcome message only)
+  const isWelcomeState = aiMessages.length <= 1
+
   return (
     <div dir="rtl" className="flex h-screen w-full bg-med-dark overflow-hidden">
       {/* ─── Main Chat Area ──────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 relative">
 
-        {/* Ambient Background Effects */}
+        {/* ─── Premium Background Effects ────────────────────────────────────── */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {/* Ambient orbs */}
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-neon-cyan/5 rounded-full blur-[120px]" />
           <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-neon-purple/5 rounded-full blur-[100px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-neon-blue/3 rounded-full blur-[150px]" />
+          {/* Subtle grid pattern */}
+          <div className="absolute inset-0 opacity-[0.015]" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+            backgroundSize: '60px 60px'
+          }} />
+          {/* Gradient mesh overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-med-darker/30" />
         </div>
 
-        {/* ─── Chat Header ─────────────────────────────────────────────────── */}
+        {/* ─── Premium Chat Header ─────────────────────────────────────────────── */}
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-strong relative z-10 px-4 py-3 flex items-center justify-between border-b border-med-border"
+          className="glass-strong relative z-10 px-4 py-2.5 flex items-center justify-between"
+          style={{
+            borderBottom: '1px solid transparent',
+            borderImage: 'linear-gradient(to left, rgba(139,92,246,0.2), rgba(0,245,255,0.2), rgba(139,92,246,0.2)) 1',
+          }}
         >
           <div className="flex items-center gap-3">
+            {/* Brain icon with animated gradient orb */}
             <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-purple via-neon-blue to-neon-cyan flex items-center justify-center shadow-[0_0_20px_rgba(0,245,255,0.2)]">
+              <motion.div
+                className="absolute inset-0 rounded-xl blur-md opacity-50"
+                style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)' }}
+                animate={{ opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-neon-purple via-neon-blue to-neon-cyan flex items-center justify-center shadow-[0_0_25px_rgba(0,245,255,0.25)]">
                 <Brain className="w-5 h-5 text-white" />
               </div>
             </div>
 
             <div>
-              <h1 className="text-sm font-bold text-foreground neon-text">
-                المساعد الطبي الذكي 🧠
-              </h1>
               <div className="flex items-center gap-2">
-                {/* Usage Badge */}
+                <h1 className="text-sm font-extrabold bg-gradient-to-l from-neon-cyan to-neon-purple bg-clip-text text-transparent">
+                  المساعد الطبي الذكي
+                </h1>
+                {/* Live status dot */}
+                <div className="flex items-center gap-1">
+                  {isAiUnavailable ? (
+                    <motion.div
+                      className="w-2 h-2 rounded-full bg-red-500"
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                  ) : (
+                    <motion.div
+                      className="w-2 h-2 rounded-full bg-emerald-400"
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  )}
+                  <span className="text-[9px] text-muted-foreground">
+                    {isAiUnavailable ? 'غير متاح' : 'متصل'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                {/* Usage Pill with progress */}
                 {isPremium ? (
-                  <Badge className="bg-neon-purple/20 text-neon-purple border-neon-purple/30 text-[9px] px-1.5 py-0">
-                    <Crown className="w-2.5 h-2.5 ml-0.5" /> مميز
-                  </Badge>
+                  <div className="flex items-center gap-1 bg-neon-purple/15 border border-neon-purple/20 rounded-full px-2 py-0.5">
+                    <Crown className="w-2.5 h-2.5 text-neon-purple" />
+                    <span className="text-[9px] font-bold text-neon-purple">مميز</span>
+                  </div>
                 ) : (
-                  <Badge className={`text-[9px] px-1.5 py-0 ${
+                  <div className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 border ${
                     limitReached
-                      ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                      ? 'bg-red-500/10 border-red-500/20'
                       : remainingMessages <= 2
-                      ? 'bg-neon-orange/20 text-neon-orange border-neon-orange/30'
-                      : 'bg-neon-cyan/20 text-neon-cyan border-neon-cyan/30'
+                      ? 'bg-neon-orange/10 border-neon-orange/20'
+                      : 'bg-neon-cyan/10 border-neon-cyan/20'
                   }`}>
-                    {limitReached ? '🔒 انتهى الحد' : `${remainingMessages} رسائل متبقية`}
-                  </Badge>
+                    <div className="w-8 h-1 rounded-full bg-white/10 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          limitReached ? 'bg-red-500' : remainingMessages <= 2 ? 'bg-neon-orange' : 'bg-neon-cyan'
+                        }`}
+                        style={{ width: `${Math.max(0, (remainingMessages / totalLimit) * 100)}%` }}
+                      />
+                    </div>
+                    <span className={`text-[8px] font-bold ${
+                      limitReached ? 'text-red-400' : remainingMessages <= 2 ? 'text-neon-orange' : 'text-neon-cyan'
+                    }`}>
+                      {limitReached ? '🔒' : remainingMessages}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -1250,7 +1334,7 @@ export function AITutorPage() {
               variant="ghost"
               size="icon"
               onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-              className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8"
+              className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 rounded-lg transition-all duration-200"
             >
               <Globe className="w-4 h-4" />
             </Button>
@@ -1260,7 +1344,7 @@ export function AITutorPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 lg:hidden"
+                  className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 rounded-lg transition-all duration-200 lg:hidden"
                 >
                   <BarChart3 className="w-4 h-4" />
                 </Button>
@@ -1287,7 +1371,7 @@ export function AITutorPage() {
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 hidden lg:flex"
+              className="text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 h-8 w-8 rounded-lg transition-all duration-200 hidden lg:flex"
             >
               <BarChart3 className="w-4 h-4" />
             </Button>
@@ -1296,7 +1380,7 @@ export function AITutorPage() {
               variant="ghost"
               size="icon"
               onClick={handleClearChat}
-              className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10 h-8 w-8"
+              className="text-muted-foreground hover:text-red-400 hover:bg-red-400/10 h-8 w-8 rounded-lg transition-all duration-200"
               title="مسح المحادثة"
             >
               <Trash2 className="w-4 h-4" />
@@ -1306,156 +1390,289 @@ export function AITutorPage() {
 
         {/* ─── Pending Subscription Banner ──────────────────────────────────── */}
         {pendingSub && !limitReached && !isAiUnavailable && (
-          <div className="relative z-10 bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative z-10 glass-card mx-4 mt-2 px-4 py-2 border border-amber-500/20 bg-amber-500/5 rounded-xl"
+          >
             <div className="max-w-3xl mx-auto flex items-center gap-2">
               <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
               <span className="text-[10px] text-amber-400">
                 طلب اشتراكك ({pendingSub.planName}) قيد المراجعة من الإدارة
               </span>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* ─── AI Disabled by Admin Banner ──────────────────────────────────── */}
+        {/* ─── AI Disabled by Admin Banner (Premium) ──────────────────────────── */}
         {isAiUnavailable && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative z-10 bg-red-500/10 border-b border-red-500/20 px-4 py-2.5"
+            className="relative z-10 mx-4 mt-2"
           >
-            <div className="max-w-3xl mx-auto flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-4 h-4 text-red-400" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-red-400">المساعد الذكي معطل من قبل الإدارة</p>
-                <p className="text-[10px] text-red-400/70">المساعد الذكي غير متاح حالياً لجميع المستخدمين. يرجى المحاولة لاحقاً.</p>
+            <div className="max-w-3xl mx-auto glass-card px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/5"
+              style={{ borderImage: 'linear-gradient(to left, rgba(239,68,68,0.3), rgba(239,68,68,0.1), rgba(239,68,68,0.3)) 1' }}
+            >
+              <div className="flex items-center gap-3">
+                <motion.div
+                  className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center flex-shrink-0"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  <AlertCircle className="w-4.5 h-4.5 text-red-400" />
+                </motion.div>
+                <div>
+                  <p className="text-xs font-bold text-red-400">المساعد الذكي معطل من قبل الإدارة</p>
+                  <p className="text-[10px] text-red-400/60">المساعد الذكي غير متاح حالياً لجميع المستخدمين. يرجى المحاولة لاحقاً.</p>
+                </div>
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* ─── Messages Area ───────────────────────────────────────────────── */}
+        {/* ─── Messages Area / Welcome Screen ────────────────────────────────── */}
         <div
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar relative z-10"
         >
-          <div className="max-w-3xl mx-auto space-y-1">
-            <AnimatePresence mode="popLayout">
-              {aiMessages.map((msg) => (
+          <div className="max-w-3xl mx-auto">
+            {/* ─── Professional Welcome Screen ──────────────────────────── */}
+            {isWelcomeState && !aiLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6 }}
+                className="flex flex-col items-center justify-center py-8 px-2"
+              >
+                {/* Animated Brain Icon */}
                 <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  className={`flex items-start gap-3 mb-4 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                  className="relative mb-6"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
                 >
-                  {msg.role === 'assistant' ? (
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-neon-purple to-neon-blue flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.3)]">
-                      <Brain className="w-4 h-4 text-white" />
-                    </div>
-                  ) : (
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-neon-cyan to-neon-blue flex items-center justify-center shadow-[0_0_15px_rgba(0,245,255,0.3)]">
-                      <span className="text-xs font-bold text-med-dark">{user.name.charAt(0)}</span>
-                    </div>
-                  )}
-
-                  <div
-                    onClick={(e) => {
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                      setMessageMenu({
-                        msgId: msg.id,
-                        content: msg.content,
-                        role: msg.role,
-                        position: {
-                          x: msg.role === 'user' ? rect.left - 10 : rect.right + 10,
-                          y: rect.top,
-                        },
-                      })
-                    }}
-                    className={`max-w-[80%] cursor-pointer active:scale-[0.98] transition-transform ${
-                      msg.role === 'user'
-                        ? 'bg-gradient-to-br from-neon-cyan/20 to-neon-blue/20 border border-neon-cyan/20 rounded-2xl rounded-tr-sm'
-                        : 'glass-card rounded-2xl rounded-tl-sm border-neon-purple/20'
-                    } px-4 py-3`}
-                  >
-                    <div className="text-sm leading-relaxed text-foreground">
-                      {msg.role === 'assistant' ? formatAIText(msg.content) : msg.content}
-                    </div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <Clock className="w-2.5 h-2.5 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground">{formatTime(msg.timestamp)}</span>
-                      {msg.role === 'assistant' && !isPremium && aiUsage && (
-                        <span className="text-[9px] text-muted-foreground mr-2">
-                          • متبقي {remainingMessages}
-                        </span>
-                      )}
-                    </div>
+                  <motion.div
+                    className="absolute inset-0 rounded-full blur-xl opacity-40"
+                    style={{ background: 'linear-gradient(135deg, #8b5cf6, #00f5ff)' }}
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                  <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-neon-purple via-neon-blue to-neon-cyan flex items-center justify-center shadow-[0_0_40px_rgba(0,245,255,0.2)]">
+                    <motion.div
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      <Brain className="w-10 h-10 text-white" />
+                    </motion.div>
                   </div>
                 </motion.div>
-              ))}
-            </AnimatePresence>
 
-            {/* ─── Message Action Menu (Copy / Share) ─────── */}
-            <AnimatePresence>
-              {messageMenu && (
-                <MessageActionMenu
-                  message={{ content: messageMenu.content, role: messageMenu.role }}
-                  position={messageMenu.position}
-                  onClose={() => setMessageMenu(null)}
-                />
-              )}
-            </AnimatePresence>
+                {/* Title */}
+                <motion.h2
+                  className="text-2xl font-extrabold bg-gradient-to-l from-neon-cyan via-neon-blue to-neon-purple bg-clip-text text-transparent mb-2"
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.5 }}
+                >
+                  المساعد الطبي الذكي
+                </motion.h2>
+                <motion.p
+                  className="text-sm text-muted-foreground mb-8 text-center"
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                >
+                  مساعدك التعليمي المتخصص في العلوم الطبية
+                </motion.p>
 
-            {aiLoading && <TypingIndicator />}
+                {/* Quick Action Cards Grid */}
+                <motion.div
+                  className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                >
+                  {QUICK_ACTIONS.map((action, idx) => {
+                    const actionColors: Record<string, { bg: string; icon: string; border: string }> = {
+                      quiz: { bg: 'from-amber-500/15 to-orange-500/15', icon: 'bg-amber-500/20 text-amber-400', border: 'border-amber-500/15' },
+                      case: { bg: 'from-rose-500/15 to-pink-500/15', icon: 'bg-rose-500/20 text-rose-400', border: 'border-rose-500/15' },
+                      summarize: { bg: 'from-sky-500/15 to-blue-500/15', icon: 'bg-sky-500/20 text-sky-400', border: 'border-sky-500/15' },
+                      explain: { bg: 'from-violet-500/15 to-purple-500/15', icon: 'bg-violet-500/20 text-violet-400', border: 'border-violet-500/15' },
+                      flashcards: { bg: 'from-emerald-500/15 to-teal-500/15', icon: 'bg-emerald-500/20 text-emerald-400', border: 'border-emerald-500/15' },
+                      drug: { bg: 'from-neon-cyan/15 to-cyan-500/15', icon: 'bg-neon-cyan/20 text-neon-cyan', border: 'border-neon-cyan/15' },
+                      condition: { bg: 'from-neon-purple/15 to-purple-500/15', icon: 'bg-neon-purple/20 text-neon-purple', border: 'border-neon-purple/15' },
+                    }
+                    const colors = actionColors[action.id] || actionColors.quiz
+                    return (
+                      <motion.button
+                        key={action.id}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 + idx * 0.06, duration: 0.4 }}
+                        whileHover={{ scale: 1.04, boxShadow: '0 0 20px rgba(0,245,255,0.1)' }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleQuickAction(action)}
+                        disabled={aiLoading || limitReached || isAiUnavailable}
+                        className={`relative overflow-hidden bg-gradient-to-br ${colors.bg} border ${colors.border} rounded-xl p-3.5 text-right transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed group`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg ${colors.icon} flex items-center justify-center mb-2.5 transition-transform duration-300 group-hover:scale-110`}>
+                          <action.icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-foreground/90 leading-tight">{action.label.replace(/^[^\s]+\s/, '')}</span>
+                      </motion.button>
+                    )
+                  })}
+                </motion.div>
 
-            {/* ─── Professional Subscription Card (when limit reached) ─────── */}
-            {limitReached && (
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="mt-6"
-              >
-                <div className="relative rounded-2xl border border-neon-purple/20 bg-gradient-to-b from-med-dark/90 via-med-darker/90 to-med-dark/90 backdrop-blur-xl p-5 shadow-[0_0_40px_rgba(168,85,247,0.1)]">
-                  {/* Decorative corner accents */}
-                  <div className="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-neon-purple/10 to-transparent rounded-br-full" />
-                  <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-neon-cyan/10 to-transparent rounded-tl-full" />
-
-                  <SubscriptionCard
-                    authToken={authToken}
-                    onSubscribed={refreshSubscription}
-                  />
-                </div>
+                {/* Medical Disclaimer */}
+                <motion.p
+                  className="text-[10px] text-muted-foreground/50 mt-6 text-center max-w-sm"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.8, duration: 0.5 }}
+                >
+                  ⚕️ هذا المساعد للأغراض التعليمية فقط ولا يُغني عن الاستشارة الطبية المتخصصة
+                </motion.p>
               </motion.div>
+            )}
+
+            {/* ─── Chat Messages ─────────────────────────────────────── */}
+            {!isWelcomeState && (
+              <div className="space-y-1">
+                <AnimatePresence mode="popLayout">
+                  {aiMessages.map((msg) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      className={`flex items-start gap-3 mb-4 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                    >
+                      {msg.role === 'assistant' ? (
+                        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-neon-purple to-neon-cyan flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+                          <Brain className="w-4.5 h-4.5 text-white" />
+                        </div>
+                      ) : (
+                        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-neon-cyan to-neon-blue flex items-center justify-center shadow-[0_0_20px_rgba(0,245,255,0.3)]">
+                          <span className="text-xs font-bold text-med-dark">{user.name.charAt(0)}</span>
+                        </div>
+                      )}
+
+                      <div
+                        onClick={(e) => {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                          setMessageMenu({
+                            msgId: msg.id,
+                            content: msg.content,
+                            role: msg.role,
+                            position: {
+                              x: msg.role === 'user' ? rect.left - 10 : rect.right + 10,
+                              y: rect.top,
+                            },
+                          })
+                        }}
+                        className={`max-w-[80%] cursor-pointer active:scale-[0.98] transition-transform ${
+                          msg.role === 'user'
+                            ? 'rounded-2xl rounded-bl-sm'
+                            : 'glass-card rounded-2xl rounded-br-sm'
+                        } px-4 py-3 ${
+                          msg.role === 'user'
+                            ? ''
+                            : 'border-l-2'
+                        }`}
+                        style={msg.role === 'user' ? {
+                          background: 'linear-gradient(135deg, rgba(0,245,255,0.12), rgba(59,130,246,0.15))',
+                          border: '1px solid rgba(0,245,255,0.15)',
+                        } : {
+                          borderLeftImage: 'linear-gradient(to bottom, #8b5cf6, #06b6d4) 1',
+                          borderRight: undefined,
+                          borderTop: undefined,
+                          borderBottom: undefined,
+                        }}
+                      >
+                        <div className="text-sm leading-relaxed text-foreground">
+                          {msg.role === 'assistant' ? formatAIText(msg.content) : msg.content}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-2.5 opacity-60">
+                          <Clock className="w-2.5 h-2.5 text-muted-foreground" />
+                          <span className="text-[10px] text-muted-foreground">{formatTime(msg.timestamp)}</span>
+                          {msg.role === 'assistant' && !isPremium && aiUsage && (
+                            <span className="text-[9px] text-muted-foreground mr-2">
+                              • متبقي {remainingMessages}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                {/* ─── Message Action Menu (Copy / Share) ─────── */}
+                <AnimatePresence>
+                  {messageMenu && (
+                    <MessageActionMenu
+                      message={{ content: messageMenu.content, role: messageMenu.role }}
+                      position={messageMenu.position}
+                      onClose={() => setMessageMenu(null)}
+                    />
+                  )}
+                </AnimatePresence>
+
+                {aiLoading && <TypingIndicator />}
+
+                {/* ─── Professional Subscription Card (when limit reached) ─────── */}
+                {limitReached && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    className="mt-6"
+                  >
+                    <div className="relative rounded-2xl border border-neon-purple/20 bg-gradient-to-b from-med-dark/90 via-med-darker/90 to-med-dark/90 backdrop-blur-xl p-5 shadow-[0_0_40px_rgba(168,85,247,0.1)]">
+                      {/* Decorative corner accents */}
+                      <div className="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-neon-purple/10 to-transparent rounded-br-full" />
+                      <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-neon-cyan/10 to-transparent rounded-tl-full" />
+
+                      <SubscriptionCard
+                        authToken={authToken}
+                        onSubscribed={refreshSubscription}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
         </div>
 
-        {/* ─── Quick Actions ───────────────────────────────────────────────── */}
-        <div className="relative z-10 px-4 pb-2">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {QUICK_ACTIONS.map((action) => (
-                <motion.button
-                  key={action.id}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleQuickAction(action)}
-                  disabled={aiLoading || limitReached || isAiUnavailable}
-                  className="flex-shrink-0 glass-card px-3 py-1.5 text-xs text-foreground hover:text-neon-cyan hover:border-neon-cyan/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                >
-                  {action.label}
-                </motion.button>
-              ))}
+        {/* ─── Quick Actions (when conversation exists) ─────────────────────── */}
+        {!isWelcomeState && (
+          <div className="relative z-10 px-4 pb-2">
+            <div className="max-w-3xl mx-auto">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {QUICK_ACTIONS.map((action) => (
+                  <motion.button
+                    key={action.id}
+                    whileHover={{ scale: 1.04, boxShadow: '0 0 12px rgba(0,245,255,0.15)' }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleQuickAction(action)}
+                    disabled={aiLoading || limitReached || isAiUnavailable}
+                    className="flex-shrink-0 glass-card px-3.5 py-1.5 text-xs text-foreground/80 hover:text-neon-cyan hover:border-neon-cyan/25 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap rounded-lg border border-white/5"
+                  >
+                    <span className="ml-1">{action.label.substring(0, 2)}</span>
+                    {action.label.substring(2)}
+                  </motion.button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* ─── Input Area ──────────────────────────────────────────────────── */}
+        {/* ─── Premium Input Area ────────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1463,60 +1680,85 @@ export function AITutorPage() {
           className="relative z-10 px-4 pb-4 pt-1"
         >
           <div className="max-w-3xl mx-auto">
-            <div className={`glass-strong rounded-2xl p-1.5 ${isAiUnavailable ? 'opacity-50' : limitReached ? 'opacity-60' : 'neon-glow'}`}>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleVoice}
-                  className={`h-9 w-9 rounded-xl transition-all ${
-                    isListening
-                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 animate-pulse'
-                      : 'text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10'
-                  }`}
-                >
-                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                </Button>
-
-                <div className="flex-1 relative">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => {
-                      if (e.target.value.length <= MAX_CHARS) setInput(e.target.value)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSend()
-                      }
-                    }}
-                    placeholder={isAiUnavailable ? 'المساعد الذكي معطل من قبل الإدارة...' : limitReached ? 'اشترك لإرسال المزيد من الرسائل...' : 'اسأل أي سؤال طبي...'}
-                    disabled={aiLoading || limitReached || isAiUnavailable}
-                    className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50 py-2"
-                    dir="rtl"
-                  />
-                </div>
-
-                <span className={`text-[10px] font-mono ${input.length > MAX_CHARS * 0.8 ? 'text-neon-orange' : 'text-muted-foreground'}`}>
-                  {input.length}/{MAX_CHARS}
-                </span>
-
-                <motion.div whileTap={{ scale: 0.9 }}>
+            {/* Animated gradient border wrapper */}
+            <div className={`relative rounded-2xl p-[1px] ${
+              isAiUnavailable ? 'opacity-50' : limitReached ? 'opacity-60' : ''
+            }`}>
+              {/* Gradient border effect */}
+              {!isAiUnavailable && !limitReached && (
+                <motion.div
+                  className="absolute inset-0 rounded-2xl opacity-30"
+                  style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4, #8b5cf6)' }}
+                  animate={{ opacity: [0.15, 0.3, 0.15] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              )}
+              <div className="relative glass-strong rounded-2xl p-2">
+                <div className="flex items-center gap-2">
+                  {/* Voice Button */}
                   <Button
-                    onClick={handleSend}
-                    disabled={!input.trim() || aiLoading || limitReached || isAiUnavailable}
-                    className="h-9 w-9 rounded-xl bg-gradient-to-r from-neon-cyan to-neon-blue text-med-dark hover:shadow-[0_0_25px_rgba(0,245,255,0.4)] transition-shadow disabled:opacity-50 disabled:hover:shadow-none"
+                    variant="ghost"
                     size="icon"
+                    onClick={toggleVoice}
+                    className={`h-9 w-9 rounded-xl transition-all duration-200 ${
+                      isListening
+                        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.2)]'
+                        : 'text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10'
+                    }`}
                   >
-                    <Send className="w-4 h-4 rtl-flip" />
+                    {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </Button>
-                </motion.div>
+
+                  {/* Input */}
+                  <div className="flex-1 relative">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={input}
+                      onChange={(e) => {
+                        if (e.target.value.length <= MAX_CHARS) setInput(e.target.value)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleSend()
+                        }
+                      }}
+                      placeholder={isAiUnavailable ? 'المساعد الذكي معطل من قبل الإدارة...' : limitReached ? 'اشترك لإرسال المزيد من الرسائل...' : 'اسأل أي سؤال طبي...'}
+                      disabled={aiLoading || limitReached || isAiUnavailable}
+                      className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 outline-none disabled:opacity-50 py-2 focus:text-foreground transition-colors"
+                      dir="rtl"
+                    />
+                    {/* Subtle focus glow */}
+                    {!isAiUnavailable && !limitReached && (
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-neon-cyan/0 to-transparent peer-focus:via-neon-cyan/50 transition-all" />
+                    )}
+                  </div>
+
+                  {/* Character Count */}
+                  <span className={`text-[10px] font-mono transition-colors duration-200 ${
+                    input.length > MAX_CHARS * 0.9 ? 'text-red-400' : input.length > MAX_CHARS * 0.7 ? 'text-neon-orange' : 'text-muted-foreground/40'
+                  }`}>
+                    {input.length}/{MAX_CHARS}
+                  </span>
+
+                  {/* Send Button */}
+                  <motion.div whileTap={{ scale: 0.85 }}>
+                    <Button
+                      onClick={handleSend}
+                      disabled={!input.trim() || aiLoading || limitReached || isAiUnavailable}
+                      className="h-9 w-9 rounded-xl bg-gradient-to-r from-neon-cyan to-neon-blue text-med-dark hover:shadow-[0_0_25px_rgba(0,245,255,0.4)] transition-all duration-300 disabled:opacity-40 disabled:hover:shadow-none"
+                      size="icon"
+                    >
+                      <Send className="w-4 h-4 rtl-flip" />
+                    </Button>
+                  </motion.div>
+                </div>
               </div>
             </div>
 
-            <p className="text-[9px] text-muted-foreground text-center mt-2">
+            {/* Disclaimer */}
+            <p className="text-[9px] text-muted-foreground/40 text-center mt-2.5">
               ⚕️ المساعد الطبي الذكي للأغراض التعليمية فقط - لا يُغني عن الاستشارة الطبية المتخصصة
             </p>
           </div>
