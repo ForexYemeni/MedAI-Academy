@@ -2198,6 +2198,7 @@ export function CourseViewerPage() {
               isFree: l.isFree || false,
               content: l.content,
               videoUrl: l.videoUrl,
+              images: l.images,
               summary: l.summary,
               keyPoints: l.keyPoints,
               quizData: l.quizData || undefined,

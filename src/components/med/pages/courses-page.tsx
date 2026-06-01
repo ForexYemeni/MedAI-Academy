@@ -960,6 +960,7 @@ export function CoursesPage() {
               isFree: l.isFree || false,
               content: l.content,
               videoUrl: l.videoUrl,
+              images: l.images,
               summary: l.summary,
               keyPoints: l.keyPoints,
             })) || [],
