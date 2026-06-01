@@ -438,22 +438,24 @@ export async function POST(req: NextRequest) {
       const { db } = await connectToDatabase()
       aiSettings = await db.collection('ai_settings').findOne({ id: 'main' })
 
-      if (aiSettings && (aiSettings.enabled === false || !aiSettings.freeMessageLimit)) {
+      // Auto-fix: only set default freeMessageLimit if missing (migration support)
+      // Do NOT re-enable AI if admin intentionally disabled it
+      if (aiSettings && aiSettings.freeMessageLimit === undefined) {
         await db.collection('ai_settings').updateOne(
           { id: 'main' },
-          { $set: { enabled: true, provider: 'groq', freeMessageLimit: aiSettings.freeMessageLimit || 5, updatedAt: new Date() } }
+          { $set: { provider: 'groq', freeMessageLimit: 5, updatedAt: new Date() } }
         )
-        aiSettings.enabled = true
         aiSettings.provider = 'groq'
-        aiSettings.freeMessageLimit = aiSettings.freeMessageLimit || 5
+        aiSettings.freeMessageLimit = 5
       }
     } catch {}
 
-    // Check if AI is intentionally disabled by admin
-    if (aiSettings && aiSettings.enabled === false && aiSettings.freeMessageLimit !== undefined) {
+    // Check if AI is intentionally disabled by admin (applies to ALL users including premium)
+    if (aiSettings && aiSettings.enabled === false) {
       return NextResponse.json({
-        response: '⚠️ المساعد الذكي معطل حالياً من قبل الإدارة.',
+        response: '⚠️ المساعد الذكي معطل حالياً من قبل الإدارة. يرجى المحاولة لاحقاً.',
         source: 'disabled',
+        disabledByAdmin: true,
         timestamp: Date.now(),
       })
     }
@@ -585,8 +587,19 @@ export async function GET(req: NextRequest) {
 
     const usage = await checkAIUsage(authUser.id)
 
+    // Also check if AI is disabled by admin so user-side knows proactively
+    let aiEnabled = true
+    try {
+      const { db } = await connectToDatabase()
+      const aiSettings = await db.collection('ai_settings').findOne({ id: 'main' })
+      if (aiSettings && aiSettings.enabled === false) {
+        aiEnabled = false
+      }
+    } catch {}
+
     return NextResponse.json({
       success: true,
+      aiEnabled,
       usage: {
         remaining: usage.remaining,
         limit: usage.limit,

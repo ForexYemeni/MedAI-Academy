@@ -77,15 +77,16 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { title, titleAr, description, descriptionAr, category, level, price, isPremium, lessonsData, thumbnail, instructor, instructorName, published } = body
+    const { title, titleAr, description, descriptionAr, category, level, price, isPremium, lessonsData, thumbnail, instructor, instructorName, published, departmentId, recommended } = body
 
     if (!title || !titleAr || !category) {
       return NextResponse.json({ error: 'العنوان والتصنيف مطلوبان' }, { status: 400 })
     }
 
     const { db } = await connectToDatabase()
+    const { ObjectId } = await import('mongodb')
 
-    const course = {
+    const course: any = {
       title,
       titleAr,
       description: description || '',
@@ -105,9 +106,15 @@ export async function POST(req: NextRequest) {
       lessons: (lessonsData || []).length,
       lessonsData: lessonsData || [],
       tags: [],
+      recommended: recommended || false,
       published: published || false,
       createdAt: new Date(),
       updatedAt: new Date(),
+    }
+
+    // Add departmentId if provided
+    if (departmentId) {
+      course.departmentId = new ObjectId(departmentId)
     }
 
     const result = await db.collection('courses').insertOne(course)
@@ -145,6 +152,20 @@ export async function PUT(req: NextRequest) {
 
     const { db } = await connectToDatabase()
     const { ObjectId } = await import('mongodb')
+
+    // Convert departmentId to ObjectId if provided, or unset it if empty
+    if ('departmentId' in updates) {
+      if (updates.departmentId) {
+        updates.departmentId = new ObjectId(updates.departmentId)
+      } else {
+        // If departmentId is empty/null/undefined, unset it
+        delete updates.departmentId
+        await db.collection('courses').updateOne(
+          { _id: new ObjectId(courseId) },
+          { $unset: { departmentId: '' } }
+        )
+      }
+    }
 
     // تحديث عدد الدروس
     if (updates.lessonsData) {

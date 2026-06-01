@@ -953,6 +953,7 @@ export function AITutorPage() {
   const [aiUsage, setAiUsage] = useState<{ remaining: number; limit: number; isPremium: boolean } | null>(null)
   const [pendingSub, setPendingSub] = useState<any>(null)
   const [activeSub, setActiveSub] = useState<any>(null)
+  const [aiDisabledByAdmin, setAiDisabledByAdmin] = useState(false)
   const [messageMenu, setMessageMenu] = useState<{ msgId: string; content: string; role: 'user' | 'assistant'; position: { x: number; y: number } } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -965,8 +966,10 @@ export function AITutorPage() {
   const remainingMessages = aiUsage?.remaining ?? 999
   const totalLimit = aiUsage?.limit ?? 999
   const limitReached = !isPremium && remainingMessages <= 0
+  // AI disabled by admin takes priority over everything (including premium users)
+  const isAiUnavailable = aiDisabledByAdmin
 
-  // Fetch AI usage on mount
+  // Fetch AI usage on mount (also checks if AI is disabled by admin)
   useEffect(() => {
     const fetchUsage = async () => {
       if (!authToken) return
@@ -977,6 +980,12 @@ export function AITutorPage() {
         const data = await res.json()
         if (data.success && data.usage) {
           setAiUsage(data.usage)
+        }
+        // Check if AI is disabled by admin (applies to ALL users including premium)
+        if (data.aiEnabled === false) {
+          setAiDisabledByAdmin(true)
+        } else {
+          setAiDisabledByAdmin(false)
         }
       } catch {}
     }
@@ -1013,6 +1022,11 @@ export function AITutorPage() {
            text.includes('لم أتمكن من الاتصال بالخادم')
   }
 
+  // Check if response is admin-disabled message (no auto-retry for this)
+  const isAdminDisabled = (text: string): boolean => {
+    return text.includes('المساعد الذكي معطل حالياً من قبل الإدارة')
+  }
+
   // Real AI response via API with auto-retry
   const sendToAI = useCallback(async (userMessage: string, retryCount: number = 0) => {
     setAiLoading(true)
@@ -1043,6 +1057,19 @@ export function AITutorPage() {
       }
 
       if (data.response) {
+        // If AI is disabled by admin, show message immediately without retry and update state
+        if (isAdminDisabled(data.response)) {
+          setAiDisabledByAdmin(true)
+          addAiMessage({
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: data.response,
+            timestamp: Date.now(),
+          })
+          setAiLoading(false)
+          return
+        }
+
         // If response is a fallback error and we haven't exhausted retries, auto-retry silently
         if (isFallbackError(data.response) && retryCount < MAX_RETRIES) {
           console.log(`[AI] Got fallback response, auto-retry ${retryCount + 1}/${MAX_RETRIES}...`)
@@ -1090,7 +1117,7 @@ export function AITutorPage() {
   // Send message
   const handleSend = useCallback(() => {
     const trimmed = input.trim()
-    if (!trimmed || aiLoading) return
+    if (!trimmed || aiLoading || isAiUnavailable) return
 
     addAiMessage({
       id: Date.now().toString(),
@@ -1105,7 +1132,7 @@ export function AITutorPage() {
 
   // Quick action click - generates a NEW random prompt each time
   const handleQuickAction = useCallback((action: QuickAction) => {
-    if (aiLoading) return
+    if (aiLoading || isAiUnavailable) return
     const prompt = action.generate() // Different every click!
     addAiMessage({
       id: Date.now().toString(),
@@ -1278,7 +1305,7 @@ export function AITutorPage() {
         </motion.header>
 
         {/* ─── Pending Subscription Banner ──────────────────────────────────── */}
-        {pendingSub && !limitReached && (
+        {pendingSub && !limitReached && !isAiUnavailable && (
           <div className="relative z-10 bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5">
             <div className="max-w-3xl mx-auto flex items-center gap-2">
               <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />
@@ -1287,6 +1314,25 @@ export function AITutorPage() {
               </span>
             </div>
           </div>
+        )}
+
+        {/* ─── AI Disabled by Admin Banner ──────────────────────────────────── */}
+        {isAiUnavailable && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative z-10 bg-red-500/10 border-b border-red-500/20 px-4 py-2.5"
+          >
+            <div className="max-w-3xl mx-auto flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-4 h-4 text-red-400" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-red-400">المساعد الذكي معطل من قبل الإدارة</p>
+                <p className="text-[10px] text-red-400/70">المساعد الذكي غير متاح حالياً لجميع المستخدمين. يرجى المحاولة لاحقاً.</p>
+              </div>
+            </div>
+          </motion.div>
         )}
 
         {/* ─── Messages Area ───────────────────────────────────────────────── */}
@@ -1399,7 +1445,7 @@ export function AITutorPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleQuickAction(action)}
-                  disabled={aiLoading || limitReached}
+                  disabled={aiLoading || limitReached || isAiUnavailable}
                   className="flex-shrink-0 glass-card px-3 py-1.5 text-xs text-foreground hover:text-neon-cyan hover:border-neon-cyan/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   {action.label}
@@ -1417,7 +1463,7 @@ export function AITutorPage() {
           className="relative z-10 px-4 pb-4 pt-1"
         >
           <div className="max-w-3xl mx-auto">
-            <div className={`glass-strong rounded-2xl p-1.5 ${limitReached ? 'opacity-60' : 'neon-glow'}`}>
+            <div className={`glass-strong rounded-2xl p-1.5 ${isAiUnavailable ? 'opacity-50' : limitReached ? 'opacity-60' : 'neon-glow'}`}>
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -1446,8 +1492,8 @@ export function AITutorPage() {
                         handleSend()
                       }
                     }}
-                    placeholder={limitReached ? 'اشترك لإرسال المزيد من الرسائل...' : 'اسأل أي سؤال طبي...'}
-                    disabled={aiLoading || limitReached}
+                    placeholder={isAiUnavailable ? 'المساعد الذكي معطل من قبل الإدارة...' : limitReached ? 'اشترك لإرسال المزيد من الرسائل...' : 'اسأل أي سؤال طبي...'}
+                    disabled={aiLoading || limitReached || isAiUnavailable}
                     className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50 py-2"
                     dir="rtl"
                   />
@@ -1460,7 +1506,7 @@ export function AITutorPage() {
                 <motion.div whileTap={{ scale: 0.9 }}>
                   <Button
                     onClick={handleSend}
-                    disabled={!input.trim() || aiLoading || limitReached}
+                    disabled={!input.trim() || aiLoading || limitReached || isAiUnavailable}
                     className="h-9 w-9 rounded-xl bg-gradient-to-r from-neon-cyan to-neon-blue text-med-dark hover:shadow-[0_0_25px_rgba(0,245,255,0.4)] transition-shadow disabled:opacity-50 disabled:hover:shadow-none"
                     size="icon"
                   >

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,10 +8,22 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const category = searchParams.get('category')
     const level = searchParams.get('level')
+    const departmentId = searchParams.get('departmentId')
+    const recommended = searchParams.get('recommended')
+    const recent = searchParams.get('recent')
 
     let query: any = { published: true }
     if (category) query.category = category
     if (level) query.level = level
+    if (departmentId) {
+      try { query.departmentId = new ObjectId(departmentId) } catch { query.departmentId = departmentId }
+    }
+    if (recommended === 'true') query.recommended = true
+    if (recent === 'true') {
+      const threeDaysAgo = new Date()
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+      query.createdAt = { $gte: threeDaysAgo }
+    }
 
     const courses = await db.collection('courses')
       .find(query)
@@ -102,6 +115,8 @@ export async function GET(req: NextRequest) {
         return {
           ...course,
           id: course._id.toString(),
+          departmentId: course.departmentId?.toString() || null,
+          recommended: course.recommended || false,
           students: studentCount || course.students || 0,
           lessonsData: filteredLessonsData,
           isEnrolled: isEnrolled || isCourseFree,

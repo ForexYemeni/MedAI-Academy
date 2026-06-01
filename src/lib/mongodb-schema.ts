@@ -39,6 +39,22 @@ export interface MongoUser {
 }
 
 // ============================================
+// Departments Collection
+// ============================================
+export interface MongoDepartment {
+  _id?: ObjectId
+  nameAr: string          // Arabic name e.g. "تمريض"
+  nameEn: string          // English name e.g. "Nursing" 
+  icon: string            // Emoji icon e.g. "🩺"
+  color: string           // Hex color e.g. "#06b6d4"
+  description?: string    // Optional description
+  order: number           // Display order
+  published: boolean      // Whether visible to users
+  createdAt: Date
+  updatedAt: Date
+}
+
+// ============================================
 // Courses Collection
 // ============================================
 export interface MongoCourse {
@@ -63,6 +79,8 @@ export interface MongoCourse {
   tags: string[]
   // Lessons array (embedded)
   lessonsData: MongoLesson[]
+  departmentId?: ObjectId  // Reference to department
+  recommended?: boolean    // Whether admin recommends this course (default: false)
   published: boolean
   createdAt: Date
   updatedAt: Date
@@ -285,6 +303,21 @@ export async function seedDatabase(db: Db) {
   if (usersCount > 0) {
     console.log('Database already seeded, skipping...')
     return
+  }
+
+  // Seed departments
+  const departmentsCount = await db.collection('departments').countDocuments()
+  if (departmentsCount === 0) {
+    const departments = [
+      { nameAr: 'تمريض', nameEn: 'Nursing', icon: '🩺', color: '#06b6d4', description: 'قسم التمريض وعلومه', order: 1, published: true, createdAt: new Date(), updatedAt: new Date() },
+      { nameAr: 'قبالة', nameEn: 'Midwifery', icon: '👶', color: '#ec4899', description: 'قسم القبالة وصحة الأمومة', order: 2, published: true, createdAt: new Date(), updatedAt: new Date() },
+      { nameAr: 'مساعد طبيب', nameEn: 'Medical Assistant', icon: '👨‍⚕️', color: '#8b5cf6', description: 'قسم مساعدي الأطباء', order: 3, published: true, createdAt: new Date(), updatedAt: new Date() },
+      { nameAr: 'مختبرات', nameEn: 'Laboratory', icon: '🔬', color: '#10b981', description: 'قسم المختبرات الطبية', order: 4, published: true, createdAt: new Date(), updatedAt: new Date() },
+      { nameAr: 'صيدلة', nameEn: 'Pharmacy', icon: '💊', color: '#f59e0b', description: 'قسم الصيدلة وعلم الأدوية', order: 5, published: true, createdAt: new Date(), updatedAt: new Date() },
+      { nameAr: 'أشعة', nameEn: 'Radiology', icon: '📸', color: '#6366f1', description: 'قسم الأشعة والتصوير الطبي', order: 6, published: true, createdAt: new Date(), updatedAt: new Date() },
+    ]
+    await db.collection('departments').insertMany(departments)
+    console.log(`✅ Seeded ${departments.length} departments`)
   }
 
   // Seed medical categories

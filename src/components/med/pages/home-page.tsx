@@ -876,9 +876,34 @@ export function HomePage() {
     [courses]
   )
   const recommendedCourses = useMemo(
-    () => courses.filter((c) => c.category === user.medicalSpecialty || c.category === 'emergency').slice(0, 3),
-    [courses, user.medicalSpecialty]
+    () => courses.filter((c) => c.recommended === true).slice(0, 6),
+    [courses]
   )
+  const freeCourses = useMemo(
+    () => courses.filter((c) => c.price === 0 && !c.isPremium),
+    [courses]
+  )
+  const recentCourses = useMemo(
+    () => {
+      const threeDaysAgo = new Date()
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+      return courses.filter((c) => {
+        if (!c.createdAt) return false
+        const created = new Date(c.createdAt)
+        return created >= threeDaysAgo
+      }).slice(0, 6)
+    },
+    [courses]
+  )
+  const [homeDepartments, setHomeDepartments] = useState<any[]>([])
+
+  // Fetch departments for home page
+  useEffect(() => {
+    fetch('/api/departments')
+      .then(r => r.json())
+      .then(data => { if (data.success) setHomeDepartments(data.departments || []) })
+      .catch(() => {})
+  }, [])
   // Quick Challenge - Fetch a random question from API
   useEffect(() => {
     // Check if user already answered the quick challenge this session
@@ -1506,123 +1531,166 @@ export function HomePage() {
         </motion.section>
 
         {/* ═══════════════════════════════════════════════════
-            7. TRENDING COURSES
+            7. FREE COURSES BY DEPARTMENT
         ═══════════════════════════════════════════════════ */}
         <motion.section variants={itemVariants}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-neon-pink" />
-              الأكثر شعبية
+              <CheckCircle2 className="h-5 w-5 text-neon-green" />
+              الدورات المجانية
             </h2>
-            <button className="text-sm text-neon-cyan hover:underline flex items-center gap-1">
-              الكل <ChevronLeft className="h-4 w-4" />
-            </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {trendingCourses.map((course, i) => {
-              const levelMap = { beginner: { label: 'مبتدئ', color: 'text-neon-green border-neon-green/30 bg-neon-green/10' }, intermediate: { label: 'متوسط', color: 'text-neon-orange border-neon-orange/30 bg-neon-orange/10' }, advanced: { label: 'متقدم', color: 'text-red-400 border-red-400/30 bg-red-400/10' } }
-              const levelInfo = levelMap[course.level]
-              const gradients = [
-                'from-neon-cyan/20 via-neon-blue/10 to-transparent',
-                'from-neon-purple/20 via-neon-pink/10 to-transparent',
-                'from-neon-green/20 via-emerald-500/10 to-transparent',
-                'from-neon-orange/20 via-amber-500/10 to-transparent',
-              ]
-              const isEnrolled = !!courseProgress.find(p => p.courseId === course.id)
-              const isLocked = !course.isGifted && course.price > 0 && !isEnrolled
+          {homeDepartments.length > 0 ? (
+            <div className="space-y-6">
+              {homeDepartments.map((dept) => {
+                const deptFreeCourses = freeCourses.filter((c) => c.departmentId === dept._id)
+                if (deptFreeCourses.length === 0) return null
+                return (
+                  <div key={dept._id} className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{dept.icon}</span>
+                      <h3 className="text-sm font-bold text-foreground">{dept.nameAr}</h3>
+                      <Badge className="text-[9px] bg-neon-green/10 text-neon-green border border-neon-green/20">{deptFreeCourses.length} مجانية</Badge>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {deptFreeCourses.slice(0, 4).map((course, i) => {
+                        const gradients = [
+                          'from-neon-cyan/20 via-neon-blue/10 to-transparent',
+                          'from-neon-purple/20 via-neon-pink/10 to-transparent',
+                          'from-neon-green/20 via-emerald-500/10 to-transparent',
+                          'from-neon-orange/20 via-amber-500/10 to-transparent',
+                        ]
+                        const isEnrolled = !!courseProgress.find(p => p.courseId === course.id)
+                        const isLocked = !course.isGifted && course.price > 0 && !isEnrolled
 
-              return (
-                <motion.div
-                  key={course.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                  whileHover={cardHover}
-                  onClick={() => handleCourseClick(course)}
-                  className="glass-card overflow-hidden group cursor-pointer"
-                >
-                  <div className={`relative h-32 bg-gradient-to-bl ${gradients[i % gradients.length]}`}>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <BookOpen className="h-10 w-10 text-muted-foreground/10" />
-                    </div>
-                    <div className="absolute top-3 right-3 flex items-center gap-2">
-                      <Badge className={`text-[10px] ${levelInfo.color} border`}>
-                        {levelInfo.label}
-                      </Badge>
-                      {course.isPremium && (
-                        <Badge className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                          <Crown className="h-3 w-3 ml-0.5 inline" />
-                          مميز
-                        </Badge>
-                      )}
-                      {course.isGifted && (
-                        <Badge className="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                          🎁 هدية
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-background/50 px-2 py-0.5 backdrop-blur-sm">
-                      <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                      <span className="text-xs font-bold">{course.rating}</span>
-                    </div>
-                    {/* Gift sparkle overlay for gifted courses */}
-                    {course.isGifted && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-cyan-500/10 flex items-center justify-center z-10">
-                        <div className="flex flex-col items-center gap-1">
+                        return (
                           <motion.div
-                            animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                            transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                            className="text-3xl"
+                            key={course.id}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.08 }}
+                            whileHover={cardHover}
+                            onClick={() => handleCourseClick(course)}
+                            className="glass-card overflow-hidden group cursor-pointer"
                           >
-                            🎁
+                            <div className={`relative h-28 bg-gradient-to-bl ${gradients[i % gradients.length]}`}>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <BookOpen className="h-8 w-8 text-muted-foreground/10" />
+                              </div>
+                              <div className="absolute top-2 right-2">
+                                <Badge className="text-[9px] bg-neon-green/20 text-neon-green border border-neon-green/30">مجاني</Badge>
+                              </div>
+                              {course.isGifted && (
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-cyan-500/10 flex items-center justify-center z-10">
+                                  <div className="text-2xl">🎁</div>
+                                </div>
+                              )}
+                              {isLocked && (
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-10">
+                                  <div className="w-10 h-10 rounded-full bg-neon-cyan/10 border border-neon-cyan/30 flex items-center justify-center">
+                                    <Lock className="w-5 h-5 text-neon-cyan" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3">
+                              <h3 className="font-bold text-xs group-hover:text-neon-cyan transition-colors line-clamp-1">
+                                {course.titleAr}
+                              </h3>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{course.instructor}</p>
+                              <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                                <span className="flex items-center gap-0.5"><Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400" /> {course.rating}</span>
+                                <span className="flex items-center gap-0.5"><BookOpen className="h-2.5 w-2.5" /> {course.lessons} درس</span>
+                              </div>
+                            </div>
                           </motion.div>
-                          <span className="text-[10px] font-bold text-purple-300">هدية من الإدارة</span>
-                        </div>
-                      </div>
-                    )}
-                    {/* Lock overlay for paid unenrolled courses */}
-                    {isLocked && (
-                      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-10">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-14 h-14 rounded-full bg-neon-cyan/10 border border-neon-cyan/30 flex items-center justify-center">
-                            <Lock className="w-7 h-7 text-neon-cyan" />
-                          </div>
-                          <span className="text-sm font-bold text-neon-cyan">{course.price.toLocaleString()} ر.ي</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-sm group-hover:text-neon-cyan transition-colors line-clamp-1">
-                      {course.titleAr}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1">{course.instructor}</p>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {formatCount(course.students)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {course.duration}
-                        </span>
-                      </div>
-                      {course.isGifted ? (
-                        <Badge className="text-[10px] bg-purple-500/15 text-purple-400 border border-purple-500/25 flex items-center gap-0.5">🎁 هدية من الإدارة</Badge>
-                      ) : course.price === 0 ? (
-                        <Badge className="text-[10px] bg-neon-green/15 text-neon-green border border-neon-green/25">مجاني</Badge>
-                      ) : isEnrolled ? (
-                        <Badge className="text-[10px] bg-neon-green/15 text-neon-green border border-neon-green/25 flex items-center gap-0.5"><Crown className="h-2.5 w-2.5" />مشترك</Badge>
-                      ) : (
-                        <Badge className="text-[10px] bg-yellow-500/15 text-yellow-400 border border-yellow-500/25">{course.price.toLocaleString()} ر.ي</Badge>
-                      )}
+                        )
+                      })}
                     </div>
                   </div>
-                </motion.div>
-              )
-            })}
-          </div>
+                )
+              })}
+              {/* Free courses without department */}
+              {freeCourses.filter(c => !c.departmentId).length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📚</span>
+                    <h3 className="text-sm font-bold text-foreground">دورات مجانية أخرى</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {freeCourses.filter(c => !c.departmentId).slice(0, 4).map((course, i) => (
+                      <motion.div
+                        key={course.id}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.08 }}
+                        whileHover={cardHover}
+                        onClick={() => handleCourseClick(course)}
+                        className="glass-card overflow-hidden group cursor-pointer"
+                      >
+                        <div className="relative h-28 bg-gradient-to-bl from-neon-cyan/20 via-neon-blue/10 to-transparent">
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <BookOpen className="h-8 w-8 text-muted-foreground/10" />
+                          </div>
+                          <div className="absolute top-2 right-2">
+                            <Badge className="text-[9px] bg-neon-green/20 text-neon-green border border-neon-green/30">مجاني</Badge>
+                          </div>
+                        </div>
+                        <div className="p-3">
+                          <h3 className="font-bold text-xs group-hover:text-neon-cyan transition-colors line-clamp-1">{course.titleAr}</h3>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{course.instructor}</p>
+                          <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                            <span className="flex items-center gap-0.5"><Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400" /> {course.rating}</span>
+                            <span className="flex items-center gap-0.5"><BookOpen className="h-2.5 w-2.5" /> {course.lessons} درس</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : freeCourses.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {freeCourses.slice(0, 4).map((course, i) => {
+                const gradients = [
+                  'from-neon-cyan/20 via-neon-blue/10 to-transparent',
+                  'from-neon-purple/20 via-neon-pink/10 to-transparent',
+                  'from-neon-green/20 via-emerald-500/10 to-transparent',
+                  'from-neon-orange/20 via-amber-500/10 to-transparent',
+                ]
+                const isEnrolled = !!courseProgress.find(p => p.courseId === course.id)
+                return (
+                  <motion.div
+                    key={course.id}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.08 }}
+                    whileHover={cardHover}
+                    onClick={() => handleCourseClick(course)}
+                    className="glass-card overflow-hidden group cursor-pointer"
+                  >
+                    <div className={`relative h-28 bg-gradient-to-bl ${gradients[i % gradients.length]}`}>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <BookOpen className="h-8 w-8 text-muted-foreground/10" />
+                      </div>
+                      <div className="absolute top-2 right-2">
+                        <Badge className="text-[9px] bg-neon-green/20 text-neon-green border border-neon-green/30">مجاني</Badge>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <h3 className="font-bold text-xs group-hover:text-neon-cyan transition-colors line-clamp-1">{course.titleAr}</h3>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{course.instructor}</p>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="glass-card p-6 text-center">
+              <p className="text-sm text-muted-foreground">لا توجد دورات مجانية حالياً</p>
+            </div>
+          )}
         </motion.section>
 
         {/* ═══════════════════════════════════════════════════
@@ -1929,16 +1997,18 @@ export function HomePage() {
         </AnimatePresence>
 
         {/* ═══════════════════════════════════════════════════
-            9. RECENT COURSES
+            9. RECENT COURSES (Last 3 days)
         ═══════════════════════════════════════════════════ */}
+        {recentCourses.length > 0 && (
         <motion.section variants={itemVariants}>
           <h2 className="text-lg font-bold flex items-center gap-2 mb-3">
-            <BookOpen className="h-5 w-5 text-primary" />
-            دورات قد تعجبك
+            <Clock className="h-5 w-5 text-neon-purple" />
+            أُضيفت حديثاً
+            <Badge className="text-[9px] bg-neon-purple/10 text-neon-purple border border-neon-purple/20">آخر 3 أيام</Badge>
           </h2>
           <div className="glass-card p-4">
             <div className="space-y-2">
-              {courses.slice(0, 3).map((course) => {
+              {recentCourses.map((course) => {
                 const isEnrolled = !!courseProgress.find(p => p.courseId === course.id)
                 const isLocked = !course.isGifted && course.price > 0 && !isEnrolled
                 return (
@@ -1973,6 +2043,7 @@ export function HomePage() {
             </div>
           </div>
         </motion.section>
+        )}
 
         {/* ═══════════════════════════════════════════════════
             11. EMERGENCY CASES FEED

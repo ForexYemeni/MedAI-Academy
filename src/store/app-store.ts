@@ -146,6 +146,9 @@ export interface Course {
   lessons: number
   tags: string[]
   lessonsData?: Lesson[]
+  departmentId?: string | null
+  recommended?: boolean
+  createdAt?: string
 }
 
 export interface SimulationCase {

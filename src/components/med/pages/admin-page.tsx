@@ -89,6 +89,8 @@ interface ApiCourse {
   published: boolean
   tags: string[]
   thumbnail?: string
+  departmentId?: string
+  recommended?: boolean
   studentCount?: number
   revenue?: number
   createdAt: string
@@ -134,6 +136,22 @@ interface ApiPaymentMethod {
   instructions: string
   active: boolean
   createdAt: string
+}
+
+interface ApiDepartment {
+  _id: string
+  nameAr: string
+  nameEn: string
+  icon: string
+  color: string
+  description?: string
+  order: number
+  published: boolean
+  courseCount?: number
+  freeCourseCount?: number
+  paidCourseCount?: number
+  createdAt: string
+  updatedAt: string
 }
 
 // ─── Animation Variants ─────────────────────────────────────
@@ -213,10 +231,11 @@ function getLevelColor(level: string) {
 
 // ─── Sidebar Config ─────────────────────────────────────────
 
-type AdminSection = 'overview' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database' | 'simulation' | 'community' | 'quizzes' | 'ai-assistant' | 'settings'
+type AdminSection = 'overview' | 'departments' | 'courses' | 'users' | 'payments' | 'payment-methods' | 'notifications' | 'activity-logs' | 'database' | 'simulation' | 'community' | 'quizzes' | 'ai-assistant' | 'settings'
 
 const sidebarItems: { id: AdminSection; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'نظرة عامة', icon: Activity },
+  { id: 'departments', label: 'الأقسام', icon: Layers },
   { id: 'courses', label: 'الدورات والدروس', icon: BookOpen },
   { id: 'users', label: 'المستخدمين', icon: Users },
   { id: 'payments', label: 'المدفوعات', icon: CreditCard },
@@ -250,7 +269,18 @@ function CourseForm({ course, onSave, onCancel }: {
     published: course?.published || false,
     instructorName: course?.instructorName || '',
     duration: course?.duration || '0 ساعة',
+    departmentId: (course as any)?.departmentId?.toString() || '',
+    recommended: (course as any)?.recommended || false,
   })
+
+  // Fetch departments for dropdown
+  const [availableDepartments, setAvailableDepartments] = useState<ApiDepartment[]>([])
+  useEffect(() => {
+    fetch('/api/departments', { headers: getAuthHeaders() })
+      .then(r => r.json())
+      .then(data => { if (data.success) setAvailableDepartments(data.departments || []) })
+      .catch(() => {})
+  }, [])
 
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
@@ -368,31 +398,60 @@ function CourseForm({ course, onSave, onCancel }: {
                 placeholder="د. أحمد محمد"
                 className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
             </div>
-            <div className="flex items-end gap-3 pb-0.5">
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, isPremium: !form.isPremium })}
-                className={`flex-1 h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                  form.isPremium
-                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
-                    : 'bg-muted/30 border-border text-muted-foreground'
-                }`}
-              >
-                <Crown className="h-4 w-4" />
-                {form.isPremium ? 'دورة مميزة (مدفوعة)' : 'دورة عادية'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, published: !form.published })}
-                className={`flex-1 h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                  form.published
-                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                    : 'bg-muted/30 border-border text-muted-foreground'
-                }`}
-              >
-                {form.published ? <><CheckCircle2 className="h-4 w-4" /> منشورة</> : <><EyeOff className="h-4 w-4" /> مسودة</>}
-              </button>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">القسم</label>
+              <Select value={form.departmentId || 'none'} onValueChange={(v) => setForm({ ...form, departmentId: v === 'none' ? '' : v })}>
+                <SelectTrigger className="bg-muted/30 border-border h-10 text-sm">
+                  <SelectValue placeholder="بدون قسم" />
+                </SelectTrigger>
+                <SelectContent className="bg-med-card">
+                  <SelectItem value="none">بدون قسم</SelectItem>
+                  {availableDepartments.map((dept) => (
+                    <SelectItem key={dept._id} value={dept._id}>
+                      {dept.icon} {dept.nameAr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          <div className="flex items-end gap-3 mt-3">
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, isPremium: !form.isPremium })}
+              className={`flex-1 h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                form.isPremium
+                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                  : 'bg-muted/30 border-border text-muted-foreground'
+              }`}
+            >
+              <Crown className="h-4 w-4" />
+              {form.isPremium ? 'دورة مميزة (مدفوعة)' : 'دورة عادية'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, published: !form.published })}
+              className={`flex-1 h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                form.published
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                  : 'bg-muted/30 border-border text-muted-foreground'
+              }`}
+            >
+              {form.published ? <><CheckCircle2 className="h-4 w-4" /> منشورة</> : <><EyeOff className="h-4 w-4" /> مسودة</>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, recommended: !form.recommended })}
+              className={`flex-1 h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                form.recommended
+                  ? 'bg-purple-500/15 border-purple-500/30 text-purple-400'
+                  : 'bg-muted/30 border-border text-muted-foreground'
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              {form.recommended ? 'موصى بها' : 'عادي'}
+            </button>
           </div>
         </div>
       </div>
@@ -808,6 +867,7 @@ export function AdminPage() {
   const [dbUsers, setDbUsers] = useState<ApiUser[]>([])
   const [payments, setPayments] = useState<ApiPayment[]>([])
   const [paymentMethods, setPaymentMethods] = useState<ApiPaymentMethod[]>([])
+  const [departments, setDepartments] = useState<ApiDepartment[]>([])
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -912,6 +972,14 @@ export function AdminPage() {
       const data = await res.json()
       if (data.success) setPaymentMethods(data.methods || [])
     } catch (err) { console.error('Fetch payment methods error:', err) }
+  }, [])
+
+  const fetchDepartments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/departments', { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.success) setDepartments(data.departments || [])
+    } catch (err) { console.error('Fetch departments error:', err) }
   }, [])
 
   const fetchStats = useCallback(async () => {
@@ -1103,7 +1171,10 @@ export function AdminPage() {
           await Promise.all([fetchStats(), fetchPayments()])
           break
         case 'courses':
-          await fetchCourses()
+          await Promise.all([fetchCourses(), fetchDepartments()])
+          break
+        case 'departments':
+          await fetchDepartments()
           break
         case 'users':
           await fetchUsers()
@@ -1130,7 +1201,7 @@ export function AdminPage() {
       setLoadedSections(prev => new Set(prev).add(section))
     } catch (err) { console.error('Load section error:', err) }
     setSectionLoading(prev => { const next = new Set(prev); next.delete(section); return next })
-  }, [loadedSections, sectionLoading, fetchStats, fetchPayments, fetchCourses, fetchUsers, fetchPaymentMethods])
+  }, [loadedSections, sectionLoading, fetchStats, fetchPayments, fetchCourses, fetchUsers, fetchPaymentMethods, fetchDepartments])
 
   // Initial load: fetch ALL data immediately in parallel - no delay
   useEffect(() => {
@@ -1144,8 +1215,9 @@ export function AdminPage() {
           fetchUsers().catch(e => console.error('Users fetch failed:', e)),
           fetchPayments().catch(e => console.error('Payments fetch failed:', e)),
           fetchPaymentMethods().catch(e => console.error('PaymentMethods fetch failed:', e)),
+          fetchDepartments().catch(e => console.error('Departments fetch failed:', e)),
         ])
-        setLoadedSections(new Set(['overview', 'courses', 'users', 'payments', 'payment-methods']))
+        setLoadedSections(new Set(['overview', 'courses', 'users', 'payments', 'payment-methods', 'departments']))
       } catch (err) { console.error('Initial load error:', err) }
     }
     loadAll()
@@ -1691,6 +1763,48 @@ export function AdminPage() {
     </motion.div>
   )
 
+  const renderDepartments = () => (
+    <motion.div key="departments" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }} className="space-y-6">
+
+      {/* Page Title */}
+      <div>
+        <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
+          <Layers className="h-6 w-6 text-neon-cyan" /> الأقسام
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">إدارة الأقسام التعليمية وتصنيف الدورات</p>
+      </div>
+
+      <DepartmentsManagement
+        departments={departments}
+        onRefresh={fetchDepartments}
+      />
+    </motion.div>
+  )
+
+  // Group courses by department for the new category-first layout
+  const coursesByDepartment = useMemo(() => {
+    const map = new Map<string, ApiCourse[]>()
+    // Initialize with all departments
+    for (const dept of departments) {
+      map.set(dept._id, [])
+    }
+    // Group courses
+    for (const course of courses) {
+      const deptId = (course as any).departmentId?.toString() || ''
+      if (deptId && map.has(deptId)) {
+        map.get(deptId)!.push(course)
+      } else {
+        // Courses without department
+        if (!map.has('__uncategorized')) map.set('__uncategorized', [])
+        map.get('__uncategorized')!.push(course)
+      }
+    }
+    return map
+  }, [courses, departments])
+
+  const uncategorizedCourses = coursesByDepartment.get('__uncategorized') || []
+
   const renderCourses = () => (
     <motion.div key="courses" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.3 }} className="space-y-6">
@@ -1700,16 +1814,16 @@ export function AdminPage() {
         <h1 className="text-xl sm:text-2xl font-black neon-text flex items-center gap-3">
           <BookOpen className="h-6 w-6 text-neon-cyan" /> الدورات والدروس
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">إدارة الدورات التعليمية ومحتواها</p>
+        <p className="text-sm text-muted-foreground mt-1">إدارة الدورات التعليمية مصنفة حسب الأقسام</p>
       </div>
 
       {/* Course Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {[
+          { title: 'الأقسام', value: String(departments.filter(d => d.published).length), icon: Layers, color: 'text-neon-pink', bg: 'bg-neon-pink/10', border: 'border-neon-pink/20' },
           { title: 'إجمالي الدورات', value: String(courses.length), icon: BookOpen, color: 'text-neon-cyan', bg: 'bg-neon-cyan/10', border: 'border-neon-cyan/20' },
           { title: 'إجمالي الدروس', value: String(totalLessons), icon: FileText, color: 'text-neon-purple', bg: 'bg-neon-purple/10', border: 'border-neon-purple/20' },
-          { title: 'الدروس المجانية', value: String(freeLessons), icon: CheckCircle2, color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
-          { title: 'الدروس المدفوعة', value: String(paidLessons), icon: Star, color: 'text-neon-orange', bg: 'bg-neon-orange/10', border: 'border-neon-orange/20' },
+          { title: 'الدورات المجانية', value: String(courses.filter(c => !c.isPremium || c.price === 0).length), icon: CheckCircle2, color: 'text-neon-green', bg: 'bg-neon-green/10', border: 'border-neon-green/20' },
         ].map((item, idx) => (
           <motion.div key={idx} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
             whileHover={cardHover} className="glass-card p-3 sm:p-5">
@@ -1745,180 +1859,402 @@ export function AdminPage() {
         )}
       </AnimatePresence>
 
-      {/* Courses List */}
-      {courses.length === 0 ? (
+      {/* Departments with Courses - Category First Layout */}
+      {departments.length === 0 && courses.length === 0 ? (
         <div className="glass-card p-8 sm:p-12 text-center">
-          <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
-          <p className="text-sm sm:text-base text-muted-foreground mb-4">لا توجد دورات بعد. أضف أول دورة!</p>
+          <Layers className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
+          <p className="text-sm sm:text-base text-muted-foreground mb-2">لا توجد أقسام أو دورات بعد</p>
+          <p className="text-xs text-muted-foreground">أضف أقسام من صفحة "الأقسام" ثم أضف دورات لها</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {courses.map((course, courseIdx) => {
-            const courseLessons = course.lessonsData || []
-            const isExpanded = expandedCourseId === course._id
+        <div className="space-y-5">
+          {/* Each Department Section */}
+          {departments.map((dept, deptIdx) => {
+            const deptCourses = coursesByDepartment.get(dept._id) || []
+            const deptFreeCourses = deptCourses.filter(c => !c.isPremium || c.price === 0).length
+            const deptPaidCourses = deptCourses.filter(c => c.isPremium && c.price > 0).length
+            const deptTotalLessons = deptCourses.reduce((sum, c) => sum + (c.lessonsData?.length || 0), 0)
 
             return (
-              <motion.div key={course._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: courseIdx * 0.03 }} className="glass-card overflow-hidden">
+              <motion.div key={dept._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: deptIdx * 0.05 }} className="glass-card overflow-hidden">
 
-                {/* Course Header */}
-                <div className="p-3 sm:p-4">
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    {/* Course number */}
-                    <div className={`w-7 h-7 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-xs sm:text-base font-bold shrink-0`}>
-                      {courseIdx + 1}
+                {/* Department Header */}
+                <div className="p-4 sm:p-5 bg-gradient-to-l from-neon-cyan/5 to-transparent border-b border-border">
+                  <div className="flex items-start gap-3">
+                    {/* Department Icon */}
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl shrink-0 border"
+                      style={{ backgroundColor: `${dept.color}15`, borderColor: `${dept.color}30` }}>
+                      {dept.icon || '📁'}
                     </div>
-                    {/* Course info - tappable to expand */}
-                    <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
-                      className="flex-1 min-w-0 text-right hover:bg-muted rounded-lg transition-colors">
-                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <h3 className="font-bold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">{course.titleAr}</h3>
-                        <Badge className="bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[7px] sm:text-[8px] px-1 shrink-0">
-                          {getCategoryLabel(course.category)}
-                        </Badge>
-                        {!course.published && (
-                          <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[7px] sm:text-[8px] px-1 shrink-0">مسودة</Badge>
+                    {/* Department Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-sm sm:text-base">{dept.nameAr}</h3>
+                        {!dept.published && (
+                          <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] px-1.5">مسودة</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[9px] sm:text-xs text-muted-foreground flex-wrap">
-                        <span className="flex items-center gap-0.5"><FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> {courseLessons.length} درس</span>
-                        <span className="flex items-center gap-0.5"><Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-amber-400" /> {course.rating}</span>
-                        <span className={`${getLevelColor(course.level)} font-medium`}>{getLevelLabel(course.level)}</span>
-                      </div>
-                    </button>
-                    {/* Price + expand chevron + action buttons - compact on mobile */}
-                    <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
-                      {course.isPremium ? (
-                        <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[7px] sm:text-[9px] px-1">
-                          {course.price.toLocaleString()} ر.ي
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[7px] sm:text-[9px] px-1">مجاني</Badge>
+                      {dept.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{dept.description}</p>
                       )}
-                      <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="hidden sm:block">
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      </motion.div>
-                      <Button variant="ghost" size="icon" onClick={() => handleTogglePublish(course)}
-                        className="h-6 w-6 sm:h-7 sm:w-7" title={course.published ? 'إلغاء النشر' : 'نشر'}>
-                        {course.published ? (
-                          <ToggleRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-green" />
-                        ) : (
-                          <ToggleLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                      {/* Stats pills */}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 font-medium">
+                          {deptCourses.length} دورة
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-neon-green/10 text-neon-green border border-neon-green/20 font-medium">
+                          {deptFreeCourses} مجانية
+                        </span>
+                        {deptPaidCourses > 0 && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-neon-orange/10 text-neon-orange border border-neon-orange/20 font-medium">
+                            {deptPaidCourses} مدفوعة
+                          </span>
                         )}
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => { setEditingCourse(course); setShowAddCourse(false) }}
-                        className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-neon-cyan/10">
-                        <Edit3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-cyan" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteCourse(course._id)}
-                        className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-red-500/10">
-                        <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-400" />
-                      </Button>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-neon-purple/10 text-neon-purple border border-neon-purple/20 font-medium">
+                          {deptTotalLessons} درس
+                        </span>
+                      </div>
                     </div>
+                    {/* Add course to this department */}
+                    <Button size="sm" onClick={() => {
+                      setShowAddCourse(true)
+                      // Pre-select this department in the form
+                    }}
+                      className="h-8 text-[10px] bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 hover:bg-neon-cyan/20 shrink-0">
+                      <Plus className="h-3 w-3 ml-1" /> دورة
+                    </Button>
                   </div>
                 </div>
 
-                {/* Expandable Lessons List */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }} className="overflow-hidden">
-                      <div className="px-2 sm:px-5 pb-3 sm:pb-5 space-y-2 border-t border-border pt-3 sm:pt-4 overflow-x-auto">
-                        {/* Lessons count + Add Lesson Button */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-2 rounded-lg bg-muted/50 text-xs text-muted-foreground gap-2">
-                          <span className="text-[10px] sm:text-xs">دروس هذه الدورة ({courseLessons.length})</span>
-                          <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
-                            <span className="flex items-center gap-0.5 text-[9px] sm:text-xs">
-                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-neon-green" /> مجاني: {courseLessons.filter(l => l.isFree).length}
-                            </span>
-                            <span className="flex items-center gap-0.5 text-[9px] sm:text-xs">
-                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-neon-orange" /> مدفوع: {courseLessons.filter(l => !l.isFree).length}
-                            </span>
-                            <Button onClick={() => setAddingLessonToCourse(course._id)}
-                              className="h-6 sm:h-7 text-[9px] sm:text-xs bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 px-1.5 sm:px-3">
-                              <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5 sm:ml-1" /> إضافة درس
-                            </Button>
-                          </div>
-                        </div>
+                {/* Department Courses List */}
+                {deptCourses.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-20 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">لا توجد دورات في هذا القسم بعد</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {deptCourses.map((course, courseIdx) => {
+                      const courseLessons = course.lessonsData || []
+                      const isExpanded = expandedCourseId === course._id
 
-                        {/* Add Lesson Form */}
-                        <AnimatePresence>
-                          {addingLessonToCourse === course._id && (
-                            <LessonForm courseId={course._id}
-                              nextOrder={courseLessons.length + 1}
-                              onSave={(data) => handleAddLesson(data, course._id)}
-                              onCancel={() => setAddingLessonToCourse(null)} />
-                          )}
-                        </AnimatePresence>
-
-                        {courseLessons.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                            <p className="text-sm">لا توجد دروس لهذه الدورة بعد</p>
+                      return (
+                        <div key={course._id}>
+                          {/* Course Row */}
+                          <div className="p-3 sm:p-4">
+                            <div className="flex items-start gap-2 sm:gap-3">
+                              {/* Course number */}
+                              <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-xs sm:text-sm font-bold shrink-0`}>
+                                {courseIdx + 1}
+                              </div>
+                              {/* Course info - tappable to expand */}
+                              <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
+                                className="flex-1 min-w-0 text-right hover:bg-muted/50 rounded-lg transition-colors p-1">
+                                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                  <h4 className="font-bold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">{course.titleAr}</h4>
+                                  {course.recommended && (
+                                    <Badge className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[7px] sm:text-[8px] px-1 shrink-0">
+                                      <Sparkles className="h-2.5 w-2.5 ml-0.5" /> موصى بها
+                                    </Badge>
+                                  )}
+                                  {!course.published && (
+                                    <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[7px] sm:text-[8px] px-1 shrink-0">مسودة</Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[9px] sm:text-xs text-muted-foreground flex-wrap">
+                                  <span className="flex items-center gap-0.5"><FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> {courseLessons.length} درس</span>
+                                  <span className="flex items-center gap-0.5"><Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-amber-400" /> {course.rating}</span>
+                                  <span className={`${getLevelColor(course.level)} font-medium`}>{getLevelLabel(course.level)}</span>
+                                </div>
+                              </button>
+                              {/* Price + action buttons */}
+                              <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
+                                {course.isPremium ? (
+                                  <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[7px] sm:text-[9px] px-1">
+                                    {course.price.toLocaleString()} ر.ي
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[7px] sm:text-[9px] px-1">مجاني</Badge>
+                                )}
+                                <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="hidden sm:block">
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                </motion.div>
+                                <Button variant="ghost" size="icon" onClick={() => handleTogglePublish(course)}
+                                  className="h-6 w-6 sm:h-7 sm:w-7" title={course.published ? 'إلغاء النشر' : 'نشر'}>
+                                  {course.published ? (
+                                    <ToggleRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-green" />
+                                  ) : (
+                                    <ToggleLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                                  )}
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => { setEditingCourse(course); setShowAddCourse(false) }}
+                                  className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-neon-cyan/10">
+                                  <Edit3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-cyan" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDeleteCourse(course._id)}
+                                  className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-red-500/10">
+                                  <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-400" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                        ) : (
-                          courseLessons.sort((a, b) => a.order - b.order).map((lesson, lessonIdx) => (
-                            <div key={lesson.id}>
-                              {/* Edit Lesson Form */}
-                              {editingLesson?.lesson.id === lesson.id ? (
-                                <LessonForm lesson={lesson} courseId={course._id}
-                                  nextOrder={courseLessons.length + 1}
-                                  onSave={handleUpdateLesson}
-                                  onCancel={() => setEditingLesson(null)} />
-                              ) : (
-                                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: lessonIdx * 0.02 }}
-                                  className={`p-2 sm:p-3 rounded-xl hover:bg-muted/50 transition-all group border border-transparent hover:border-border/50 ${
-                                    lesson.isFree ? '' : 'border-l-2 border-l-amber-500/30'
-                                  }`}>
-                                  <div className="flex items-center gap-2 sm:gap-3">
-                                    {/* Order + Type */}
-                                    <div className="flex flex-col items-center gap-1 shrink-0">
-                                      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0 ${
-                                        lesson.isFree ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                                      }`}>
-                                        {lesson.order}
-                                      </div>
-                                      <span className="text-[8px] sm:text-[10px] text-muted-foreground">{lesson.duration}د</span>
-                                    </div>
-                                    {/* Title + meta */}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs sm:text-sm font-semibold truncate">{lesson.titleAr}</p>
-                                      <div className="flex items-center gap-1.5 mt-0.5">
-                                        <span className="shrink-0">{getLessonTypeIcon(lesson.type)}</span>
-                                        <span className="text-[9px] sm:text-xs text-muted-foreground">{getLessonTypeLabel(lesson.type)}</span>
-                                        {lesson.isFree ? (
-                                          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7px] sm:text-[9px] px-1.5 shrink-0">مجاني</Badge>
-                                        ) : (
-                                          <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[7px] sm:text-[9px] px-1.5 shrink-0">مدفوع</Badge>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {/* Actions */}
-                                    <div className="flex items-center gap-0.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
-                                      <Button variant="ghost" size="icon"
-                                        onClick={() => setEditingLesson({ course, lesson })}
-                                        className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-neon-cyan/10 rounded-lg">
-                                        <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon"
-                                        onClick={() => handleDeleteLesson(course._id, lesson.id)}
-                                        className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-red-500/10 rounded-lg">
-                                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+
+                          {/* Expandable Lessons List */}
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3 }} className="overflow-hidden">
+                                <div className="px-3 sm:px-5 pb-3 sm:pb-5 space-y-2 border-t border-border pt-3 sm:pt-4 bg-muted/5 overflow-x-auto">
+                                  {/* Lessons count + Add Lesson Button */}
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-2 rounded-lg bg-muted/50 text-xs text-muted-foreground gap-2">
+                                    <span className="text-[10px] sm:text-xs">دروس هذه الدورة ({courseLessons.length})</span>
+                                    <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
+                                      <span className="flex items-center gap-0.5 text-[9px] sm:text-xs">
+                                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-neon-green" /> مجاني: {courseLessons.filter(l => l.isFree).length}
+                                      </span>
+                                      <span className="flex items-center gap-0.5 text-[9px] sm:text-xs">
+                                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-neon-orange" /> مدفوع: {courseLessons.filter(l => !l.isFree).length}
+                                      </span>
+                                      <Button onClick={() => setAddingLessonToCourse(course._id)}
+                                        className="h-6 sm:h-7 text-[9px] sm:text-xs bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 px-1.5 sm:px-3">
+                                        <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5 sm:ml-1" /> إضافة درس
                                       </Button>
                                     </div>
                                   </div>
-                                </motion.div>
-                              )}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+
+                                  {/* Add Lesson Form */}
+                                  <AnimatePresence>
+                                    {addingLessonToCourse === course._id && (
+                                      <LessonForm courseId={course._id}
+                                        nextOrder={courseLessons.length + 1}
+                                        onSave={(data) => handleAddLesson(data, course._id)}
+                                        onCancel={() => setAddingLessonToCourse(null)} />
+                                    )}
+                                  </AnimatePresence>
+
+                                  {courseLessons.length === 0 ? (
+                                    <div className="text-center py-6 text-muted-foreground">
+                                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                                      <p className="text-xs">لا توجد دروس لهذه الدورة بعد</p>
+                                    </div>
+                                  ) : (
+                                    courseLessons.sort((a, b) => a.order - b.order).map((lesson, lessonIdx) => (
+                                      <div key={lesson.id}>
+                                        {/* Edit Lesson Form */}
+                                        {editingLesson?.lesson.id === lesson.id ? (
+                                          <LessonForm lesson={lesson} courseId={course._id}
+                                            nextOrder={courseLessons.length + 1}
+                                            onSave={handleUpdateLesson}
+                                            onCancel={() => setEditingLesson(null)} />
+                                        ) : (
+                                          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: lessonIdx * 0.02 }}
+                                            className={`p-2 sm:p-3 rounded-xl hover:bg-muted/50 transition-all group border border-transparent hover:border-border/50 ${
+                                              lesson.isFree ? '' : 'border-l-2 border-l-amber-500/30'
+                                            }`}>
+                                            <div className="flex items-center gap-2 sm:gap-3">
+                                              {/* Order + Type */}
+                                              <div className="flex flex-col items-center gap-1 shrink-0">
+                                                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0 ${
+                                                  lesson.isFree ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                                }`}>
+                                                  {lesson.order}
+                                                </div>
+                                                <span className="text-[8px] sm:text-[10px] text-muted-foreground">{lesson.duration}د</span>
+                                              </div>
+                                              {/* Title + meta */}
+                                              <div className="flex-1 min-w-0">
+                                                <p className="text-xs sm:text-sm font-semibold truncate">{lesson.titleAr}</p>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                  <span className="shrink-0">{getLessonTypeIcon(lesson.type)}</span>
+                                                  <span className="text-[9px] sm:text-xs text-muted-foreground">{getLessonTypeLabel(lesson.type)}</span>
+                                                  {lesson.isFree ? (
+                                                    <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7px] sm:text-[9px] px-1.5 shrink-0">مجاني</Badge>
+                                                  ) : (
+                                                    <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[7px] sm:text-[9px] px-1.5 shrink-0">مدفوع</Badge>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              {/* Actions */}
+                                              <div className="flex items-center gap-0.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                <Button variant="ghost" size="icon"
+                                                  onClick={() => setEditingLesson({ course, lesson })}
+                                                  className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-neon-cyan/10 rounded-lg">
+                                                  <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon"
+                                                  onClick={() => handleDeleteLesson(course._id, lesson.id)}
+                                                  className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-red-500/10 rounded-lg">
+                                                  <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </motion.div>
+                                        )}
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </motion.div>
             )
           })}
+
+          {/* Uncategorized Courses */}
+          {uncategorizedCourses.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              className="glass-card overflow-hidden border-dashed border-amber-500/20">
+              {/* Uncategorized Header */}
+              <div className="p-4 sm:p-5 bg-gradient-to-l from-amber-500/5 to-transparent border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-xl shrink-0">
+                    📂
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm sm:text-base">دورات بدون قسم</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">هذه الدورات لم تُصنف ضمن أي قسم بعد</p>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium mt-1 inline-block">
+                      {uncategorizedCourses.length} دورة
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Uncategorized Courses List */}
+              <div className="divide-y divide-border">
+                {uncategorizedCourses.map((course, courseIdx) => {
+                  const courseLessons = course.lessonsData || []
+                  const isExpanded = expandedCourseId === course._id
+
+                  return (
+                    <div key={course._id}>
+                      {/* Course Row */}
+                      <div className="p-3 sm:p-4">
+                        <div className="flex items-start gap-2 sm:gap-3">
+                          <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-xs sm:text-sm font-bold shrink-0`}>
+                            {courseIdx + 1}
+                          </div>
+                          <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
+                            className="flex-1 min-w-0 text-right hover:bg-muted/50 rounded-lg transition-colors p-1">
+                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                              <h4 className="font-bold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">{course.titleAr}</h4>
+                              {!course.published && (
+                                <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[7px] sm:text-[8px] px-1 shrink-0">مسودة</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[9px] sm:text-xs text-muted-foreground flex-wrap">
+                              <span className="flex items-center gap-0.5"><FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> {courseLessons.length} درس</span>
+                              <span className={`${getLevelColor(course.level)} font-medium`}>{getLevelLabel(course.level)}</span>
+                            </div>
+                          </button>
+                          <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
+                            {course.isPremium ? (
+                              <Badge className="bg-neon-orange/15 text-neon-orange border border-neon-orange/25 text-[7px] sm:text-[9px] px-1">
+                                {course.price.toLocaleString()} ر.ي
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-neon-green/15 text-neon-green border border-neon-green/25 text-[7px] sm:text-[9px] px-1">مجاني</Badge>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={() => { setEditingCourse(course); setShowAddCourse(false) }}
+                              className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-neon-cyan/10">
+                              <Edit3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neon-cyan" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteCourse(course._id)}
+                              className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-red-500/10">
+                              <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-400" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expandable Lessons */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }} className="overflow-hidden">
+                            <div className="px-3 sm:px-5 pb-3 sm:pb-5 space-y-2 border-t border-border pt-3 sm:pt-4 bg-muted/5">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-2 sm:px-3 py-2 rounded-lg bg-muted/50 text-xs text-muted-foreground gap-2">
+                                <span className="text-[10px] sm:text-xs">دروس ({courseLessons.length})</span>
+                                <Button onClick={() => setAddingLessonToCourse(course._id)}
+                                  className="h-6 sm:h-7 text-[9px] sm:text-xs bg-neon-purple/15 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/25 px-1.5 sm:px-3">
+                                  <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-0.5 sm:ml-1" /> إضافة درس
+                                </Button>
+                              </div>
+                              <AnimatePresence>
+                                {addingLessonToCourse === course._id && (
+                                  <LessonForm courseId={course._id}
+                                    nextOrder={courseLessons.length + 1}
+                                    onSave={(data) => handleAddLesson(data, course._id)}
+                                    onCancel={() => setAddingLessonToCourse(null)} />
+                                )}
+                              </AnimatePresence>
+                              {courseLessons.sort((a, b) => a.order - b.order).map((lesson, lessonIdx) => (
+                                <div key={lesson.id}>
+                                  {editingLesson?.lesson.id === lesson.id ? (
+                                    <LessonForm lesson={lesson} courseId={course._id}
+                                      nextOrder={courseLessons.length + 1}
+                                      onSave={handleUpdateLesson}
+                                      onCancel={() => setEditingLesson(null)} />
+                                  ) : (
+                                    <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: lessonIdx * 0.02 }}
+                                      className={`p-2 sm:p-3 rounded-xl hover:bg-muted/50 transition-all group border border-transparent hover:border-border/50 ${
+                                        lesson.isFree ? '' : 'border-l-2 border-l-amber-500/30'
+                                      }`}>
+                                      <div className="flex items-center gap-2 sm:gap-3">
+                                        <div className="flex flex-col items-center gap-1 shrink-0">
+                                          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0 ${
+                                            lesson.isFree ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                          }`}>
+                                            {lesson.order}
+                                          </div>
+                                          <span className="text-[8px] sm:text-[10px] text-muted-foreground">{lesson.duration}د</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs sm:text-sm font-semibold truncate">{lesson.titleAr}</p>
+                                          <div className="flex items-center gap-1.5 mt-0.5">
+                                            <span className="shrink-0">{getLessonTypeIcon(lesson.type)}</span>
+                                            <span className="text-[9px] sm:text-xs text-muted-foreground">{getLessonTypeLabel(lesson.type)}</span>
+                                            {lesson.isFree ? (
+                                              <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7px] sm:text-[9px] px-1.5 shrink-0">مجاني</Badge>
+                                            ) : (
+                                              <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[7px] sm:text-[9px] px-1.5 shrink-0">مدفوع</Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-0.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
+                                          <Button variant="ghost" size="icon"
+                                            onClick={() => setEditingLesson({ course, lesson })}
+                                            className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-neon-cyan/10 rounded-lg">
+                                            <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
+                                          </Button>
+                                          <Button variant="ghost" size="icon"
+                                            onClick={() => handleDeleteLesson(course._id, lesson.id)}
+                                            className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-red-500/10 rounded-lg">
+                                            <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
+          )}
         </div>
       )}
     </motion.div>
@@ -3655,6 +3991,7 @@ export function AdminPage() {
             {/* Section Content */}
             <AnimatePresence mode="wait">
               {activeSection === 'overview' && renderOverview()}
+              {activeSection === 'departments' && renderDepartments()}
               {activeSection === 'courses' && renderCourses()}
               {activeSection === 'users' && renderUsers()}
               {activeSection === 'payments' && renderPayments()}
@@ -3671,6 +4008,319 @@ export function AdminPage() {
           </motion.div>
         </div>
       </main>
+    </div>
+  )
+}
+
+// ─── Departments Management Component ────────────────────────
+
+function DepartmentsManagement({ departments, onRefresh }: { departments: ApiDepartment[]; onRefresh: () => void }) {
+  const [showForm, setShowForm] = useState(false)
+  const [editingDept, setEditingDept] = useState<ApiDepartment | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<ApiDepartment | null>(null)
+  const [form, setForm] = useState({
+    nameAr: '',
+    nameEn: '',
+    icon: '📁',
+    color: '#06b6d4',
+    description: '',
+    order: 0,
+    published: true,
+  })
+
+  const resetForm = () => {
+    setForm({ nameAr: '', nameEn: '', icon: '📁', color: '#06b6d4', description: '', order: 0, published: true })
+    setShowForm(false)
+    setEditingDept(null)
+  }
+
+  const startEdit = (dept: ApiDepartment) => {
+    setForm({
+      nameAr: dept.nameAr,
+      nameEn: dept.nameEn,
+      icon: dept.icon,
+      color: dept.color,
+      description: dept.description || '',
+      order: dept.order,
+      published: dept.published,
+    })
+    setEditingDept(dept)
+    setShowForm(true)
+  }
+
+  const handleSave = async () => {
+    if (!form.nameAr || !form.nameEn) return
+    setSaving(true)
+    try {
+      const url = editingDept ? '/api/departments' : '/api/departments'
+      const method = editingDept ? 'PUT' : 'POST'
+      const body = editingDept
+        ? { departmentId: editingDept._id, ...form }
+        : form
+
+      const res = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (data.success) {
+        resetForm()
+        onRefresh()
+      }
+    } catch (err) { console.error('Save department error:', err) }
+    setSaving(false)
+  }
+
+  const handleDelete = async (dept: ApiDepartment) => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/departments', {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ departmentId: dept._id }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setDeleteConfirm(null)
+        onRefresh()
+      }
+    } catch (err) { console.error('Delete department error:', err) }
+    setSaving(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Add Department Button */}
+      <div className="flex items-center gap-3">
+        <Button onClick={() => { resetForm(); setShowForm(true) }} disabled={showForm}
+          className="bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/25 transition-all h-9">
+          <Plus className="h-4 w-4 ml-1" /> إضافة قسم جديد
+        </Button>
+        {saving && <Loader2 className="h-4 w-4 animate-spin text-neon-cyan" />}
+      </div>
+
+      {/* Add/Edit Form */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="glass-card overflow-hidden border border-neon-cyan/20">
+            <div className="px-5 py-4 bg-gradient-to-l from-neon-cyan/10 to-neon-purple/5 border-b border-border flex items-center justify-between">
+              <h4 className="text-sm font-bold flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-neon-cyan/15 flex items-center justify-center">
+                  <Layers className="h-4 w-4 text-neon-cyan" />
+                </div>
+                {editingDept ? 'تعديل القسم' : 'إضافة قسم جديد'}
+              </h4>
+              <Button variant="ghost" size="icon" onClick={resetForm} className="h-8 w-8 hover:bg-red-500/10 rounded-lg">
+                <X className="h-4 w-4 text-red-400" />
+              </Button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Section 1: Names */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-5 rounded-full bg-neon-cyan" />
+                  <span className="text-xs font-bold text-neon-cyan">اسم القسم</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الاسم بالعربي *</label>
+                    <Input value={form.nameAr} onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
+                      placeholder="مثال: تمريض"
+                      className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الاسم بالإنجليزي *</label>
+                    <Input value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
+                      placeholder="e.g. Nursing"
+                      className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" dir="ltr" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Visual */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-5 rounded-full bg-neon-purple" />
+                  <span className="text-xs font-bold text-neon-purple">المظهر</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الأيقونة (إيموجي)</label>
+                    <Input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })}
+                      placeholder="🩺"
+                      className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10 text-center text-lg" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block font-medium">اللون (Hex)</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}
+                        className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" />
+                      <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}
+                        className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10 font-mono" dir="ltr" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الترتيب</label>
+                    <Input type="number" value={form.order} onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) || 0 })}
+                      className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm h-10" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block font-medium">الحالة</label>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, published: !form.published })}
+                      className={`w-full h-10 rounded-md border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                        form.published
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                          : 'bg-muted/30 border-border text-muted-foreground'
+                      }`}
+                    >
+                      {form.published ? <><CheckCircle2 className="h-4 w-4" /> منشور</> : <><EyeOff className="h-4 w-4" /> مخفي</>}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Description */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-5 rounded-full bg-amber-400" />
+                  <span className="text-xs font-bold text-amber-400">الوصف (اختياري)</span>
+                </div>
+                <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2} className="bg-muted/30 border-border focus:border-neon-cyan/50 text-sm resize-none"
+                  placeholder="وصف مختصر للقسم..." />
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="px-5 py-4 border-t border-border flex gap-3 bg-muted/10">
+              <Button onClick={handleSave} disabled={!form.nameAr || !form.nameEn || saving}
+                className="bg-gradient-to-l from-neon-cyan to-neon-purple text-white font-bold hover:shadow-[0_0_20px_rgba(0,245,255,0.3)] transition-all h-10 px-6">
+                <Save className="h-4 w-4 ml-1.5" />
+                {editingDept ? 'حفظ التعديلات' : 'إضافة القسم'}
+              </Button>
+              <Button variant="ghost" onClick={resetForm} className="text-muted-foreground hover:text-foreground h-10">إلغاء</Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Departments List */}
+      {departments.length === 0 ? (
+        <div className="glass-card p-8 sm:p-12 text-center">
+          <Layers className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-30 text-muted-foreground" />
+          <p className="text-sm sm:text-base text-muted-foreground mb-4">لا توجد أقسام بعد. أضف أول قسم!</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {departments.map((dept, idx) => (
+            <motion.div key={dept._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.03 }}
+              className="glass-card overflow-hidden">
+              <div className="p-3 sm:p-4">
+                <div className="flex items-center gap-3">
+                  {/* Icon with color */}
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl shrink-0 border"
+                    style={{ backgroundColor: dept.color + '20', borderColor: dept.color + '40' }}>
+                    {dept.icon}
+                  </div>
+
+                  {/* Department info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-sm sm:text-base">{dept.nameAr}</h3>
+                      <span className="text-xs text-muted-foreground font-mono" dir="ltr">{dept.nameEn}</span>
+                      {!dept.published && (
+                        <Badge className="bg-neon-orange/10 text-neon-orange border border-neon-orange/20 text-[8px] px-1.5">مخفي</Badge>
+                      )}
+                    </div>
+                    {dept.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{dept.description}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-1 text-[10px] sm:text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <BookOpen className="h-3 w-3" />
+                        {dept.courseCount || 0} دورة
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        {dept.freeCourseCount || 0} مجاني
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-amber-400" />
+                        {dept.paidCourseCount || 0} مدفوع
+                      </span>
+                      <span className="flex items-center gap-1">
+                        ترتيب: {dept.order}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded-full border" style={{ backgroundColor: dept.color + '30', borderColor: dept.color }} />
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" onClick={() => startEdit(dept)}
+                      className="h-8 w-8 hover:bg-neon-cyan/10">
+                      <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(dept)}
+                      className="h-8 w-8 hover:bg-red-500/10">
+                      <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setDeleteConfirm(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card p-6 max-w-sm w-full text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/25 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="h-6 w-6 text-red-400" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-2">حذف القسم</h3>
+              <p className="text-sm text-muted-foreground mb-1">
+                هل أنت متأكد من حذف قسم &quot;{deleteConfirm.nameAr}&quot;؟
+              </p>
+              <p className="text-xs text-muted-foreground/70 mb-6">
+                سيتم إلغاء ربط جميع الدورات المرتبطة بهذا القسم ولن يتم حذفها.
+              </p>
+              <div className="flex gap-3">
+                <Button onClick={() => handleDelete(deleteConfirm)} disabled={saving}
+                  className="flex-1 bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 h-10">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'حذف القسم'}
+                </Button>
+                <Button variant="ghost" onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 h-10">إلغاء</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

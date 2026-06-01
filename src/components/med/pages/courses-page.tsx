@@ -56,14 +56,7 @@ const levelConfig = {
 
 const categories = [
   { id: 'all', label: 'الكل', icon: '📚' },
-  { id: 'emergency', label: 'طب الطوارئ', icon: '🚑' },
-  { id: 'cardiology', label: 'أمراض القلب', icon: '❤️' },
-  { id: 'neurology', label: 'الأعصاب', icon: '🧠' },
-  { id: 'pediatrics', label: 'طب الأطفال', icon: '👶' },
-  { id: 'surgery', label: 'الجراحة', icon: '🔪' },
-  { id: 'internal', label: 'الطب الباطني', icon: '🩺' },
-  { id: 'radiology', label: 'الأشعة', icon: '🔬' },
-  { id: 'pharmacology', label: 'الأدوية', icon: '💊' },
+  // Dynamic categories will be loaded from departments
 ]
 
 const sortOptions = [
@@ -905,6 +898,7 @@ export function CoursesPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [paymentCourse, setPaymentCourse] = useState<Course | null>(null)
   const [giftCelebrationCourse, setGiftCelebrationCourse] = useState<Course | null>(null)
+  const [departments, setDepartments] = useState<any[]>([])
 
   const handlePaymentClick = useCallback((course: Course) => {
     if (course.isGifted) {
@@ -912,6 +906,14 @@ export function CoursesPage() {
     } else {
       setPaymentCourse(course)
     }
+  }, [])
+
+  // Fetch departments
+  useEffect(() => {
+    fetch('/api/departments')
+      .then(r => r.json())
+      .then(data => { if (data.success) setDepartments(data.departments || []) })
+      .catch(() => {})
   }, [])
 
   // Fetch courses from API on mount
@@ -944,6 +946,9 @@ export function CoursesPage() {
             giftedAt: c.giftedAt || null,
             lessons: c.lessons || (c.lessonsData?.length || 0),
             tags: c.tags || [],
+            departmentId: c.departmentId || null,
+            recommended: c.recommended || false,
+            createdAt: c.createdAt || null,
             lessonsData: c.lessonsData?.map((l: any) => ({
               id: l.id,
               courseId: c._id?.toString() || c.id,
@@ -1023,9 +1028,9 @@ export function CoursesPage() {
       )
     }
 
-    // Category filter
+    // Category/Department filter
     if (activeCategory !== 'all') {
-      result = result.filter((c) => c.category === activeCategory)
+      result = result.filter((c) => c.departmentId === activeCategory)
     }
 
     // Level filter
@@ -1053,16 +1058,8 @@ export function CoursesPage() {
   }, [courses, searchQuery, activeCategory, activeLevel, sortBy])
 
   // Categorized courses
-  const trendingCourses = useMemo(
-    () => [...courses].sort((a, b) => b.students - a.students),
-    [courses]
-  )
-  const emergencyCourses = useMemo(
-    () => courses.filter((c) => c.category === 'emergency'),
-    [courses]
-  )
-  const cardiologyCourses = useMemo(
-    () => courses.filter((c) => c.category === 'cardiology'),
+  const recommendedCourses = useMemo(
+    () => courses.filter((c) => c.recommended === true),
     [courses]
   )
   const continueLearning = useMemo(
@@ -1072,9 +1069,29 @@ export function CoursesPage() {
     },
     [courses, courseProgress]
   )
-  const featuredCourse = useMemo(
-    () => courses.find((c) => c.id === '1') || courses[0] || null,
+  const recentCourses = useMemo(
+    () => {
+      const threeDaysAgo = new Date()
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+      return courses.filter((c) => {
+        if (!c.createdAt) return false
+        const created = new Date(c.createdAt)
+        return created >= threeDaysAgo
+      })
+    },
     [courses]
+  )
+  const coursesWithoutDepartment = useMemo(
+    () => courses.filter((c) => !c.departmentId),
+    [courses]
+  )
+  const trendingCourses = useMemo(
+    () => [...courses].sort((a, b) => b.students - a.students),
+    [courses]
+  )
+  const featuredCourse = useMemo(
+    () => recommendedCourses[0] || courses[0] || null,
+    [courses, recommendedCourses]
   )
 
   // Don't render until courses are loaded from API
@@ -1127,22 +1144,35 @@ export function CoursesPage() {
             </div>
           </div>
 
-          {/* Category Filter Pills */}
+          {/* Category Filter Pills - Dynamic from departments */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            {categories.map((cat) => (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setActiveCategory('all')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                activeCategory === 'all'
+                  ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/40 shadow-[0_0_15px_rgba(0,245,255,0.15)]'
+                  : 'glass text-muted-foreground hover:text-foreground hover:border-neon-cyan/20'
+              }`}
+            >
+              <span>📚</span>
+              <span>الكل</span>
+            </motion.button>
+            {departments.map((dept) => (
               <motion.button
-                key={cat.id}
+                key={dept._id}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => setActiveCategory(dept._id)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  activeCategory === cat.id
+                  activeCategory === dept._id
                     ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/40 shadow-[0_0_15px_rgba(0,245,255,0.15)]'
                     : 'glass text-muted-foreground hover:text-foreground hover:border-neon-cyan/20'
                 }`}
               >
-                <span>{cat.icon}</span>
-                <span>{cat.label}</span>
+                <span>{dept.icon}</span>
+                <span>{dept.nameAr}</span>
               </motion.button>
             ))}
           </div>
@@ -1222,14 +1252,16 @@ export function CoursesPage() {
           <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row items-start gap-6">
             <div className="flex-1 space-y-4">
               <div className="flex items-center gap-2">
-                <Badge className="bg-neon-cyan/20 text-neon-cyan border-neon-cyan/30 text-xs">
+                <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
                   <Sparkles className="w-3 h-3 ml-1" />
-                  موصى به
+                  موصى بها
                 </Badge>
-                <Badge className="bg-neon-purple/20 text-neon-purple border-neon-purple/30 text-xs">
-                  <TrendingUp className="w-3 h-3 ml-1" />
-                  رائج
-                </Badge>
+                {featuredCourse.isPremium && !featuredCourse.isGifted && (
+                  <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs">
+                    <TrendingUp className="w-3 h-3 ml-1" />
+                    مميز
+                  </Badge>
+                )}
               </div>
 
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground neon-text">
@@ -1353,51 +1385,87 @@ export function CoursesPage() {
             )}
           </div>
         ) : (
-          /* Netflix-style category rows */
+          /* Netflix-style category rows with departments */
           <div className="space-y-10">
-            <HorizontalCourseRow
-              title="دورات رائجة 🔥"
-              courses={trendingCourses}
-              icon={
-                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-orange-400" />
-                </div>
-              }
-              onPaymentClick={handlePaymentClick}
-            />
+            {/* Recommended Section */}
+            {recommendedCourses.length > 0 && (
+              <HorizontalCourseRow
+                title="موصى بها ✨"
+                courses={recommendedCourses}
+                icon={
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                  </div>
+                }
+                onPaymentClick={handlePaymentClick}
+              />
+            )}
 
-            <HorizontalCourseRow
-              title="طب الطوارئ"
-              courses={emergencyCourses}
-              icon={
-                <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <span className="text-base">🚑</span>
-                </div>
-              }
-              onPaymentClick={handlePaymentClick}
-            />
+            {/* Per-department sections */}
+            {departments.map((dept) => {
+              const deptCourses = courses.filter((c) => c.departmentId === dept._id)
+              const freeDeptCourses = deptCourses.filter((c) => c.price === 0)
+              const paidDeptCourses = deptCourses.filter((c) => c.price > 0)
 
-            <HorizontalCourseRow
-              title="أمراض القلب"
-              courses={cardiologyCourses}
-              icon={
-                <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center">
-                  <span className="text-base">❤️</span>
-                </div>
-              }
-              onPaymentClick={handlePaymentClick}
-            />
+              if (deptCourses.length === 0) return null
 
-            <HorizontalCourseRow
-              title="حديثاً ✨"
-              courses={[...courses].reverse()}
-              icon={
-                <div className="w-8 h-8 rounded-lg bg-neon-purple/10 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-neon-purple" />
+              return (
+                <div key={dept._id} className="space-y-4">
+                  {freeDeptCourses.length > 0 && (
+                    <HorizontalCourseRow
+                      title={`${dept.icon} ${dept.nameAr} - مجاني`}
+                      courses={freeDeptCourses}
+                      icon={
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: dept.color + '20' }}>
+                          <span className="text-base">{dept.icon}</span>
+                        </div>
+                      }
+                      onPaymentClick={handlePaymentClick}
+                    />
+                  )}
+                  {paidDeptCourses.length > 0 && (
+                    <HorizontalCourseRow
+                      title={`${dept.icon} ${dept.nameAr} - مدفوع`}
+                      courses={paidDeptCourses}
+                      icon={
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: dept.color + '20' }}>
+                          <span className="text-base">{dept.icon}</span>
+                        </div>
+                      }
+                      onPaymentClick={handlePaymentClick}
+                    />
+                  )}
                 </div>
-              }
-              onPaymentClick={handlePaymentClick}
-            />
+              )
+            })}
+
+            {/* Recent courses */}
+            {recentCourses.length > 0 && (
+              <HorizontalCourseRow
+                title="حديثاً ✨"
+                courses={recentCourses}
+                icon={
+                  <div className="w-8 h-8 rounded-lg bg-neon-purple/10 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-neon-purple" />
+                  </div>
+                }
+                onPaymentClick={handlePaymentClick}
+              />
+            )}
+
+            {/* Courses without department */}
+            {coursesWithoutDepartment.length > 0 && (
+              <HorizontalCourseRow
+                title="أخرى 📚"
+                courses={coursesWithoutDepartment}
+                icon={
+                  <div className="w-8 h-8 rounded-lg bg-muted/30 flex items-center justify-center">
+                    <BookOpen className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                }
+                onPaymentClick={handlePaymentClick}
+              />
+            )}
           </div>
         )}
       </div>
