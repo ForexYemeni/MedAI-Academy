@@ -64,6 +64,7 @@ interface ApiLesson {
   isFree: boolean
   content?: string
   videoUrl?: string
+  images?: string[] // روابط الصور أو بيانات base64
   keyPoints?: string[]
   quizData?: ApiLessonQuizQuestion[]
   flashcardData?: ApiLessonFlashcard[]
@@ -488,11 +489,80 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
     isFree: lesson?.isFree || false,
     content: lesson?.content || '',
     videoUrl: lesson?.videoUrl || '',
+    images: lesson?.images || [],
     keyPoints: lesson?.keyPoints || [],
     quizData: lesson?.quizData || [],
     flashcardData: lesson?.flashcardData || [],
     simulationData: lesson?.simulationData || undefined,
   })
+
+  // ─── Image Upload Handler ───
+  const [imageUploading, setImageUploading] = useState(false)
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    setImageUploading(true)
+
+    try {
+      const newImages: string[] = []
+      for (const file of Array.from(files)) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`الصورة "${file.name}" أكبر من 5MB، سيتم ضغطها تلقائياً`)
+        }
+        const compressed = await compressImage(file)
+        newImages.push(compressed)
+      }
+      setForm({ ...form, images: [...(form.images || []), ...newImages] })
+    } catch (err) {
+      console.error('Image upload error:', err)
+    } finally {
+      setImageUploading(false)
+      // Reset file input
+      e.target.value = ''
+    }
+  }
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const img = document.createElement('img')
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const MAX_WIDTH = 800
+          const MAX_HEIGHT = 800
+          let { width, height } = img
+          if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+            const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height)
+            width = Math.round(width * ratio)
+            height = Math.round(height * ratio)
+          }
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(img, 0, 0, width, height)
+          resolve(canvas.toDataURL('image/jpeg', 0.7))
+        }
+        img.onerror = () => reject(new Error('فشل تحميل الصورة'))
+        img.src = event.target?.result as string
+      }
+      reader.onerror = () => reject(new Error('فشل قراءة الملف'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removeImage = (idx: number) => {
+    const updated = (form.images || []).filter((_, i) => i !== idx)
+    setForm({ ...form, images: updated })
+  }
+
+  const addImageUrl = () => {
+    const url = prompt('أدخل رابط الصورة:')
+    if (url && url.trim()) {
+      setForm({ ...form, images: [...(form.images || []), url.trim()] })
+    }
+  }
 
   const addQuizQuestion = () => {
     const newQ: ApiLessonQuizQuestion = { question: '', options: ['', '', '', ''], correctIndex: 0, explanation: '' }
@@ -802,6 +872,69 @@ function LessonForm({ lesson, courseId, onSave, onCancel, nextOrder }: {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Section 2.5: Images */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 rounded-full bg-emerald-400" />
+            <span className="text-xs font-bold text-emerald-400">صور الدرس</span>
+            <span className="text-[10px] text-muted-foreground/50">(اختياري - حتى 10 صور)</span>
+          </div>
+
+          <div className="space-y-3">
+            {/* Upload buttons */}
+            <div className="flex gap-2">
+              <label className="flex-1 h-10 rounded-md border border-dashed border-emerald-500/30 text-sm font-medium transition-all flex items-center justify-center gap-2 cursor-pointer hover:bg-emerald-500/10 hover:border-emerald-500/50 text-emerald-400">
+                {imageUploading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> جارٍ الضغط...</>
+                ) : (
+                  <><ImageIcon className="h-4 w-4" /> رفع صورة من الجهاز</>
+                )}
+                <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" disabled={imageUploading} />
+              </label>
+              <button
+                type="button"
+                onClick={addImageUrl}
+                className="h-10 px-4 rounded-md border border-dashed border-cyan-500/30 text-sm font-medium transition-all flex items-center justify-center gap-2 hover:bg-cyan-500/10 hover:border-cyan-500/50 text-cyan-400"
+              >
+                <Plus className="h-4 w-4" /> رابط صورة
+              </button>
+            </div>
+
+            {/* Image preview grid */}
+            {(form.images || []).length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {(form.images || []).map((img, idx) => (
+                  <div key={idx} className="relative group rounded-lg overflow-hidden border border-border bg-muted/30 aspect-square">
+                    <img
+                      src={img}
+                      alt={`صورة ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(idx)}
+                      className="absolute top-1 left-1 w-6 h-6 rounded-full bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                    <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-[9px] text-white">
+                      {idx + 1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {(form.images || []).length === 0 && (
+              <div className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/15 text-center">
+                <ImageIcon className="h-8 w-8 text-emerald-400/40 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">لا توجد صور بعد. اضغط "رفع صورة" أو "رابط صورة" للإضافة</p>
+                <p className="text-[10px] text-muted-foreground/50 mt-1">الصور ستُعرض بشكل احترافي داخل الدرس للمستخدمين</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Section 3: Key Points */}

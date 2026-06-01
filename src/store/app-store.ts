@@ -111,6 +111,7 @@ export interface Lesson {
   isFree: boolean
   content?: string // markdown-like content for article lessons
   videoUrl?: string
+  images?: string[] // روابط الصور أو بيانات base64
   summary?: string
   keyPoints?: string[]
   quizData?: LessonQuizQuestion[]

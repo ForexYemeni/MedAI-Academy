@@ -94,6 +94,7 @@ export interface MongoLesson {
   duration: number // minutes
   videoUrl?: string
   content?: string
+  images?: string[] // مصفوفة من روابط الصور أو بيانات base64
   order: number
   isFree: boolean
 }

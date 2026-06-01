@@ -2106,6 +2106,7 @@ export function CourseViewerPage() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentWallVisible, setPaymentWallVisible] = useState(false)
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; index: number } | null>(null)
 
   // Ref for scrolling content area to top when navigating between lessons
   const contentScrollRef = useRef<HTMLDivElement>(null)
@@ -2850,6 +2851,67 @@ export function CourseViewerPage() {
                     </motion.div>
                   )}
 
+                  {/* Lesson Images Gallery */}
+                  {currentLesson.images && currentLesson.images.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="relative mb-6"
+                    >
+                      <div className="relative glass-card overflow-hidden">
+                        {/* Gallery Header */}
+                        <div className="flex items-center gap-3 p-4 pb-3 border-b border-border">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
+                            <ImageIcon className="w-4 h-4 text-emerald-400" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-bold text-foreground">معرض الصور التعليمية</p>
+                            <p className="text-[10px] text-muted-foreground">{currentLesson.images.length} صورة - اضغط على الصورة لتكبيرها</p>
+                          </div>
+                        </div>
+
+                        {/* Image Grid */}
+                        <div className="p-4">
+                          <div className={`grid gap-3 ${
+                            currentLesson.images.length === 1 ? 'grid-cols-1' :
+                            currentLesson.images.length === 2 ? 'grid-cols-2' :
+                            currentLesson.images.length === 3 ? 'grid-cols-3' :
+                            'grid-cols-2 sm:grid-cols-3'
+                          }`}>
+                            {currentLesson.images.map((img, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => setLightboxImage({ src: img, index: idx })}
+                                className={`relative group rounded-xl overflow-hidden border border-border/50 cursor-pointer transition-all duration-300 hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] ${
+                                  currentLesson.images!.length === 1 ? 'aspect-[16/9]' : 'aspect-square'
+                                }`}
+                              >
+                                <img
+                                  src={img}
+                                  alt={`صورة تعليمية ${idx + 1}`}
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                  loading="lazy"
+                                />
+                                {/* Hover overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                  <div className="absolute bottom-2 right-3 flex items-center gap-1.5">
+                                    <Maximize className="w-3.5 h-3.5 text-white/80" />
+                                    <span className="text-[11px] text-white/80 font-medium">عرض بحجم كامل</span>
+                                  </div>
+                                </div>
+                                {/* Image number badge */}
+                                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/50 backdrop-blur-sm text-[10px] text-white font-medium">
+                                  {idx + 1} / {currentLesson.images!.length}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {/* Video type lesson */}
                   {currentLesson.type === 'video' && (
                     <motion.div
@@ -3069,6 +3131,75 @@ export function CourseViewerPage() {
             course={course}
             onClose={() => setShowEnrollModal(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Image Lightbox */}
+      <AnimatePresence>
+        {lightboxImage && currentLesson?.images && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setLightboxImage(null)}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Image counter */}
+            <div className="absolute top-4 right-4 z-10 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium">
+              {lightboxImage.index + 1} / {currentLesson.images.length}
+            </div>
+
+            {/* Navigation arrows */}
+            {currentLesson.images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const prevIdx = lightboxImage.index > 0 ? lightboxImage.index - 1 : currentLesson.images!.length - 1
+                    setLightboxImage({ src: currentLesson.images![prevIdx], index: prevIdx })
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const nextIdx = lightboxImage.index < currentLesson.images!.length - 1 ? lightboxImage.index + 1 : 0
+                    setLightboxImage({ src: currentLesson.images![nextIdx], index: nextIdx })
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                >
+                  <ChevronLeft className="w-6 h-6 rotate-180" />
+                </button>
+              </>
+            )}
+
+            {/* Main image */}
+            <motion.div
+              key={lightboxImage.index}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="relative max-w-[90vw] max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={lightboxImage.src}
+                alt={`صورة تعليمية ${lightboxImage.index + 1}`}
+                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+              />
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
