@@ -540,3 +540,26 @@ Stage Summary:
 - Latest code (with caching) is only in the GitHub repo, not deployed to nabd-academy
 - Fix requires: Change Vercel project connection in Vercel dashboard OR redeploy with Vercel CLI token
 - Deploy script created at: scripts/deploy-to-nabd.sh
+---
+Task ID: 14
+Agent: Main Agent
+Task: Deploy latest code to nabd-academy.vercel.app (same existing Vercel project)
+
+Work Log:
+- Received Vercel token from user
+- Verified Vercel account: mshay2024m-9265
+- Listed all 5 Vercel projects and found that med-ai-academy IS the nabd-academy project (nabd-academy.vercel.app is an alias)
+- Confirmed 18 environment variables exist (MONGODB_URI, JWT_SECRET, VAPID keys, ZAI keys, etc.) - did NOT change any
+- Pulled Vercel project settings (vercel pull --environment=production)
+- Built for Vercel production (vercel build --prod)
+- Deployed prebuilt output to production (vercel deploy --prebuilt --prod)
+- Verified deployment: nabd-academy.vercel.app now has latest code with performance caching headers
+- All 24 courses still accessible
+- Home page returns HTTP 200
+
+Stage Summary:
+- Successfully deployed to nabd-academy.vercel.app on the SAME existing project (med-ai-academy)
+- No environment variables were changed
+- Cache headers now active: private, max-age=15 (was: public, max-age=0, must-revalidate before)
+- Deployment URL: https://med-ai-academy-28bd2syo0-mshay2024m-9265s-projects.vercel.app
+- Production alias: https://nabd-academy.vercel.app
