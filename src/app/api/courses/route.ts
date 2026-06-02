@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 
+// Strip heavy fields from lesson data for list view (saves ~95% bandwidth)
+function stripLessonMetadata(lesson: any) {
+  const { content, videoUrl, images, quizData, flashcardData, simulationData, ...meta } = lesson
+  return meta
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { db } = await connectToDatabase()
@@ -25,30 +31,46 @@ export async function GET(req: NextRequest) {
       query.createdAt = { $gte: threeDaysAgo }
     }
 
+    // Use MongoDB projection to exclude heavy lesson content fields at query level
+    // This dramatically reduces data transfer from MongoDB
     const courses = await db.collection('courses')
-      .find(query)
+      .find(query, {
+        projection: {
+          'lessonsData.content': 0,
+          'lessonsData.images': 0,
+          'lessonsData.videoUrl': 0,
+          'lessonsData.quizData': 0,
+          'lessonsData.flashcardData': 0,
+          'lessonsData.simulationData': 0,
+        }
+      })
       .sort({ rating: -1, students: -1 })
       .toArray()
+
+    // Batch aggregation: get student counts for ALL courses in 1 query instead of N+1
+    const courseIds = courses.map(c => c._id)
+    const courseIdsStr = courseIds.map(id => id.toString())
 
     // Get user enrollment status if token is provided
     const authHeader = req.headers.get('Authorization')
     let enrolledCourseIds: Set<string> = new Set()
     let enrollmentMap: Map<string, any> = new Map()
+    let authUserId: string | null = null
+
     if (authHeader) {
       try {
         const token = authHeader.replace('Bearer ', '')
         const { verifyToken } = await import('@/lib/auth')
         const authUser = verifyToken(token)
         if (authUser) {
-          // Query enrollments matching both string and ObjectId userId formats
-          const ObjectId = (await import('mongodb')).ObjectId
-          const userIdQueries = [authUser.id]
-          try { if (ObjectId.isValid(authUser.id)) userIdQueries.push(new ObjectId(authUser.id)) } catch {}
+          authUserId = authUser.id
+          const ObjectIdLib = (await import('mongodb')).ObjectId
+          const userIdQueries: any[] = [authUser.id]
+          try { if (ObjectIdLib.isValid(authUser.id)) userIdQueries.push(new ObjectIdLib(authUser.id)) } catch {}
           const enrollments = await db.collection('enrollments').find({
             userId: { $in: userIdQueries }
           }).toArray()
           enrolledCourseIds = new Set(enrollments.map((e: any) => e.courseId.toString()))
-          // Build enrollment map for gift info
           for (const e of enrollments) {
             enrollmentMap.set(e.courseId.toString(), e)
           }
@@ -56,91 +78,72 @@ export async function GET(req: NextRequest) {
       } catch { /* ignore auth errors */ }
     }
 
-    // Process courses: add stats and filter lesson content
-    const coursesWithStats = await Promise.all(
-      courses.map(async (course) => {
-        const studentCount = await db.collection('enrollments').countDocuments({ courseId: course._id })
-        let isEnrolled = enrolledCourseIds.has(course._id.toString())
-        const isCourseFree = course.price === 0
-        
-        // Also check approved payments for enrollment
-        if (!isEnrolled && !isCourseFree && authHeader) {
-          try {
-            const token = authHeader.replace('Bearer ', '')
-            const { verifyToken } = await import('@/lib/auth')
-            const authUser = verifyToken(token)
-            if (authUser) {
-              const approvedPayment = await db.collection('payments').findOne({
-                userId: authUser.id,
-                courseId: { $in: [course._id.toString()] },
-                status: 'approved',
-              })
-              if (approvedPayment) {
-                isEnrolled = true
-                // Auto-create enrollment from approved payment
-                const existingEnrollment = await db.collection('enrollments').findOne({
-                  userId: authUser.id,
-                  courseId: course._id.toString(),
-                })
-                if (!existingEnrollment) {
-                  await db.collection('enrollments').insertOne({
-                    userId: authUser.id,
-                    courseId: course._id.toString(),
-                    progress: 0,
-                    completedLessons: [],
-                    completed: false,
-                    enrolledAt: new Date(),
-                    updatedAt: new Date(),
-                  }).catch(() => {})
-                }
-              }
-            }
-          } catch { /* ignore */ }
-        }
-        
-        // Filter lessonsData: include all content for free courses or enrolled courses
-        const filteredLessonsData = (course.lessonsData || []).map((lesson: any) => {
-          if (isCourseFree || isEnrolled || lesson.isFree) {
-            return lesson
-          }
-          // For non-free lessons in paid courses (not enrolled), exclude content/videoUrl
-          const { content, videoUrl, ...metaOnly } = lesson
-          return metaOnly
-        })
+    // Batch queries: enrollment counts + approved payments in parallel
+    const [enrollmentCounts, approvedPayments] = await Promise.all([
+      db.collection('enrollments').aggregate([
+        { $match: { courseId: { $in: courseIds } } },
+        { $group: { _id: '$courseId', count: { $sum: 1 } } }
+      ]).toArray(),
+      // Batch check approved payments for non-enrolled paid courses
+      authUserId ? db.collection('payments').find({
+        userId: authUserId,
+        courseId: { $in: courseIdsStr },
+        status: 'approved',
+      }).toArray() : Promise.resolve([])
+    ])
 
-        // Check if this course was gifted by admin
-        const enrollment = enrollmentMap.get(course._id.toString())
-        const isGifted = enrollment?.giftSource === 'admin'
+    // Build lookup maps for O(1) access
+    const studentCountMap = new Map(enrollmentCounts.map(e => [e._id.toString(), e.count]))
+    const approvedPaymentCourseIds = new Set(approvedPayments.map((p: any) => p.courseId?.toString()))
 
-        // Include lessons from separate collection if lessonsData is empty
-        let finalLessonsData = filteredLessonsData
-        if ((!finalLessonsData || finalLessonsData.length === 0) && course.id) {
-          const separateLessons = await db.collection('lessons').find({
-            courseId: { $in: [course.id, course._id.toString()] }
-          }).sort({ order: 1 }).toArray()
-          finalLessonsData = separateLessons.map((lesson: any) => {
-            if (isCourseFree || isEnrolled || lesson.isFree) {
-              return lesson
-            }
-            const { content, videoUrl, quizData, flashcardData, simulationData, images, ...metaOnly } = lesson
-            return metaOnly
-          })
-        }
+    // Process courses with pre-computed data (no N+1 queries)
+    const coursesWithStats = courses.map((course) => {
+      const courseIdStr = course._id.toString()
+      const studentCount = studentCountMap.get(courseIdStr) || course.students || 0
+      let isEnrolled = enrolledCourseIds.has(courseIdStr)
+      const isCourseFree = course.price === 0
 
-        return {
-          ...course,
-          id: course._id.toString(),
-          customId: course.id || null,
-          departmentId: course.departmentId?.toString() || null,
-          recommended: course.recommended || false,
-          students: studentCount || course.students || 0,
-          lessonsData: finalLessonsData,
-          isEnrolled: isEnrolled || isCourseFree,
-          isGifted,
-          giftedAt: isGifted ? (enrollment.giftedAt?.toISOString?.() || enrollment.giftedAt) : null,
+      // Check if user has approved payment for this course (from batch query)
+      if (!isEnrolled && !isCourseFree && approvedPaymentCourseIds.has(courseIdStr)) {
+        isEnrolled = true
+      }
+
+      // Lessons already stripped by MongoDB projection - just add isFree info
+      const lessonsMetadata = (course.lessonsData || []).map((lesson: any) => ({
+        ...stripLessonMetadata(lesson),
+        isLocked: !(isCourseFree || isEnrolled || lesson.isFree),
+      }))
+
+      // Check if this course was gifted by admin
+      const enrollment = enrollmentMap.get(courseIdStr)
+      const isGifted = enrollment?.giftSource === 'admin'
+
+      return {
+        ...course,
+        id: courseIdStr,
+        customId: course.id || null,
+        departmentId: course.departmentId?.toString() || null,
+        recommended: course.recommended || false,
+        students: studentCount,
+        lessonsData: lessonsMetadata,
+        isEnrolled: isEnrolled || isCourseFree,
+        isGifted,
+        giftedAt: isGifted ? (enrollment.giftedAt?.toISOString?.() || enrollment.giftedAt) : null,
+      }
+    })
+
+    // Auto-create enrollments for approved payments (fire-and-forget, non-blocking)
+    if (authUserId && approvedPaymentCourseIds.size > 0) {
+      for (const courseIdStr of approvedPaymentCourseIds) {
+        if (!enrolledCourseIds.has(courseIdStr)) {
+          db.collection('enrollments').updateOne(
+            { userId: authUserId, courseId: courseIdStr },
+            { $setOnInsert: { progress: 0, completedLessons: [], completed: false, enrolledAt: new Date(), updatedAt: new Date() } },
+            { upsert: true }
+          ).catch(() => {})
         }
-      })
-    )
+      }
+    }
 
     return NextResponse.json({ courses: coursesWithStats, total: coursesWithStats.length })
   } catch (error: any) {

@@ -1014,6 +1014,8 @@ export function AdminPage() {
   const [editingCourse, setEditingCourse] = useState<ApiCourse | null>(null)
   const [addingLessonToCourse, setAddingLessonToCourse] = useState<string | null>(null)
   const [editingLesson, setEditingLesson] = useState<{ course: ApiCourse; lesson: ApiLesson } | null>(null)
+  const [fullCourseDataMap, setFullCourseDataMap] = useState<Map<string, ApiCourse>>(new Map())
+  const [loadingFullCourse, setLoadingFullCourse] = useState<string | null>(null)
 
   const [usersSearch, setUsersSearch] = useState('')
   const [usersPage, setUsersPage] = useState(1)
@@ -1079,6 +1081,60 @@ export function AdminPage() {
       if (data.success) setCourses(data.courses || [])
     } catch (err) { console.error('Fetch courses error:', err) }
   }, [])
+
+  // Fetch full course data (with lesson content/images) on demand - only when expanding/editing
+  const fetchFullCourseData = useCallback(async (courseId: string): Promise<ApiCourse | null> => {
+    // Check cache first
+    const cached = fullCourseDataMap.get(courseId)
+    if (cached) return cached
+
+    setLoadingFullCourse(courseId)
+    try {
+      const res = await fetch(`/api/courses/${courseId}`, { headers: getAuthHeaders() })
+      const data = await res.json()
+      if (data.course) {
+        const fullCourse = data.course as ApiCourse
+        setFullCourseDataMap(prev => new Map(prev).set(courseId, fullCourse))
+        return fullCourse
+      }
+    } catch (err) { console.error('Fetch full course data error:', err) }
+    setLoadingFullCourse(null)
+    return null
+  }, [fullCourseDataMap])
+
+  // Handle expanding a course - fetch full data on demand
+  const handleExpandCourse = useCallback(async (courseId: string) => {
+    if (expandedCourseId === courseId) {
+      setExpandedCourseId(null)
+      return
+    }
+    setExpandedCourseId(courseId)
+    // Fetch full lesson data in background for editing purposes
+    fetchFullCourseData(courseId)
+  }, [expandedCourseId, fetchFullCourseData])
+
+  // Handle editing a lesson - ensure full data is loaded
+  const handleEditLesson = useCallback(async (course: ApiCourse, lesson: ApiLesson) => {
+    const fullCourse = fullCourseDataMap.get(course._id)
+    if (fullCourse) {
+      const fullLesson = (fullCourse.lessonsData || []).find(l => l.id === lesson.id)
+      if (fullLesson) {
+        setEditingLesson({ course: fullCourse, lesson: fullLesson })
+        return
+      }
+    }
+    // Fetch full data if not cached
+    const fetched = await fetchFullCourseData(course._id)
+    if (fetched) {
+      const fullLesson = (fetched.lessonsData || []).find(l => l.id === lesson.id)
+      if (fullLesson) {
+        setEditingLesson({ course: fetched, lesson: fullLesson })
+        return
+      }
+    }
+    // Fallback to metadata-only lesson
+    setEditingLesson({ course, lesson })
+  }, [fullCourseDataMap, fetchFullCourseData])
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -2082,7 +2138,7 @@ export function AdminPage() {
                                 {courseIdx + 1}
                               </div>
                               {/* Course info - tappable to expand */}
-                              <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
+                              <button onClick={() => handleExpandCourse(course._id)}
                                 className="flex-1 min-w-0 text-right hover:bg-muted/50 rounded-lg transition-colors p-1">
                                 <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                                   <h4 className="font-bold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">{course.titleAr}</h4>
@@ -2211,7 +2267,7 @@ export function AdminPage() {
                                               {/* Actions */}
                                               <div className="flex items-center gap-0.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
                                                 <Button variant="ghost" size="icon"
-                                                  onClick={() => setEditingLesson({ course, lesson })}
+                                                  onClick={() => handleEditLesson(course, lesson)}
                                                   className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-neon-cyan/10 rounded-lg">
                                                   <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
                                                 </Button>
@@ -2274,7 +2330,7 @@ export function AdminPage() {
                           <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br ${getCategoryColor(course.category)} border flex items-center justify-center text-xs sm:text-sm font-bold shrink-0`}>
                             {courseIdx + 1}
                           </div>
-                          <button onClick={() => setExpandedCourseId(isExpanded ? null : course._id)}
+                          <button onClick={() => handleExpandCourse(course._id)}
                             className="flex-1 min-w-0 text-right hover:bg-muted/50 rounded-lg transition-colors p-1">
                             <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                               <h4 className="font-bold text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">{course.titleAr}</h4>
@@ -2363,7 +2419,7 @@ export function AdminPage() {
                                         </div>
                                         <div className="flex items-center gap-0.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
                                           <Button variant="ghost" size="icon"
-                                            onClick={() => setEditingLesson({ course, lesson })}
+                                            onClick={() => handleEditLesson(course, lesson)}
                                             className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-neon-cyan/10 rounded-lg">
                                             <Edit3 className="h-3.5 w-3.5 text-neon-cyan" />
                                           </Button>

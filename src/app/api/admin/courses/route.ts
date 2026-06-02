@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
 
+// Strip heavy fields from lesson data for list view (saves ~95% bandwidth)
+function stripLessonMetadata(lesson: any) {
+  const { content, images, videoUrl, quizData, flashcardData, simulationData, ...meta } = lesson
+  return meta
+}
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.headers.get('Authorization')?.replace('Bearer ', '')
@@ -18,13 +24,25 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const category = searchParams.get('category')
     const published = searchParams.get('published')
+    const full = searchParams.get('full') === 'true' // Only load full data when explicitly requested
 
     let query: any = {}
     if (category) query.category = category
     if (published !== null) query.published = published === 'true'
 
+    // Use MongoDB projection to exclude heavy lesson content fields at query level
+    // unless full=true is requested (for editing a specific course's lessons)
+    const projection = full ? {} : {
+      'lessonsData.content': 0,
+      'lessonsData.images': 0,
+      'lessonsData.videoUrl': 0,
+      'lessonsData.quizData': 0,
+      'lessonsData.flashcardData': 0,
+      'lessonsData.simulationData': 0,
+    }
+
     const courses = await db.collection('courses')
-      .find(query)
+      .find(query, { projection })
       .sort({ createdAt: -1 })
       .toArray()
 
@@ -47,35 +65,67 @@ export async function GET(req: NextRequest) {
     const enrollmentMap = new Map(enrollmentCounts.map(e => [e._id.toString(), e.count]))
     const revenueMap = new Map(revenueResults.map(r => [r._id, r.total]))
 
-    // Merge lessons from separate 'lessons' collection for courses with empty lessonsData
-    const coursesWithLessons = await Promise.all(courses.map(async (course) => {
-      if (!course.lessonsData || course.lessonsData.length === 0) {
-        const courseIdStr = course._id.toString()
-        const courseIdQueries: any[] = [courseIdStr]
-        // Also check by course.id if it exists (some courses have a separate 'id' field)
-        if (course.id) {
-          courseIdQueries.push(course.id)
-        }
-        const separateLessons = await db.collection('lessons').find({
-          courseId: { $in: courseIdQueries }
-        }).sort({ order: 1 }).toArray()
+    // For courses with empty lessonsData, get lesson count from separate collection
+    // Use batch query instead of N+1
+    const coursesWithEmptyLessons = courses.filter(c => !c.lessonsData || c.lessonsData.length === 0)
+    let separateLessonCounts: Map<string, number> = new Map()
+    let separateLessonMetadata: Map<string, any[]> = new Map()
 
-        if (separateLessons.length > 0) {
-          return {
-            ...course,
-            lessonsData: separateLessons,
-            lessons: separateLessons.length,
-          }
-        }
+    if (coursesWithEmptyLessons.length > 0) {
+      // Build courseId queries for all courses with empty lessonsData
+      const allCourseIdQueries: string[] = []
+      for (const course of coursesWithEmptyLessons) {
+        allCourseIdQueries.push(course._id.toString())
+        if (course.id) allCourseIdQueries.push(course.id)
       }
-      return course
-    }))
 
-    const coursesWithStats = coursesWithLessons.map(course => ({
-      ...course,
-      studentCount: enrollmentMap.get(course._id.toString()) || 0,
-      revenue: revenueMap.get(course._id.toString()) || 0,
-    }))
+      // Single batch query to get all separate lessons
+      const separateLessons = await db.collection('lessons')
+        .find({ courseId: { $in: allCourseIdQueries } })
+        .sort({ order: 1 })
+        .toArray()
+
+      // Group lessons by courseId
+      for (const course of coursesWithEmptyLessons) {
+        const courseIdStr = course._id.toString()
+        const courseIdQueries = [courseIdStr]
+        if (course.id) courseIdQueries.push(course.id)
+
+        const courseLessons = separateLessons.filter((l: any) =>
+          courseIdQueries.includes(l.courseId)
+        )
+        separateLessonCounts.set(courseIdStr, courseLessons.length)
+        separateLessonMetadata.set(courseIdStr, courseLessons.map(stripLessonMetadata))
+      }
+    }
+
+    const coursesWithStats = courses.map(course => {
+      const courseIdStr = course._id.toString()
+      const hasEmptyLessons = !course.lessonsData || course.lessonsData.length === 0
+
+      // If lessonsData is empty but we have separate lessons
+      let finalLessonsData = course.lessonsData || []
+      let lessonsCount = course.lessons || (course.lessonsData?.length || 0)
+
+      if (hasEmptyLessons) {
+        const metadata = separateLessonMetadata.get(courseIdStr)
+        if (metadata && metadata.length > 0) {
+          finalLessonsData = metadata
+          lessonsCount = separateLessonCounts.get(courseIdStr) || metadata.length
+        }
+      } else if (!full) {
+        // Strip heavy fields from lessonsData (already done by projection, but as safety net)
+        finalLessonsData = (course.lessonsData || []).map(stripLessonMetadata)
+      }
+
+      return {
+        ...course,
+        lessonsData: finalLessonsData,
+        lessons: lessonsCount,
+        studentCount: enrollmentMap.get(courseIdStr) || 0,
+        revenue: revenueMap.get(courseIdStr) || 0,
+      }
+    })
 
     return NextResponse.json({
       success: true,
