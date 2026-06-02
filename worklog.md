@@ -357,3 +357,24 @@ Stage Summary:
 48. حقن الأدوية وتقنيات الإعطاء - ★ مميزة - 16 درس
 49. التعقيم ومكافحة العدوى - مجانية - 10 دروس
 50. التواصل مع المريض والأخلاقيات - مجانية - 8 دروس
+---
+Task ID: 6
+Agent: Main Agent
+Task: Create Course #4: الحروق والإصابات الحرارية (Burns and Thermal Injuries)
+
+Work Log:
+- Generated 10 professional AI images for burns course (burn depth, rule of nines, emergency management, fluid resuscitation, inhalation injury, chemical burns, electrical burns, pediatric burns, complications, wound care & rehab)
+- Compressed all images to JPEG 70% quality with 800x800 max size using sharp (74-148 KB each)
+- Created comprehensive burns course script with 10 detailed Arabic lessons
+- Ran the script to insert course into MongoDB (medai_academy database)
+- Pushed to GitHub and deployed to Vercel production
+
+Stage Summary:
+- Burns Course created: الحروق والإصابات الحرارية (Burns and Thermal Injuries)
+- 10 lessons covering: Introduction, Burn Depth Classification, TBSA Calculation, Emergency Management, Fluid Resuscitation (Parkland Formula), Inhalation Injury, Chemical Burns, Electrical Burns, Pediatric Burns, Complications & Wound Care & Rehabilitation
+- 10 images compressed and stored in MongoDB as base64
+- Course type: عادية (Regular) - Price: 800 SAR, isPremium: false
+- Category: emergency
+- Duration: 12 hours
+- Level: intermediate
+- Deployed to: https://nabd-academy.vercel.app/
