@@ -27,3 +27,25 @@ Stage Summary:
 - Image support fully implemented: upload (admin) → store (MongoDB) → display (viewer)
 - Emergency Medicines course created with 15 lessons and 16 professional medicine images
 - Deployed to https://nabd-academy.vercel.app/
+---
+Task ID: 2
+Agent: Main Agent
+Task: Create BLS (Basic Life Support) Course - Course #2 from 50-course list
+
+Work Log:
+- Created 15 professional AI-generated images for BLS course (CPR, AED, Heimlich, recovery position, infant CPR, drowning, naloxone, BVM, etc.)
+- Converted SVG CPR diagram to PNG
+- Compressed all images to JPEG 70% quality with 800x800 max size using sharp
+- Created comprehensive BLS course script with 15 detailed lessons in Arabic
+- Ran the script to insert course into MongoDB (medai_academy database)
+- Successfully deployed to Vercel production
+
+Stage Summary:
+- BLS Course created: دليل الإنعاش القلبي الرئوي الأساسي (BLS)
+- 15 lessons covering: Introduction, Initial Assessment, High-Quality CPR, Airway & Rescue Breathing, AED, Choking Relief (Adults), Recovery Position, Pediatric BLS, Infant BLS, Drowning Resuscitation, Opioid Overdose & Naloxone, Team Dynamics, CPR Feedback Devices, Legal/Ethical Considerations, Practical Scenarios
+- 15 images compressed and stored in MongoDB as base64
+- Course type: Free (price: 0, isPremium: false)
+- Category: emergency
+- Duration: 16 hours
+- Level: beginner
+- Deployed to: https://nabd-academy.vercel.app/
