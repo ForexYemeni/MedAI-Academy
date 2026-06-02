@@ -916,102 +916,13 @@ export function CoursesPage() {
       .catch(() => {})
   }, [])
 
-  // Fetch courses from API on mount
+  // Fetch courses from API with client-side caching for instant display
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        // Send auth token so API can include lesson content for enrolled courses
-        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
-        const res = await fetch('/api/courses', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-        const data = await res.json()
-        if (data.courses && data.courses.length > 0) {
-          // Map API courses to store format
-          const apiCourses: Course[] = data.courses.map((c: any) => ({
-            id: c._id?.toString() || c.id,
-            title: c.title || '',
-            titleAr: c.titleAr || '',
-            description: c.descriptionAr || c.description || '',
-            category: c.category || 'general',
-            thumbnail: c.thumbnail || '',
-            instructor: c.instructorName || c.instructor || '',
-            rating: c.rating || 0,
-            students: c.students || 0,
-            duration: c.duration || '0 ساعة',
-            level: c.level || 'beginner',
-            price: c.price ?? 0,
-            isPremium: c.isPremium || false,
-            isGifted: c.isGifted || false,
-            giftedAt: c.giftedAt || null,
-            lessons: c.lessons || (c.lessonsData?.length || 0),
-            tags: c.tags || [],
-            departmentId: c.departmentId || null,
-            recommended: c.recommended || false,
-            createdAt: c.createdAt || null,
-            lessonsData: c.lessonsData?.map((l: any) => ({
-              id: l.id,
-              courseId: c._id?.toString() || c.id,
-              title: l.title || '',
-              titleAr: l.titleAr || '',
-              type: l.type || 'article',
-              duration: l.duration || 15,
-              order: l.order || 1,
-              isFree: l.isFree || false,
-              content: l.content,
-              videoUrl: l.videoUrl,
-              images: l.images,
-              summary: l.summary,
-              keyPoints: l.keyPoints,
-            })) || [],
-          }))
-          // Extract all lessons from courses and update the store's lessons array
-          const allLessons = apiCourses.flatMap(c => c.lessonsData || [])
-
-          // Sync courseProgress with API enrollments
-          // This ensures that after admin approves payment, the user can access the course
-          const currentProgress = useAppStore.getState().courseProgress
-          const existingCourseIds = new Set(currentProgress.map(p => p.courseId))
-          const newProgressEntries: CourseProgress[] = []
-
-          for (const apiCourse of data.courses) {
-            const courseId = apiCourse._id?.toString() || apiCourse.id
-            const isEnrolled = apiCourse.isEnrolled === true
-
-            // If the API says the user is enrolled but there's no progress entry, create one
-            if (isEnrolled && !existingCourseIds.has(courseId)) {
-              const courseLessons = allLessons.filter(l => l.courseId === courseId)
-              const firstLesson = courseLessons.sort((a, b) => a.order - b.order)[0]
-              newProgressEntries.push({
-                courseId,
-                completedLessons: [],
-                lastAccessedLessonId: firstLesson?.id || null,
-                progress: 0,
-                lastAccessedAt: Date.now(),
-              })
-            }
-          }
-
-          const updatedProgress = [...currentProgress, ...newProgressEntries]
-
-          // Only update store if we got courses from the API
-          useAppStore.setState({
-            courses: apiCourses,
-            lessons: allLessons,
-            courseProgress: updatedProgress,
-          })
-
-          // Save updated progress to localStorage
-          if (typeof window !== 'undefined' && newProgressEntries.length > 0) {
-            localStorage.setItem('medai-progress', JSON.stringify(updatedProgress))
-          }
-        }
-      } catch (err) {
-        // Keep using Zustand mock data as fallback
-        console.log('Using local course data as fallback')
-      }
+    const loadData = async () => {
+      const { fetchCoursesWithCache } = await import('@/lib/fetch-cache')
+      fetchCoursesWithCache()
     }
-    fetchCourses()
+    loadData()
   }, [])
 
   // Filter and sort courses

@@ -778,85 +778,14 @@ export function HomePage() {
     localStorage.setItem('nabd-install-dismissed', String(Date.now()))
   }
 
-  // Fetch courses from API on mount - ensures real DB data with correct prices
+  // Fetch courses from API with client-side caching for instant display
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('medai-token') : null
-        const res = await fetch('/api/courses', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-        const data = await res.json()
-        if (data.courses && data.courses.length > 0) {
-          const apiCourses: Course[] = data.courses.map((c: any) => ({
-            id: c._id?.toString() || c.id,
-            title: c.title || '',
-            titleAr: c.titleAr || '',
-            description: c.descriptionAr || c.description || '',
-            category: c.category || 'general',
-            thumbnail: c.thumbnail || '',
-            instructor: c.instructorName || c.instructor || '',
-            rating: c.rating || 0,
-            students: c.students || 0,
-            duration: c.duration || '0 ساعة',
-            level: c.level || 'beginner',
-            price: c.price ?? 0,
-            isPremium: c.isPremium || false,
-            isGifted: c.isGifted || false,
-            giftedAt: c.giftedAt || null,
-            lessons: c.lessons || (c.lessonsData?.length || 0),
-            tags: c.tags || [],
-            lessonsData: c.lessonsData?.map((l: any) => ({
-              id: l.id,
-              courseId: c._id?.toString() || c.id,
-              title: l.title || '',
-              titleAr: l.titleAr || '',
-              type: l.type || 'article',
-              duration: l.duration || 15,
-              order: l.order || 1,
-              isFree: l.isFree || false,
-              content: l.content,
-              videoUrl: l.videoUrl,
-              summary: l.summary,
-              keyPoints: l.keyPoints,
-            })) || [],
-          }))
-          const allLessons = apiCourses.flatMap(c => c.lessonsData || [])
-
-          // Sync enrollment progress
-          const currentProgress = useAppStore.getState().courseProgress
-          const existingCourseIds = new Set(currentProgress.map(p => p.courseId))
-          const newProgressEntries: CourseProgress[] = []
-          for (const apiCourse of data.courses) {
-            const courseId = apiCourse._id?.toString() || apiCourse.id
-            const isEnrolled = apiCourse.isEnrolled === true
-            if (isEnrolled && !existingCourseIds.has(courseId)) {
-              const courseLessons = allLessons.filter(l => l.courseId === courseId)
-              const firstLesson = courseLessons.sort((a, b) => a.order - b.order)[0]
-              newProgressEntries.push({
-                courseId,
-                completedLessons: [],
-                lastAccessedLessonId: firstLesson?.id || null,
-                progress: 0,
-                lastAccessedAt: Date.now(),
-              })
-            }
-          }
-          const updatedProgress = [...currentProgress, ...newProgressEntries]
-          useAppStore.setState({
-            courses: apiCourses,
-            lessons: allLessons,
-            courseProgress: updatedProgress,
-          })
-          if (typeof window !== 'undefined' && newProgressEntries.length > 0) {
-            localStorage.setItem('medai-progress', JSON.stringify(updatedProgress))
-          }
-        }
-      } catch {
-        // Keep using Zustand store data as fallback
-      }
+    const loadData = async () => {
+      // Use cached data fetcher - returns instantly if cache is fresh
+      const { fetchCoursesWithCache } = await import('@/lib/fetch-cache')
+      fetchCoursesWithCache()
     }
-    fetchCourses()
+    loadData()
   }, [])
 
   // Derived data - professional stats instead of XP/Coins

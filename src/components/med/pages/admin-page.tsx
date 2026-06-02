@@ -1074,11 +1074,12 @@ export function AdminPage() {
 
   // ─── API Fetch Functions ────────────────────────────────
 
-  const fetchCourses = useCallback(async () => {
+  const fetchCourses = useCallback(async (forceRefresh?: boolean) => {
     try {
-      const res = await fetch('/api/admin/courses', { headers: getAuthHeaders() })
-      const data = await res.json()
-      if (data.success) setCourses(data.courses || [])
+      // Use client-side cached fetcher for instant display
+      const { fetchAdminCoursesWithCache } = await import('@/lib/fetch-cache')
+      const { courses: apiCourses } = await fetchAdminCoursesWithCache({ forceRefresh: !!forceRefresh })
+      setCourses(apiCourses)
     } catch (err) { console.error('Fetch courses error:', err) }
   }, [])
 
@@ -1444,7 +1445,7 @@ export function AdminPage() {
         method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(formData),
       })
       const data = await res.json()
-      if (data.success) { setShowAddCourse(false); await fetchCourses() }
+      if (data.success) { setShowAddCourse(false); await fetchCourses(true) }
       else setError(data.error || 'فشل إضافة الدورة')
     } catch { setError('خطأ في الاتصال') }
     setSaving(false)
@@ -1459,7 +1460,7 @@ export function AdminPage() {
         body: JSON.stringify({ courseId: editingCourse._id, ...formData }),
       })
       const data = await res.json()
-      if (data.success) { setEditingCourse(null); await fetchCourses() }
+      if (data.success) { setEditingCourse(null); await fetchCourses(true) }
       else setError(data.error || 'فشل تعديل الدورة')
     } catch { setError('خطأ في الاتصال') }
     setSaving(false)
@@ -1480,7 +1481,7 @@ export function AdminPage() {
             method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ courseId }),
           })
           const data = await res.json()
-          if (data.success) { setExpandedCourseId(null); await fetchCourses() }
+          if (data.success) { setExpandedCourseId(null); await fetchCourses(true) }
           else setError(data.error || 'فشل حذف الدورة')
         } catch { setError('خطأ في الاتصال') }
         setSaving(false)
@@ -1498,7 +1499,7 @@ export function AdminPage() {
         body: JSON.stringify({ courseId, lesson: formData }),
       })
       const data = await res.json()
-      if (data.success) { setAddingLessonToCourse(null); await fetchCourses() }
+      if (data.success) { setAddingLessonToCourse(null); await fetchCourses(true) }
       else setError(data.error || 'فشل إضافة الدرس')
     } catch { setError('خطأ في الاتصال') }
     setSaving(false)
@@ -1517,7 +1518,7 @@ export function AdminPage() {
       })
       const data = await res.json()
       console.log('Update lesson response:', data)
-      if (data.success) { setEditingLesson(null); await fetchCourses() }
+      if (data.success) { setEditingLesson(null); await fetchCourses(true) }
       else setError(data.error || 'فشل تعديل الدرس')
     } catch (e) { console.error('Update lesson error:', e); setError('خطأ في الاتصال') }
     setSaving(false)
@@ -1539,7 +1540,7 @@ export function AdminPage() {
             body: JSON.stringify({ courseId, lessonId }),
           })
           const data = await res.json()
-          if (data.success) { await fetchCourses() }
+          if (data.success) { await fetchCourses(true) }
           else setError(data.error || 'فشل حذف الدرس')
         } catch { setError('خطأ في الاتصال') }
         setSaving(false)
@@ -1676,7 +1677,7 @@ export function AdminPage() {
         body: JSON.stringify({ courseId: course._id, published: !course.published }),
       })
       const data = await res.json()
-      if (data.success) await fetchCourses()
+      if (data.success) await fetchCourses(true)
       else setError(data.error || 'فشل تحديث الحالة')
     } catch { setError('خطأ في الاتصال') }
     setSaving(false)

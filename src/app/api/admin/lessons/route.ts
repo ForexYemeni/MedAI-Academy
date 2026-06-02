@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
+import { cache } from '@/lib/cache'
 
 // Helper: determine if a course uses the separate 'lessons' collection
 async function usesSeparateLessonsCollection(db: any, courseId: string): Promise<boolean> {
@@ -89,6 +90,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Invalidate all course caches after lesson mutation
+    cache.invalidateCourses()
+
     return NextResponse.json({
       success: true,
       lessonId: lesson.id,
@@ -153,6 +157,9 @@ export async function PUT(req: NextRequest) {
         }
       )
     }
+
+    // Invalidate all course caches after lesson mutation
+    cache.invalidateCourses()
 
     return NextResponse.json({
       success: true,
@@ -242,6 +249,9 @@ export async function DELETE(req: NextRequest) {
         }
       )
     }
+
+    // Invalidate all course caches after lesson mutation
+    cache.invalidateCourses()
 
     return NextResponse.json({
       success: true,

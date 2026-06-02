@@ -276,6 +276,14 @@ interface AppState {
   getCourseProgress: (courseId: string) => CourseProgress | undefined
   enrollInCourse: (courseId: string) => void
 
+  // ─── Client-side Cache Tracking ───────────────────────────
+  _lastCoursesFetch: number
+  _coursesFetchPromise: Promise<any> | null
+  _lastAdminCoursesFetch: number
+  _adminCoursesFetchPromise: Promise<any> | null
+  _cachedAdminCourses: any[]
+  COURSES_CACHE_TTL: number
+
   // Enrollment modal
   showEnrollModal: boolean
   setShowEnrollModal: (show: boolean) => void
@@ -493,6 +501,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Lessons (fetched from API on demand)
   lessons: [],
+
+  // Client-side cache tracking
+  _lastCoursesFetch: 0,
+  _coursesFetchPromise: null,
+  _lastAdminCoursesFetch: 0,
+  _adminCoursesFetchPromise: null,
+  _cachedAdminCourses: [],
+  COURSES_CACHE_TTL: 30000, // 30 seconds - don't refetch within this window
 
   // Course progress - initialize empty
   courseProgress: [],
