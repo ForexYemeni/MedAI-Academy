@@ -88,6 +88,71 @@ function getYouTubeId(url: string): string | null {
 
 // ─── Professional Markdown Content Renderer ──────────────────
 
+// Convert plain Arabic text to Markdown format for professional rendering
+function normalizePlainTextToMarkdown(content: string): string {
+  // Check if content already has real Markdown formatting
+  // Must have headings (#, ##, ###) or bullet lists (- ) or bold (**) or tables (|)
+  // Don't count numbered lists alone as Markdown since they also appear in plain text
+  const hasRealMarkdown = /^#{1,3}\s/m.test(content) || /^-\s/m.test(content) || /\*\*[^*]+\*\*/.test(content) || /^\|/m.test(content)
+  if (hasRealMarkdown) return content
+
+  // Process plain Arabic text into Markdown
+  const lines = content.split('\n')
+  const result: string[] = []
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) { result.push(''); continue }
+
+    // Detect Arabic section headers: lines ending with colon → ## heading
+    if (/^.{3,80}:$/.test(trimmed)) {
+      const headerText = trimmed.replace(/:$/, '')
+      result.push(`## ${headerText}`)
+      continue
+    }
+
+    // Detect numbered items with inline colon headings: "1. العنوان: المحتوى"
+    const numberedColonMatch = trimmed.match(/^(\d+)\.\s+(.{3,50}?):\s+(.+)$/)
+    if (numberedColonMatch) {
+      const [, num, title, body] = numberedColonMatch
+      result.push(`**${num}. ${title}:**`)
+      result.push(body)
+      continue
+    }
+
+    // Detect inline colon headings: "العنوان: المحتوى" (short phrase: content)
+    const colonHeadingMatch = trimmed.match(/^(.{3,50}?):\s+(.+)$/)
+    if (colonHeadingMatch) {
+      const [, title, body] = colonHeadingMatch
+      const titleWords = title.split(/\s+/).length
+      // Only treat as heading if the title part is short (2-7 words)
+      if (titleWords >= 2 && titleWords <= 7) {
+        result.push(`### ${title}`)
+        result.push(body)
+        continue
+      }
+    }
+
+    // Detect short standalone lines that look like sub-headings
+    // Arabic topic headers like "المرحلة الأولى - المسح العام" or "النزيف الخفيف"
+    if (
+      trimmed.length >= 5 && trimmed.length <= 80 &&
+      !trimmed.endsWith('.') && !trimmed.endsWith('،') && !trimmed.endsWith(',') &&
+      !trimmed.includes('،') && trimmed.split(' ').length <= 8 &&
+      !/^\d/.test(trimmed) && !trimmed.startsWith('-') &&
+      !trimmed.endsWith(':')
+    ) {
+      result.push(`### ${trimmed}`)
+      continue
+    }
+
+    // Keep as-is for regular paragraphs
+    result.push(trimmed)
+  }
+
+  return result.join('\n')
+}
+
 function formatInline(text: string): React.ReactNode {
   // Process bold text with medical-style highlight
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
@@ -108,7 +173,9 @@ function getKey() { return `c-${++_globalKey}` }
 
 function renderContent(content: string) {
   _globalKey = 0
-  const lines = content.split('\n')
+  // Normalize plain text to Markdown if needed
+  const normalizedContent = normalizePlainTextToMarkdown(content)
+  const lines = normalizedContent.split('\n')
   const elements: React.ReactNode[] = []
   let inTable = false
   let tableRows: string[][] = []
