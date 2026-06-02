@@ -131,8 +131,23 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    // Get lessons: prefer embedded lessonsData, fallback to lessons collection
+    let rawLessons = course.lessonsData || []
+    if (rawLessons.length === 0) {
+      // Fallback: fetch from lessons collection using courseId
+      const { ObjectId: ObjId } = await import('mongodb')
+      const courseIdQueries: any[] = [courseStrId]
+      try { if (ObjId.isValid(courseStrId)) courseIdQueries.push(new ObjId(courseStrId)) } catch {}
+      // Also try matching by custom id field
+      if (course.id) courseIdQueries.push(course.id)
+      
+      rawLessons = await db.collection('lessons').find({
+        courseId: { $in: courseIdQueries }
+      }).sort({ order: 1 }).toArray()
+    }
+
     // Normalize and filter lessons based on access
-    const lessonsData = (course.lessonsData || []).map((lesson: any) => {
+    const lessonsData = rawLessons.map((lesson: any) => {
       // Normalize lesson type: 'text' -> 'article' for compatibility
       const normalizedType = lesson.type === 'text' ? 'article' : (lesson.type || 'article')
 
