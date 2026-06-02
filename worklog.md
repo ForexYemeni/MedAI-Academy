@@ -493,3 +493,27 @@ Stage Summary:
 - Duration: 20 hours
 - Level: advanced
 - Deployed to: https://nabd-academy.vercel.app/
+---
+Task ID: 12
+Agent: Main Agent
+Task: Create Course #11: قراءة تخطيط القلب للمبتدئين (ECG Reading for Beginners)
+
+Work Log:
+- Generated 14 professional English AI images for ECG course (ECG basics, P wave, QRS complex, ST/T wave, PR interval, QT interval, heart rate, ECG leads, normal sinus, atrial fib, heart blocks, BBB, VTach/VFib, systematic approach)
+- Compressed all images to JPEG 70% quality with 800x800 max size using sharp (27-123 KB each)
+- Created comprehensive ECG course script with 14 detailed Arabic lessons using professional Markdown formatting (##, ###, -, **, tables, code blocks)
+- All lessons use type: 'article' and duration as numbers (not text)
+- Ran the script to insert course into MongoDB (medai_academy database)
+- All 14 lessons verified with content (30,547 chars total) and images (14/14)
+- Pushed to GitHub and deployed to Vercel production
+
+Stage Summary:
+- ECG Course created: قراءة تخطيط القلب للمبتدئين (ECG Reading for Beginners)
+- 14 lessons covering: Introduction, Cardiac Conduction System, P Wave, QRS Complex, ST Segment & T Wave, PR Interval, QT Interval & QRS Duration, Heart Rate Calculation, 12 ECG Leads, Normal Sinus Rhythm, Atrial Fibrillation & Flutter, Bundle Branch Blocks, VT & VF, Systematic ECG Approach
+- 14 images (English) compressed and stored in MongoDB as base64
+- Course type: مجانية (Free) - Price: 0 SAR, isPremium: false
+- Category: cardiology (أمراض القلب)
+- Duration: 14 hours
+- Level: beginner
+- All content written in professional Markdown from the start (tables, headings, bullet points, bold, code blocks)
+- Deployed to: https://nabd-academy.vercel.app/
