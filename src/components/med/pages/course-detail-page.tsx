@@ -6,7 +6,7 @@ import {
   ArrowRight, BookOpen, Clock, Play, Pause, CheckCircle2, Lock,
   Crown, Star, Users, ChevronDown, ChevronUp, FileText,
   Video, FileIcon, GraduationCap, Loader2, ArrowLeft,
-  Hourglass, X, Volume2, VolumeX, Maximize, Minimize, Heart, Thermometer, Wind, Droplets, Activity, Zap, Siren, Syringe, Stethoscope, User, ClipboardList, RotateCcw, Trophy, Brain, Target, Lightbulb
+  Hourglass, X, Volume2, VolumeX, Maximize, Minimize, Heart, Thermometer, Wind, Droplets, Activity, Zap, Siren, Syringe, Stethoscope, User, ClipboardList, RotateCcw, Trophy, Brain, Target, Lightbulb, Award, Shield
 } from 'lucide-react'
 import { useAppStore, type Course } from '@/store/app-store'
 import { Button } from '@/components/ui/button'
