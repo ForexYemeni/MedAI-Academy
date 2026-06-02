@@ -112,13 +112,29 @@ export async function GET(req: NextRequest) {
         const enrollment = enrollmentMap.get(course._id.toString())
         const isGifted = enrollment?.giftSource === 'admin'
 
+        // Include lessons from separate collection if lessonsData is empty
+        let finalLessonsData = filteredLessonsData
+        if ((!finalLessonsData || finalLessonsData.length === 0) && course.id) {
+          const separateLessons = await db.collection('lessons').find({
+            courseId: { $in: [course.id, course._id.toString()] }
+          }).sort({ order: 1 }).toArray()
+          finalLessonsData = separateLessons.map((lesson: any) => {
+            if (isCourseFree || isEnrolled || lesson.isFree) {
+              return lesson
+            }
+            const { content, videoUrl, quizData, flashcardData, simulationData, images, ...metaOnly } = lesson
+            return metaOnly
+          })
+        }
+
         return {
           ...course,
           id: course._id.toString(),
+          customId: course.id || null,
           departmentId: course.departmentId?.toString() || null,
           recommended: course.recommended || false,
           students: studentCount || course.students || 0,
-          lessonsData: filteredLessonsData,
+          lessonsData: finalLessonsData,
           isEnrolled: isEnrolled || isCourseFree,
           isGifted,
           giftedAt: isGifted ? (enrollment.giftedAt?.toISOString?.() || enrollment.giftedAt) : null,
