@@ -88,8 +88,45 @@ function getYouTubeId(url: string): string | null {
 
 // ─── Professional Markdown Content Renderer ──────────────────
 
+// Convert HTML content to Markdown format
+function htmlToMarkdown(content: string): string {
+  if (!content.includes('<')) return content // Not HTML
+  
+  let md = content
+  // Convert HTML headings to Markdown
+  md = md.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n')
+  md = md.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n')
+  md = md.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n')
+  md = md.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n')
+  // Convert HTML lists to Markdown
+  md = md.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+  md = md.replace(/<\/?[uo]l[^>]*>/gi, '\n')
+  // Convert bold/strong
+  md = md.replace(/<(strong|b)[^>]*>(.*?)<\/(strong|b)>/gi, '**$2**')
+  // Convert italic/em
+  md = md.replace(/<(em|i)[^>]*>(.*?)<\/(em|i)>/gi, '*$2*')
+  // Convert line breaks and paragraphs
+  md = md.replace(/<br\s*\/?>/gi, '\n')
+  md = md.replace(/<\/p>/gi, '\n\n')
+  md = md.replace(/<p[^>]*>/gi, '')
+  // Remove all remaining HTML tags
+  md = md.replace(/<[^>]+>/g, '')
+  // Decode common HTML entities
+  md = md.replace(/&nbsp;/g, ' ')
+  md = md.replace(/&amp;/g, '&')
+  md = md.replace(/&lt;/g, '<')
+  md = md.replace(/&gt;/g, '>')
+  md = md.replace(/&quot;/g, '"')
+  // Clean up excessive blank lines
+  md = md.replace(/\n{3,}/g, '\n\n')
+  return md.trim()
+}
+
 // Convert plain Arabic text to Markdown format for professional rendering
 function normalizePlainTextToMarkdown(content: string): string {
+  // First: convert HTML to Markdown if content contains HTML tags
+  content = htmlToMarkdown(content)
+  
   // Check if content already has real Markdown formatting
   // Must have headings (#, ##, ###) or bullet lists (- ) or bold (**) or tables (|)
   // Don't count numbered lists alone as Markdown since they also appear in plain text
