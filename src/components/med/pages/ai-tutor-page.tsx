@@ -1542,12 +1542,8 @@ export function AITutorPage() {
               <div className="space-y-1">
                 <AnimatePresence mode="popLayout">
                   {aiMessages.map((msg) => (
-                    <motion.div
+                    <div
                       key={msg.id}
-                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
                       className={`flex items-start gap-3 mb-4 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                     >
                       {msg.role === 'assistant' ? (
@@ -1561,7 +1557,8 @@ export function AITutorPage() {
                       )}
 
                       <div
-                        onClick={(e) => {
+                        onContextMenu={(e) => {
+                          e.preventDefault()
                           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                           setMessageMenu({
                             msgId: msg.id,
@@ -1573,7 +1570,7 @@ export function AITutorPage() {
                             },
                           })
                         }}
-                        className={`max-w-[80%] cursor-pointer active:scale-[0.98] transition-transform ${
+                        className={`max-w-[80%] select-text ${ 
                           msg.role === 'user'
                             ? 'rounded-2xl rounded-bl-sm'
                             : 'glass-card rounded-2xl rounded-br-sm'
@@ -1605,7 +1602,7 @@ export function AITutorPage() {
                           )}
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </AnimatePresence>
 

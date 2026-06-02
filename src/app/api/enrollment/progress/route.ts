@@ -3,7 +3,7 @@ import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
 import { ObjectId } from 'mongodb'
 
-// GET /api/enrollment/progress?all=true - Get all user enrollments
+// GET /api/enrollment/progress?all=true - Get all user enrollments (OPTIMIZED: batch queries)
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('Authorization')
@@ -22,44 +22,72 @@ export async function GET(req: NextRequest) {
     const all = url.searchParams.get('all')
 
     if (all === 'true') {
-      // Get all enrollments for the user
+      // 1. Get all enrollments for the user (single query)
       const enrollments = await db.collection('enrollments')
         .find({ userId: authUser.id })
         .toArray()
 
-      // Enrich each enrollment with course details and payment info
-      const enrichedEnrollments = await Promise.all(enrollments.map(async (e) => {
-        const courseId = e.courseId?.toString() || ''
+      if (enrollments.length === 0) {
+        return NextResponse.json({ success: true, enrollments: [] })
+      }
 
-        // Fetch course details
-        let course: any = null
-        try {
-          if (ObjectId.isValid(courseId)) {
-            course = await db.collection('courses').findOne({ _id: new ObjectId(courseId) })
+      // 2. Collect all course IDs for batch lookup
+      const courseIds: string[] = []
+      const objectIds: ObjectId[] = []
+      for (const e of enrollments) {
+        const cid = e.courseId?.toString() || ''
+        courseIds.push(cid)
+        try { if (ObjectId.isValid(cid)) objectIds.push(new ObjectId(cid)) } catch {}
+      }
+
+      // 3. Batch fetch courses (single query instead of N queries)
+      const courseQuery = objectIds.length > 0
+        ? { $or: [{ _id: { $in: objectIds } }, { id: { $in: courseIds } }] }
+        : { id: { $in: courseIds } }
+      const coursesArray = await db.collection('courses')
+        .find(courseQuery, {
+          projection: {
+            titleAr: 1, title: 1, category: 1, level: 1, price: 1,
+            'lessonsData.id': 1, // only count lessons, skip heavy content
           }
-        } catch { /* ignore */ }
-        if (!course) {
-          course = await db.collection('courses').findOne({ id: courseId })
-        }
+        })
+        .toArray()
 
-        // Check if this was a gift
+      // Build course lookup map (O(1) access)
+      const courseMap = new Map<string, any>()
+      for (const c of coursesArray) {
+        courseMap.set(c._id.toString(), c)
+        if (c.id) courseMap.set(c.id, c)
+      }
+
+      // 4. Batch fetch approved payments (single query instead of N queries)
+      const paymentCourseIds = [...courseIds, ...objectIds.map(oid => oid.toString())]
+      const approvedPayments = await db.collection('payments')
+        .find({
+          userId: authUser.id,
+          courseId: { $in: paymentCourseIds },
+          status: 'approved',
+        })
+        .toArray()
+
+      // Build approved payment lookup set
+      const approvedPaymentSet = new Set<string>()
+      for (const p of approvedPayments) {
+        approvedPaymentSet.add(p.courseId?.toString() || '')
+      }
+
+      // 5. Enrich enrollments using pre-fetched data (no additional DB queries)
+      const enrichedEnrollments = enrollments.map((e) => {
+        const courseId = e.courseId?.toString() || ''
+        const course = courseMap.get(courseId)
         const isGifted = e.giftSource === 'admin'
-
-        // Check if there's an approved payment for this enrollment
-        let paymentInfo: any = null
-        if (!isGifted) {
-          paymentInfo = await db.collection('payments').findOne({
-            userId: authUser.id,
-            courseId: { $in: [courseId, course?._id?.toString()] },
-            status: 'approved',
-          })
-        }
+        const hasApprovedPayment = approvedPaymentSet.has(courseId) || approvedPaymentSet.has(course?._id?.toString() || '')
 
         // Determine subscription type
-        let subscriptionType = 'free' // free course
+        let subscriptionType = 'free'
         if (isGifted) {
           subscriptionType = 'gift'
-        } else if (paymentInfo) {
+        } else if (hasApprovedPayment) {
           subscriptionType = 'paid'
         } else if (course && course.price > 0) {
           subscriptionType = 'paid'
@@ -83,7 +111,7 @@ export async function GET(req: NextRequest) {
           totalLessons: course?.lessonsData?.length || 0,
           updatedAt: e.updatedAt || null,
         }
-      }))
+      })
 
       return NextResponse.json({
         success: true,
