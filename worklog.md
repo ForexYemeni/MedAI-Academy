@@ -517,3 +517,26 @@ Stage Summary:
 - Level: beginner
 - All content written in professional Markdown from the start (tables, headings, bullet points, bold, code blocks)
 - Deployed to: https://nabd-academy.vercel.app/
+---
+Task ID: 13
+Agent: Main Agent
+Task: Fix Vercel deployment - deploy to nabd-academy instead of my-project
+
+Work Log:
+- Investigated the Vercel deployment issue
+- Found that GitHub integration deploys to "my-project" Vercel project (mshay2024m-9265s-projects team) instead of "nabd-academy"
+- The .vercel/project.json links to "med-ai-academy" (a third project)
+- Verified nabd-academy.vercel.app is live (200 OK, 24 courses) but has outdated code (no caching headers)
+- Verified my-project Vercel URL returns 404
+- Tried multiple approaches to deploy to Vercel: CLI, API, GitHub Actions, agent-browser
+- All require Vercel authentication token which is not available in this session
+- Created deployment script (scripts/deploy-to-nabd.sh)
+- Pushed empty commit and deploy script to GitHub to trigger Vercel deployment
+- Created GitHub Actions workflow file (can't push due to token scope restrictions)
+
+Stage Summary:
+- Root cause: GitHub repo connected to wrong Vercel project (my-project instead of nabd-academy)
+- nabd-academy.vercel.app has outdated code (missing performance caching)
+- Latest code (with caching) is only in the GitHub repo, not deployed to nabd-academy
+- Fix requires: Change Vercel project connection in Vercel dashboard OR redeploy with Vercel CLI token
+- Deploy script created at: scripts/deploy-to-nabd.sh
