@@ -1044,7 +1044,7 @@ export function CourseDetailPage() {
                             </h4>
                             <div className="flex items-center gap-2 mt-1">
                               {/* Lesson type badge */}
-                              {lesson.type === 'article' && (
+                              {(lesson.type === 'article' || lesson.type === 'text') && (
                                 <span className="flex items-center gap-1 text-[10px] text-blue-400">
                                   <FileText className="w-3 h-3" />
                                   مقال
@@ -1105,7 +1105,7 @@ export function CourseDetailPage() {
                   <div className="p-4 border-b border-white/5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        {activeLesson.type === 'article' && <FileText className="w-4 h-4 text-blue-400" />}
+                        {(activeLesson.type === 'article' || activeLesson.type === 'text') && <FileText className="w-4 h-4 text-blue-400" />}
                         {activeLesson.type === 'video' && <Video className="w-4 h-4 text-purple-400" />}
                         {activeLesson.type === 'pdf' && <FileIcon className="w-4 h-4 text-amber-400" />}
                         <h3 className="text-sm sm:text-base font-bold text-white">
@@ -1144,7 +1144,7 @@ export function CourseDetailPage() {
                     })()}
 
                     {/* Article Content */}
-                    {activeLesson.type === 'article' && activeLesson.content && (
+                    {(activeLesson.type === 'article' || activeLesson.type === 'text') && activeLesson.content && (
                       <div
                         className="prose prose-invert prose-sm sm:prose-base max-w-none
                           prose-headings:text-white prose-headings:font-bold
@@ -1184,7 +1184,7 @@ export function CourseDetailPage() {
                     )}
 
                     {/* Empty content */}
-                    {activeLesson.type === 'article' && !activeLesson.content && (
+                    {(activeLesson.type === 'article' || activeLesson.type === 'text') && !activeLesson.content && (
                       <div className="text-center py-8">
                         <FileText className="w-12 h-12 text-blue-400/30 mx-auto mb-3" />
                         <p className="text-sm text-muted-foreground">لم يتم إضافة محتوى لهذا الدرس بعد</p>

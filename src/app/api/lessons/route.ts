@@ -131,12 +131,35 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Filter lessons based on access
+    // Normalize and filter lessons based on access
     const lessonsData = (course.lessonsData || []).map((lesson: any) => {
+      // Normalize lesson type: 'text' -> 'article' for compatibility
+      const normalizedType = lesson.type === 'text' ? 'article' : (lesson.type || 'article')
+
+      // Normalize duration: convert string like '60 دقيقة' to number
+      let normalizedDuration = lesson.duration
+      if (typeof normalizedDuration === 'string') {
+        const numMatch = normalizedDuration.match(/(\d+)/)
+        normalizedDuration = numMatch ? parseInt(numMatch[1]) : 15
+      }
+      if (typeof normalizedDuration !== 'number' || isNaN(normalizedDuration)) {
+        normalizedDuration = 15
+      }
+
+      // Ensure titleAr fallback
+      const normalizedTitleAr = lesson.titleAr || lesson.title || ''
+
+      const normalizedLesson = {
+        ...lesson,
+        type: normalizedType,
+        duration: normalizedDuration,
+        titleAr: normalizedTitleAr,
+      }
+
       if (isEnrolled || lesson.isFree || isCourseFree) {
-        return { ...lesson, isLocked: false }
+        return { ...normalizedLesson, isLocked: false }
       } else {
-        const { content, videoUrl, quizData, flashcardData, simulationData, images, ...metaOnly } = lesson
+        const { content, videoUrl, quizData, flashcardData, simulationData, images, ...metaOnly } = normalizedLesson
         return { ...metaOnly, isLocked: true }
       }
     })

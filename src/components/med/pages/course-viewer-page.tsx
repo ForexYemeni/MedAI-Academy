@@ -47,6 +47,7 @@ const levelConfig = {
 
 const lessonTypeIcons = {
   article: FileText,
+  text: FileText, // 'text' is alias for 'article'
   video: Play,
   quiz: HelpCircle,
   simulation: Activity,
@@ -55,6 +56,7 @@ const lessonTypeIcons = {
 
 const lessonTypeLabels = {
   article: 'مقال',
+  text: 'مقال',
   video: 'فيديو',
   quiz: 'اختبار',
   simulation: 'محاكاة',
@@ -63,6 +65,7 @@ const lessonTypeLabels = {
 
 const lessonTypeColors = {
   article: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+  text: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
   video: 'bg-red-500/15 text-red-400 border-red-500/25',
   quiz: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   simulation: 'bg-purple-500/15 text-purple-400 border-purple-500/25',
@@ -370,8 +373,10 @@ function LessonItem({
   totalLessons: number
   onClick: () => void
 }) {
-  const TypeIcon = lessonTypeIcons[lesson.type]
-  const typeColor = lessonTypeColors[lesson.type]
+  // Fallback to 'article' if type is unknown
+  const normalizedType = (lessonTypeIcons[lesson.type as keyof typeof lessonTypeIcons] ? lesson.type : 'article') as keyof typeof lessonTypeIcons
+  const TypeIcon = lessonTypeIcons[normalizedType]
+  const typeColor = lessonTypeColors[normalizedType]
 
   return (
     <motion.button
@@ -446,8 +451,8 @@ function LessonItem({
               الدرس {lesson.order}
             </span>
             <Badge className={`text-[9px] px-1.5 py-0 ${typeColor} border`}>
-              <TypeIcon className="w-2.5 h-2.5 ml-0.5" />
-              {lessonTypeLabels[lesson.type]}
+              {TypeIcon && <TypeIcon className="w-2.5 h-2.5 ml-0.5" />}
+              {lessonTypeLabels[normalizedType]}
             </Badge>
             {lesson.isFree && !isCompleted && (
               <Badge className="text-[9px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
@@ -2584,13 +2589,17 @@ export function CourseViewerPage() {
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border flex-wrap">
                   {(() => {
                     const typeCounts: Record<string, number> = {}
-                    courseLessons.forEach(l => { typeCounts[l.type] = (typeCounts[l.type] || 0) + 1 })
+                    courseLessons.forEach(l => {
+                      const nt = lessonTypeIcons[l.type as keyof typeof lessonTypeIcons] ? l.type : 'article'
+                      typeCounts[nt] = (typeCounts[nt] || 0) + 1
+                    })
                     return Object.entries(typeCounts).map(([type, count]) => {
                       const TypeIcon = lessonTypeIcons[type as keyof typeof lessonTypeIcons]
                       const color = lessonTypeColors[type as keyof typeof lessonTypeColors]
+                      if (!TypeIcon) return null
                       return (
                         <span key={type} className={`text-[9px] px-1.5 py-0.5 rounded-full border ${color} flex items-center gap-0.5`}>
-                          {TypeIcon && <TypeIcon className="w-2.5 h-2.5" />}
+                          <TypeIcon className="w-2.5 h-2.5" />
                           {count} {lessonTypeLabels[type as keyof typeof lessonTypeLabels]}
                         </span>
                       )
@@ -2747,9 +2756,13 @@ export function CourseViewerPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-xs text-muted-foreground font-mono">الدرس {currentLesson.order} من {courseLessons.length}</span>
-                          <Badge className={`text-[10px] px-1.5 py-0 ${lessonTypeColors[currentLesson.type]} border`}>
-                            {React.createElement(lessonTypeIcons[currentLesson.type], { className: 'w-2.5 h-2.5 ml-0.5 inline' })}
-                            {lessonTypeLabels[currentLesson.type]}
+                          <Badge className={`text-[10px] px-1.5 py-0 ${lessonTypeColors[(lessonTypeIcons[currentLesson.type as keyof typeof lessonTypeIcons] ? currentLesson.type : 'article') as keyof typeof lessonTypeColors]} border`}>
+                            {(() => {
+                              const nt = (lessonTypeIcons[currentLesson.type as keyof typeof lessonTypeIcons] ? currentLesson.type : 'article') as keyof typeof lessonTypeIcons
+                              const Icon = lessonTypeIcons[nt]
+                              return Icon ? <Icon className="w-2.5 h-2.5 ml-0.5 inline" /> : null
+                            })()}
+                            {lessonTypeLabels[(lessonTypeIcons[currentLesson.type as keyof typeof lessonTypeIcons] ? currentLesson.type : 'article') as keyof typeof lessonTypeLabels]}
                           </Badge>
                           {isLessonCompleted(currentLesson.id) && (
                             <Badge className="text-[10px] px-1.5 py-0 bg-neon-green/15 text-neon-green border border-neon-green/25">
@@ -2813,7 +2826,7 @@ export function CourseViewerPage() {
                   )}
 
                   {/* Lesson Content - Article */}
-                  {currentLesson.content && currentLesson.type === 'article' && (
+                  {currentLesson.content && (currentLesson.type === 'article' || currentLesson.type === 'text') && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}

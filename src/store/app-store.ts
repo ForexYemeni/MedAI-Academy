@@ -105,7 +105,7 @@ export interface Lesson {
   courseId: string
   title: string
   titleAr: string
-  type: 'video' | 'article' | 'quiz' | 'simulation' | 'flashcard'
+  type: 'video' | 'article' | 'quiz' | 'simulation' | 'flashcard' | 'text'
   duration: number // minutes
   order: number
   isFree: boolean
