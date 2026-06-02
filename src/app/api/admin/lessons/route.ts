@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { verifyToken } from '@/lib/auth'
 
+// Helper: determine if a course uses the separate 'lessons' collection
+async function usesSeparateLessonsCollection(db: any, courseId: string): Promise<boolean> {
+  const { ObjectId } = await import('mongodb')
+  const course = await db.collection('courses').findOne({ _id: new ObjectId(courseId) })
+  if (!course) return false
+  // If lessonsData is empty or doesn't exist, check if there are lessons in the separate collection
+  if (!course.lessonsData || course.lessonsData.length === 0) {
+    const courseIdQueries: string[] = [courseId]
+    if (course.id) courseIdQueries.push(course.id)
+    const count = await db.collection('lessons').countDocuments({
+      courseId: { $in: courseIdQueries }
+    })
+    return count > 0
+  }
+  return false
+}
+
 // إضافة درس لدورة
 export async function POST(req: NextRequest) {
   try {
@@ -28,22 +45,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'الدورة غير موجودة' }, { status: 404 })
     }
 
-    // إضافة الدرس للقائمة
-    const lessonsData = course.lessonsData || []
-    lesson.id = `lesson-${Date.now()}`
-    lesson.order = lessonsData.length + 1
-    lessonsData.push(lesson)
+    // Determine which storage to use
+    const useSeparate = await usesSeparateLessonsCollection(db, courseId)
 
-    await db.collection('courses').updateOne(
-      { _id: new ObjectId(courseId) },
-      {
-        $set: {
-          lessonsData,
-          lessons: lessonsData.length,
-          updatedAt: new Date(),
+    if (useSeparate) {
+      // Add to separate 'lessons' collection
+      const existingCount = await db.collection('lessons').countDocuments({
+        courseId: { $in: [courseId, ...(course.id ? [course.id] : [])] }
+      })
+      lesson.id = `lesson-${Date.now()}`
+      lesson.order = existingCount + 1
+      lesson.courseId = courseId
+      lesson.createdAt = new Date()
+
+      await db.collection('lessons').insertOne(lesson)
+
+      // Update course lesson count
+      await db.collection('courses').updateOne(
+        { _id: new ObjectId(courseId) },
+        {
+          $set: {
+            lessons: existingCount + 1,
+            updatedAt: new Date(),
+          }
         }
-      }
-    )
+      )
+    } else {
+      // Add to embedded lessonsData
+      const lessonsData = course.lessonsData || []
+      lesson.id = `lesson-${Date.now()}`
+      lesson.order = lessonsData.length + 1
+      lessonsData.push(lesson)
+
+      await db.collection('courses').updateOne(
+        { _id: new ObjectId(courseId) },
+        {
+          $set: {
+            lessonsData,
+            lessons: lessonsData.length,
+            updatedAt: new Date(),
+          }
+        }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -82,19 +126,33 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'الدورة غير موجودة' }, { status: 404 })
     }
 
-    const lessonsData = (course.lessonsData || []).map((l: any) =>
-      l.id === lessonId ? { ...l, ...updates } : l
-    )
+    const useSeparate = await usesSeparateLessonsCollection(db, courseId)
 
-    await db.collection('courses').updateOne(
-      { _id: new ObjectId(courseId) },
-      {
-        $set: {
-          lessonsData,
-          updatedAt: new Date(),
+    if (useSeparate) {
+      // Update in separate 'lessons' collection
+      const courseIdQueries: string[] = [courseId]
+      if (course.id) courseIdQueries.push(course.id)
+      
+      await db.collection('lessons').updateOne(
+        { courseId: { $in: courseIdQueries }, id: lessonId },
+        { $set: { ...updates, updatedAt: new Date() } }
+      )
+    } else {
+      // Update in embedded lessonsData
+      const lessonsData = (course.lessonsData || []).map((l: any) =>
+        l.id === lessonId ? { ...l, ...updates } : l
+      )
+
+      await db.collection('courses').updateOne(
+        { _id: new ObjectId(courseId) },
+        {
+          $set: {
+            lessonsData,
+            updatedAt: new Date(),
+          }
         }
-      }
-    )
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -132,20 +190,58 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'الدورة غير موجودة' }, { status: 404 })
     }
 
-    const lessonsData = (course.lessonsData || []).filter((l: any) => l.id !== lessonId)
-    // إعادة ترتيب الدروس
-    lessonsData.forEach((l: any, i: number) => { l.order = i + 1 })
+    const useSeparate = await usesSeparateLessonsCollection(db, courseId)
 
-    await db.collection('courses').updateOne(
-      { _id: new ObjectId(courseId) },
-      {
-        $set: {
-          lessonsData,
-          lessons: lessonsData.length,
-          updatedAt: new Date(),
-        }
+    if (useSeparate) {
+      // Delete from separate 'lessons' collection
+      const courseIdQueries: string[] = [courseId]
+      if (course.id) courseIdQueries.push(course.id)
+
+      await db.collection('lessons').deleteOne({
+        courseId: { $in: courseIdQueries },
+        id: lessonId,
+      })
+
+      // Re-order remaining lessons
+      const remainingLessons = await db.collection('lessons')
+        .find({ courseId: { $in: courseIdQueries } })
+        .sort({ order: 1 })
+        .toArray()
+
+      for (let i = 0; i < remainingLessons.length; i++) {
+        await db.collection('lessons').updateOne(
+          { _id: remainingLessons[i]._id },
+          { $set: { order: i + 1 } }
+        )
       }
-    )
+
+      // Update course lesson count
+      await db.collection('courses').updateOne(
+        { _id: new ObjectId(courseId) },
+        {
+          $set: {
+            lessons: remainingLessons.length,
+            updatedAt: new Date(),
+          }
+        }
+      )
+    } else {
+      // Delete from embedded lessonsData
+      const lessonsData = (course.lessonsData || []).filter((l: any) => l.id !== lessonId)
+      // إعادة ترتيب الدروس
+      lessonsData.forEach((l: any, i: number) => { l.order = i + 1 })
+
+      await db.collection('courses').updateOne(
+        { _id: new ObjectId(courseId) },
+        {
+          $set: {
+            lessonsData,
+            lessons: lessonsData.length,
+            updatedAt: new Date(),
+          }
+        }
+      )
+    }
 
     return NextResponse.json({
       success: true,

@@ -47,7 +47,31 @@ export async function GET(req: NextRequest) {
     const enrollmentMap = new Map(enrollmentCounts.map(e => [e._id.toString(), e.count]))
     const revenueMap = new Map(revenueResults.map(r => [r._id, r.total]))
 
-    const coursesWithStats = courses.map(course => ({
+    // Merge lessons from separate 'lessons' collection for courses with empty lessonsData
+    const coursesWithLessons = await Promise.all(courses.map(async (course) => {
+      if (!course.lessonsData || course.lessonsData.length === 0) {
+        const courseIdStr = course._id.toString()
+        const courseIdQueries: any[] = [courseIdStr]
+        // Also check by course.id if it exists (some courses have a separate 'id' field)
+        if (course.id) {
+          courseIdQueries.push(course.id)
+        }
+        const separateLessons = await db.collection('lessons').find({
+          courseId: { $in: courseIdQueries }
+        }).sort({ order: 1 }).toArray()
+
+        if (separateLessons.length > 0) {
+          return {
+            ...course,
+            lessonsData: separateLessons,
+            lessons: separateLessons.length,
+          }
+        }
+      }
+      return course
+    }))
+
+    const coursesWithStats = coursesWithLessons.map(course => ({
       ...course,
       studentCount: enrollmentMap.get(course._id.toString()) || 0,
       revenue: revenueMap.get(course._id.toString()) || 0,
