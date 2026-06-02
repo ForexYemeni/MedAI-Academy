@@ -470,3 +470,26 @@ Stage Summary:
 - All lessons accessible (free course, no lock)
 - Deployed to: https://nabd-academy.vercel.app/
 - This completes all 8 courses in the طب الطوارئ (Emergency Medicine) category!
+
+---
+Task ID: 11
+Agent: Main Agent
+Task: Create Course #9: احتشاء عضلة القلب الحاد (STEMI)
+
+Work Log:
+- Generated 16 professional AI images for STEMI course (heart anatomy, coronary arteries, atherosclerosis, chest pain, ECG basics, STEMI ECG changes, STEMI localization, biomarkers, primary PCI, thrombolytics, antiplatelet drugs, complications, cardiogenic shock, RV infarction, rehabilitation, management algorithm)
+- Compressed all images to JPEG 70% quality with 800x800 max size using sharp (69-156 KB each)
+- Created comprehensive STEMI course script with 16 detailed Arabic lessons
+- Ran the script to insert course into MongoDB (medai_academy database)
+- All 16 lessons verified with content (32,450 chars total) and images
+- Pushed to GitHub and deployed to Vercel production
+
+Stage Summary:
+- STEMI Course created: احتشاء عضلة القلب الحاد (STEMI)
+- 16 lessons covering: Introduction, Coronary Anatomy, Atherosclerosis, Clinical Symptoms, ECG Fundamentals, STEMI ECG Changes, STEMI Localization, Cardiac Biomarkers, Primary PCI, Thrombolytics, Antiplatelet/Anticoagulant Therapy, Complications, Cardiogenic Shock, RV Infarction, Cardiac Rehabilitation, Comprehensive STEMI Algorithm
+- 16 images compressed and stored in MongoDB as base64
+- Course type: ★ مميزة (Premium) - Price: 1500 SAR, isPremium: true
+- Category: cardiology (first course in أمراض القلب section!)
+- Duration: 20 hours
+- Level: advanced
+- Deployed to: https://nabd-academy.vercel.app/
