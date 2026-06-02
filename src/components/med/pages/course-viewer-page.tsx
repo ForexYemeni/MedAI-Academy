@@ -444,7 +444,7 @@ function renderTable(headers: string[], rows: string[][]) {
           {rows.map((row, ri) => (
             <tr key={ri} className={`border-b border-border ${ri % 2 === 0 ? 'bg-muted/10' : ''} hover:bg-muted/20 transition-colors`}>
               {row.map((cell, ci) => (
-                <td key={ci} className="px-5 py-3 text-foreground/80 text-[13px] leading-6">
+                <td key={ci} className="px-5 py-3 text-right text-foreground/80 text-[13px] leading-6">
                   {formatInline(cell)}
                 </td>
               ))}
@@ -2955,7 +2955,7 @@ export function CourseViewerPage() {
                           </div>
                         </div>
                         
-                        <div className="prose-content">
+                        <div className="prose-content" dir="rtl" style={{ textAlign: 'right' }}>
                           {renderContent(currentLesson.content)}
                         </div>
                         
@@ -3081,7 +3081,7 @@ export function CourseViewerPage() {
                         {/* Video description/content if exists */}
                         {currentLesson.content && (
                           <div className="p-4 border-t border-border">
-                            <div className="prose-content">
+                            <div className="prose-content" dir="rtl" style={{ textAlign: 'right' }}>
                               {renderContent(currentLesson.content)}
                             </div>
                           </div>
