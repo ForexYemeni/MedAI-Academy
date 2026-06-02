@@ -399,3 +399,25 @@ Stage Summary:
 - Duration: 16 hours
 - Level: intermediate
 - Deployed to: https://nabd-academy.vercel.app/
+---
+Task ID: 8
+Agent: Main Agent
+Task: Create Course #6: الصدمة والتسمم الدموي (Shock and Sepsis)
+
+Work Log:
+- Generated 16 professional AI images for shock and sepsis course
+- Compressed all images to JPEG 70% quality with 800x800 max size using sharp (66-129 KB each)
+- Created comprehensive shock and sepsis course script with 16 detailed Arabic lessons
+- Fixed syntax error with Arabic characters in code blocks
+- Ran the script to insert course into MongoDB (medai_academy database)
+- Pushed to GitHub and deployed to Vercel production
+
+Stage Summary:
+- Shock and Sepsis Course created: الصدمة والتسمم الدموي (Shock and Sepsis)
+- 16 lessons covering: Introduction, Hypovolemic Shock, Cardiogenic Shock, Distributive Shock, Sepsis Pathophysiology, Sepsis Scoring (qSOFA/SOFA), Sepsis Hour-1 Bundle, Fluid Resuscitation, Vasopressors, Obstructive Shock, DIC, Septic Shock Management, MODS, Anaphylactic Shock, Hemodynamic Monitoring, Neurogenic Shock
+- 16 images compressed and stored in MongoDB as base64
+- Course type: ★ مميزة (Premium) - Price: 1500 SAR, isPremium: true
+- Category: emergency
+- Duration: 20 hours
+- Level: advanced
+- Deployed to: https://nabd-academy.vercel.app/
