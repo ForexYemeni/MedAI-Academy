@@ -916,13 +916,14 @@ export function CoursesPage() {
       .catch(() => {})
   }, [])
 
-  // Fetch courses from API with client-side caching for instant display
+  // Load courses INSTANTLY from localStorage cache (synchronous - zero delay)
   useEffect(() => {
-    const loadData = async () => {
-      const { fetchCoursesWithCache } = await import('@/lib/fetch-cache')
+    import('@/lib/fetch-cache').then(({ loadCoursesFromCache, fetchCoursesWithCache }) => {
+      // Load from cache first (instant)
+      loadCoursesFromCache()
+      // Then refresh from API in background
       fetchCoursesWithCache()
-    }
-    loadData()
+    })
   }, [])
 
   // Filter and sort courses
@@ -1006,13 +1007,38 @@ export function CoursesPage() {
     [courses, recommendedCourses]
   )
 
-  // Don't render until courses are loaded from API
+  // Show skeleton only on first-ever visit (no cache)
   if (courses.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center" dir="rtl">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-neon-cyan animate-spin" />
-          <p className="text-muted-foreground text-sm">جاري تحميل الدورات...</p>
+      <div className="min-h-screen pb-8" dir="rtl">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Search skeleton */}
+          <div className="space-y-4">
+            <div className="h-12 rounded-xl bg-muted/20 animate-pulse" />
+          </div>
+          {/* Category skeleton */}
+          <div className="flex gap-2 overflow-hidden">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-8 w-20 rounded-full bg-muted/20 animate-pulse flex-shrink-0" />
+            ))}
+          </div>
+          {/* Course cards skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="glass-card overflow-hidden rounded-2xl">
+                <div className="h-36 bg-muted/20 animate-pulse" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-muted/20 rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-muted/20 rounded animate-pulse w-1/2" />
+                  <div className="h-3 bg-muted/20 rounded animate-pulse w-1/3" />
+                  <div className="flex justify-between items-center pt-2">
+                    <div className="h-5 w-16 bg-muted/20 rounded animate-pulse" />
+                    <div className="h-7 w-16 bg-muted/20 rounded-lg animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )

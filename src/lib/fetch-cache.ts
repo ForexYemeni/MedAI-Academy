@@ -4,6 +4,35 @@
 
 import { useAppStore, type Course, type CourseProgress } from '@/store/app-store'
 
+const COURSES_LS_KEY = 'medai-courses-cache'
+const PROGRESS_LS_KEY = 'medai-progress'
+
+/**
+ * Load courses from localStorage (synchronous, instant).
+ * Call this FIRST on page load to avoid any loading delay.
+ */
+export function loadCoursesFromCache(): boolean {
+  try {
+    const cached = localStorage.getItem(COURSES_LS_KEY)
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const cachedProgress = localStorage.getItem(PROGRESS_LS_KEY)
+        const progress = cachedProgress ? JSON.parse(cachedProgress) : useAppStore.getState().courseProgress
+        useAppStore.setState({
+          courses: parsed,
+          courseProgress: progress,
+          _lastCoursesFetch: Date.now(),
+        })
+        return true
+      }
+    }
+  } catch (e) {
+    // Ignore cache errors
+  }
+  return false
+}
+
 /**
  * Fetch public courses with client-side caching.
  * Returns cached data instantly if available, then refreshes in background.
@@ -115,8 +144,15 @@ export async function fetchCoursesWithCache(options?: { forceRefresh?: boolean }
           _coursesFetchPromise: null,
         })
 
+        // Persist courses to localStorage for instant loading on next visit
+        try {
+          localStorage.setItem(COURSES_LS_KEY, JSON.stringify(apiCourses))
+        } catch (e) {
+          // Ignore storage quota errors
+        }
+
         if (typeof window !== 'undefined' && newProgressEntries.length > 0) {
-          localStorage.setItem('medai-progress', JSON.stringify(updatedProgress))
+          localStorage.setItem(PROGRESS_LS_KEY, JSON.stringify(updatedProgress))
         }
       }
     } catch (err) {

@@ -320,7 +320,7 @@ function renderContent(content: string) {
       elements.push(
         <motion.div
           key={getKey()}
-          initial={{ opacity: 0, x: 10 }}
+          initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: parseInt(num) * 0.05 }}
           className="flex gap-4 my-3 items-start group"
@@ -345,7 +345,7 @@ function renderContent(content: string) {
       elements.push(
         <motion.div
           key={getKey()}
-          initial={{ opacity: 0, x: 8 }}
+          initial={{ opacity: 0, x: -15 }}
           animate={{ opacity: 1, x: 0 }}
           className="flex gap-3 my-2.5 items-start mr-2 group"
         >
@@ -723,7 +723,7 @@ function PaymentWallOverlay({
               ].map((benefit, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, x: 10 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 + i * 0.1 }}
                   className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/20"
@@ -1839,7 +1839,7 @@ function InlineSimulationLesson({ lesson }: { lesson: Lesson }) {
               {actions.map((action, i) => (
                 <motion.button
                   key={i}
-                  initial={{ opacity: 0, x: 10 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
                   onClick={() => toggleAction(action)}
@@ -2849,9 +2849,9 @@ export function CourseViewerPage() {
                 ) : (
                 <motion.div
                   key={currentLesson.id}
-                  initial={{ opacity: 0, x: 20 }}
+                  initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
+                  exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.3 }}
                 >
                   {/* Lesson Header */}
@@ -2914,7 +2914,7 @@ export function CourseViewerPage() {
                         {currentLesson.keyPoints.map((point, i) => (
                           <motion.div
                             key={i}
-                            initial={{ opacity: 0, x: 10 }}
+                            initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.4 + i * 0.05 }}
                             className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50"

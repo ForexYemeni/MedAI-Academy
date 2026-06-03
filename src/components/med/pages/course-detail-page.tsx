@@ -392,7 +392,7 @@ function DetailInlineSimulation({ lesson }: { lesson: any }) {
               {actions.map((action: string, i: number) => (
                 <motion.button
                   key={i}
-                  initial={{ opacity: 0, x: 10 }}
+                  initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
                   onClick={() => toggleAction(action)}
@@ -786,7 +786,7 @@ export function CourseDetailPage() {
       <div className="max-w-5xl mx-auto px-3 sm:px-6">
         {/* Back Button */}
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="pt-2 pb-3"
         >
@@ -1003,7 +1003,7 @@ export function CourseDetailPage() {
                     return (
                       <motion.div
                         key={lesson.id || lesson._id?.toString() || index}
-                        initial={{ opacity: 0, x: 20 }}
+                        initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.03 }}
                         onClick={() => canAccess ? setActiveLesson(lesson) : null}

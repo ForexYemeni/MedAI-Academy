@@ -374,6 +374,49 @@
   animation: ecg-line 3s linear infinite;
 }
 
+/* ─── Prose Content RTL (Lesson Content) ─── */
+.prose-content {
+  direction: rtl;
+  text-align: right;
+  line-height: 2;
+  font-size: 15px;
+}
+.prose-content h1,
+.prose-content h2,
+.prose-content h3 {
+  direction: rtl;
+  text-align: right;
+}
+.prose-content p {
+  direction: rtl;
+  text-align: right;
+  line-height: 2.2;
+}
+.prose-content ul,
+.prose-content ol {
+  direction: rtl;
+  text-align: right;
+  padding-right: 0;
+  padding-left: 0;
+}
+.prose-content table {
+  direction: rtl;
+  text-align: right;
+}
+.prose-content th,
+.prose-content td {
+  text-align: right;
+  direction: rtl;
+}
+.prose-content blockquote {
+  direction: rtl;
+  text-align: right;
+  border-right: 3px solid var(--neon-cyan);
+  border-left: none;
+  padding-right: 1rem;
+  padding-left: 0;
+}
+
 /* RTL Support */
 [dir="rtl"] .rtl-flip {
   transform: scaleX(-1);
