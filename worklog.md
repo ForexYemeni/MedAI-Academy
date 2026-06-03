@@ -421,145 +421,25 @@ Stage Summary:
 - Duration: 20 hours
 - Level: advanced
 - Deployed to: https://nabd-academy.vercel.app/
----
-Task ID: 9
-Agent: Main Agent
-Task: Create Course #7: طوارئ الأطفال المتقدمة (Advanced Pediatric Emergencies)
-
-Work Log:
-- Generated 18 professional AI images for pediatric emergencies course (intro, primary assessment, secondary survey, CPR, airway management, pediatric shock, respiratory failure, severe asthma, seizures, dehydration, cardiac emergencies, DKA, poisoning, pediatric sepsis, GI emergencies, pediatric trauma, neonatal emergencies, pain management)
-- Compressed all images to JPEG 70% quality with 800x800 max size using sharp (80-149 KB each)
-- Created comprehensive pediatric emergencies course script with 18 detailed Arabic lessons matching existing project data structure
-- Used correct MongoDB connection string and MongoClient approach matching other scripts
-- Ran the script to insert course into MongoDB (medai_academy database)
-- Course and 18 lesson documents created successfully
-- Pushed to GitHub and deployed to Vercel production
-
-Stage Summary:
-- Pediatric Emergencies Course created: طوارئ الأطفال المتقدمة (Advanced Pediatric Emergencies)
-- 18 lessons covering: Introduction, Primary Assessment, Secondary Survey, Pediatric CPR, Airway Management, Pediatric Shock, Respiratory Failure, Severe Asthma, Seizures, Dehydration, Cardiac Emergencies, DKA, Poisoning, Pediatric Sepsis, GI Emergencies, Pediatric Trauma, Neonatal Emergencies, Pain Management
-- 18 images compressed and stored in MongoDB as base64
-- Course type: ★ مميزة (Premium) - Price: 1500 SAR, isPremium: true
-- Category: emergency
-- Duration: 24 hours
-- Level: advanced
-- Deployed to: https://nabd-academy.vercel.app/
 
 ---
-Task ID: 10
+Task ID: 6
 Agent: Main Agent
-Task: Create Course #8: الإسعافات الأولية الميدانية (Field First Aid)
+Task: Create Course #13 - أمراض الصمامات القلبية (Valvular Heart Diseases)
 
 Work Log:
-- Generated 10 professional AI images for field first aid course (intro kit, scene assessment, bleeding control, wound bandaging, fractures/sprains, burn first aid, choking/Heimlich, heat/cold exposure, bites/stings, triage/transport)
-- Compressed all images to JPEG 70% quality with 800x800 max size using sharp (70-121 KB each)
-- Created comprehensive field first aid course script with 10 detailed Arabic lessons
+- Generated 10 professional AI images for valve course (anatomy, rheumatic, mitral stenosis, mitral regurgitation, aortic stenosis, aortic regurgitation, tricuspid disease, echocardiography, endocarditis, prosthetic valves)
+- Compressed all images to JPEG 70% quality with 800x800 max size using sharp
+- Created comprehensive valve course script with 10 detailed lessons in Arabic
 - Ran the script to insert course into MongoDB (medai_academy database)
-- All 10 lessons verified with content and images
-- Pushed to GitHub and deployed to Vercel production
-- Also fixed ACLS last lesson content (was only 50 chars, now full detailed content)
+- Successfully deployed to Vercel production (nabd-academy.vercel.app)
 
 Stage Summary:
-- Field First Aid Course created: الإسعافات الأولية الميدانية (Field First Aid)
-- 10 lessons covering: Introduction, Scene Assessment & Safety, Bleeding Control, Wound Care & Bandaging, Fractures & Sprains, Burn First Aid, Choking & Heimlich Maneuver, Heat Stroke & Cold Exposure, Bites & Stings, Field Triage & Emergency Transport
+- Course #13 created: أمراض الصمامات القلبية (Valvular Heart Diseases)
+- 10 lessons covering: Heart valve anatomy, Rheumatic heart disease, Mitral stenosis, Mitral regurgitation, Aortic stenosis, Aortic regurgitation, Tricuspid/pulmonary diseases, Echocardiographic assessment, Infective endocarditis, Valve replacement
 - 10 images compressed and stored in MongoDB as base64
-- Course type: مجانية (Free) - Price: 0 SAR, isPremium: false
-- Category: emergency
+- Course type: Regular (price: 900 RY, isPremium: false)
+- Category: cardiology
 - Duration: 14 hours
-- Level: beginner
-- All lessons accessible (free course, no lock)
+- Level: intermediate
 - Deployed to: https://nabd-academy.vercel.app/
-- This completes all 8 courses in the طب الطوارئ (Emergency Medicine) category!
-
----
-Task ID: 11
-Agent: Main Agent
-Task: Create Course #9: احتشاء عضلة القلب الحاد (STEMI)
-
-Work Log:
-- Generated 16 professional AI images for STEMI course (heart anatomy, coronary arteries, atherosclerosis, chest pain, ECG basics, STEMI ECG changes, STEMI localization, biomarkers, primary PCI, thrombolytics, antiplatelet drugs, complications, cardiogenic shock, RV infarction, rehabilitation, management algorithm)
-- Compressed all images to JPEG 70% quality with 800x800 max size using sharp (69-156 KB each)
-- Created comprehensive STEMI course script with 16 detailed Arabic lessons
-- Ran the script to insert course into MongoDB (medai_academy database)
-- All 16 lessons verified with content (32,450 chars total) and images
-- Pushed to GitHub and deployed to Vercel production
-
-Stage Summary:
-- STEMI Course created: احتشاء عضلة القلب الحاد (STEMI)
-- 16 lessons covering: Introduction, Coronary Anatomy, Atherosclerosis, Clinical Symptoms, ECG Fundamentals, STEMI ECG Changes, STEMI Localization, Cardiac Biomarkers, Primary PCI, Thrombolytics, Antiplatelet/Anticoagulant Therapy, Complications, Cardiogenic Shock, RV Infarction, Cardiac Rehabilitation, Comprehensive STEMI Algorithm
-- 16 images compressed and stored in MongoDB as base64
-- Course type: ★ مميزة (Premium) - Price: 1500 SAR, isPremium: true
-- Category: cardiology (first course in أمراض القلب section!)
-- Duration: 20 hours
-- Level: advanced
-- Deployed to: https://nabd-academy.vercel.app/
----
-Task ID: 12
-Agent: Main Agent
-Task: Create Course #11: قراءة تخطيط القلب للمبتدئين (ECG Reading for Beginners)
-
-Work Log:
-- Generated 14 professional English AI images for ECG course (ECG basics, P wave, QRS complex, ST/T wave, PR interval, QT interval, heart rate, ECG leads, normal sinus, atrial fib, heart blocks, BBB, VTach/VFib, systematic approach)
-- Compressed all images to JPEG 70% quality with 800x800 max size using sharp (27-123 KB each)
-- Created comprehensive ECG course script with 14 detailed Arabic lessons using professional Markdown formatting (##, ###, -, **, tables, code blocks)
-- All lessons use type: 'article' and duration as numbers (not text)
-- Ran the script to insert course into MongoDB (medai_academy database)
-- All 14 lessons verified with content (30,547 chars total) and images (14/14)
-- Pushed to GitHub and deployed to Vercel production
-
-Stage Summary:
-- ECG Course created: قراءة تخطيط القلب للمبتدئين (ECG Reading for Beginners)
-- 14 lessons covering: Introduction, Cardiac Conduction System, P Wave, QRS Complex, ST Segment & T Wave, PR Interval, QT Interval & QRS Duration, Heart Rate Calculation, 12 ECG Leads, Normal Sinus Rhythm, Atrial Fibrillation & Flutter, Bundle Branch Blocks, VT & VF, Systematic ECG Approach
-- 14 images (English) compressed and stored in MongoDB as base64
-- Course type: مجانية (Free) - Price: 0 SAR, isPremium: false
-- Category: cardiology (أمراض القلب)
-- Duration: 14 hours
-- Level: beginner
-- All content written in professional Markdown from the start (tables, headings, bullet points, bold, code blocks)
-- Deployed to: https://nabd-academy.vercel.app/
----
-Task ID: 13
-Agent: Main Agent
-Task: Fix Vercel deployment - deploy to nabd-academy instead of my-project
-
-Work Log:
-- Investigated the Vercel deployment issue
-- Found that GitHub integration deploys to "my-project" Vercel project (mshay2024m-9265s-projects team) instead of "nabd-academy"
-- The .vercel/project.json links to "med-ai-academy" (a third project)
-- Verified nabd-academy.vercel.app is live (200 OK, 24 courses) but has outdated code (no caching headers)
-- Verified my-project Vercel URL returns 404
-- Tried multiple approaches to deploy to Vercel: CLI, API, GitHub Actions, agent-browser
-- All require Vercel authentication token which is not available in this session
-- Created deployment script (scripts/deploy-to-nabd.sh)
-- Pushed empty commit and deploy script to GitHub to trigger Vercel deployment
-- Created GitHub Actions workflow file (can't push due to token scope restrictions)
-
-Stage Summary:
-- Root cause: GitHub repo connected to wrong Vercel project (my-project instead of nabd-academy)
-- nabd-academy.vercel.app has outdated code (missing performance caching)
-- Latest code (with caching) is only in the GitHub repo, not deployed to nabd-academy
-- Fix requires: Change Vercel project connection in Vercel dashboard OR redeploy with Vercel CLI token
-- Deploy script created at: scripts/deploy-to-nabd.sh
----
-Task ID: 14
-Agent: Main Agent
-Task: Deploy latest code to nabd-academy.vercel.app (same existing Vercel project)
-
-Work Log:
-- Received Vercel token from user
-- Verified Vercel account: mshay2024m-9265
-- Listed all 5 Vercel projects and found that med-ai-academy IS the nabd-academy project (nabd-academy.vercel.app is an alias)
-- Confirmed 18 environment variables exist (MONGODB_URI, JWT_SECRET, VAPID keys, ZAI keys, etc.) - did NOT change any
-- Pulled Vercel project settings (vercel pull --environment=production)
-- Built for Vercel production (vercel build --prod)
-- Deployed prebuilt output to production (vercel deploy --prebuilt --prod)
-- Verified deployment: nabd-academy.vercel.app now has latest code with performance caching headers
-- All 24 courses still accessible
-- Home page returns HTTP 200
-
-Stage Summary:
-- Successfully deployed to nabd-academy.vercel.app on the SAME existing project (med-ai-academy)
-- No environment variables were changed
-- Cache headers now active: private, max-age=15 (was: public, max-age=0, must-revalidate before)
-- Deployment URL: https://med-ai-academy-28bd2syo0-mshay2024m-9265s-projects.vercel.app
-- Production alias: https://nabd-academy.vercel.app
