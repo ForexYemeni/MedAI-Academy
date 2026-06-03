@@ -601,24 +601,24 @@ function MessageActionButtons({ message }: { message: { content: string; role: '
   }
 
   return (
-    <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
       <button
         onClick={handleCopy}
-        className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 transition-all duration-200"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white/5 text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 border border-white/5 hover:border-neon-cyan/20 transition-all duration-200"
         title="نسخ الرسالة"
       >
         {copied ? (
-          <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">تم النسخ</span></>
+          <><Check className="w-3.5 h-3.5 text-emerald-400" /><span className="text-emerald-400">تم النسخ</span></>
         ) : (
-          <><Copy className="w-3 h-3" /><span>نسخ</span></>
+          <><Copy className="w-3.5 h-3.5" /><span>نسخ</span></>
         )}
       </button>
       <button
         onClick={handleShare}
-        className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10 transition-all duration-200"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white/5 text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10 border border-white/5 hover:border-neon-purple/20 transition-all duration-200"
         title="مشاركة الرسالة"
       >
-        <Share2 className="w-3 h-3" /><span>مشاركة</span>
+        <Share2 className="w-3.5 h-3.5" /><span>مشاركة</span>
       </button>
     </div>
   )
