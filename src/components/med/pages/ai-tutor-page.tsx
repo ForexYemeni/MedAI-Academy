@@ -474,20 +474,19 @@ function MessageActionMenu({
   }
 
   const handleShare = async () => {
-    const shareText = `${cleanText}\n\n━━━━━━━━━━━━━━━\n🧠 ${APP_NAME}\n📱 حمّل التطبيق الآن: ${APP_URL}`
-
     if (navigator.share) {
       try {
         await navigator.share({
           title: APP_NAME,
-          text: shareText,
+          text: cleanText,
           url: APP_URL,
         })
       } catch {
         // User cancelled share
       }
     } else {
-      // Fallback: copy to clipboard with app info
+      // Fallback: copy to clipboard with app info (single link)
+      const shareText = `${cleanText}\n\n🧠 ${APP_NAME}\n📱 ${APP_URL}`
       try {
         await navigator.clipboard.writeText(shareText)
       } catch {
@@ -543,6 +542,85 @@ function MessageActionMenu({
         </button>
       </motion.div>
     </>
+  )
+}
+
+// ─── Inline Message Action Buttons (Copy / Share) ──────────────────────
+
+function MessageActionButtons({ message }: { message: { content: string; role: 'user' | 'assistant' } }) {
+  const [copied, setCopied] = useState(false)
+
+  const cleanText = message.content
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^#{1,3}\s/gm, '')
+    .replace(/^[\s]*[-*•]\s/gm, '• ')
+
+  const APP_URL = 'https://nabd-academy.vercel.app/'
+  const APP_NAME = 'نبض أكاديمي - المساعد الطبي الذكي'
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(cleanText)
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = cleanText
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: APP_NAME,
+          text: cleanText,
+          url: APP_URL,
+        })
+      } catch {
+        // User cancelled
+      }
+    } else {
+      const shareText = `${cleanText}\n\n🧠 ${APP_NAME}\n📱 ${APP_URL}`
+      try {
+        await navigator.clipboard.writeText(shareText)
+      } catch {
+        const textarea = document.createElement('textarea')
+        textarea.value = shareText
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <button
+        onClick={handleCopy}
+        className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-muted-foreground hover:text-neon-cyan hover:bg-neon-cyan/10 transition-all duration-200"
+        title="نسخ الرسالة"
+      >
+        {copied ? (
+          <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">تم النسخ</span></>
+        ) : (
+          <><Copy className="w-3 h-3" /><span>نسخ</span></>
+        )}
+      </button>
+      <button
+        onClick={handleShare}
+        className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10 transition-all duration-200"
+        title="مشاركة الرسالة"
+      >
+        <Share2 className="w-3 h-3" /><span>مشاركة</span>
+      </button>
+    </div>
   )
 }
 
@@ -1544,7 +1622,7 @@ export function AITutorPage() {
                   {aiMessages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex items-start gap-3 mb-4 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                      className={`flex items-start gap-3 mb-4 group ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                     >
                       {msg.role === 'assistant' ? (
                         <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-neon-purple to-neon-cyan flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)]">
@@ -1592,13 +1670,19 @@ export function AITutorPage() {
                         <div className="text-sm leading-relaxed text-foreground">
                           {msg.role === 'assistant' ? formatAIText(msg.content) : msg.content}
                         </div>
-                        <div className="flex items-center gap-1.5 mt-2.5 opacity-60">
-                          <Clock className="w-2.5 h-2.5 text-muted-foreground" />
-                          <span className="text-[10px] text-muted-foreground">{formatTime(msg.timestamp)}</span>
-                          {msg.role === 'assistant' && !isPremium && aiUsage && (
-                            <span className="text-[9px] text-muted-foreground mr-2">
-                              • متبقي {remainingMessages}
-                            </span>
+                        <div className="flex items-center justify-between mt-2.5">
+                          <div className="flex items-center gap-1.5 opacity-60">
+                            <Clock className="w-2.5 h-2.5 text-muted-foreground" />
+                            <span className="text-[10px] text-muted-foreground">{formatTime(msg.timestamp)}</span>
+                            {msg.role === 'assistant' && !isPremium && aiUsage && (
+                              <span className="text-[9px] text-muted-foreground mr-2">
+                                • متبقي {remainingMessages}
+                              </span>
+                            )}
+                          </div>
+                          {/* Inline Copy / Share Buttons for assistant messages */}
+                          {msg.role === 'assistant' && (
+                            <MessageActionButtons message={{ content: msg.content, role: msg.role }} />
                           )}
                         </div>
                       </div>

@@ -271,10 +271,10 @@ function renderContent(content: string) {
     // H3 - Sub-section header with medical accent
     if (line.startsWith('### ')) {
       elements.push(
-        <div key={getKey()} className="mt-8 mb-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-1 h-8 rounded-full bg-gradient-to-b from-neon-cyan to-neon-purple shadow-[0_0_8px_rgba(0,245,255,0.3)]" />
-            <h3 className="text-lg font-bold text-foreground">{formatInline(line.slice(4))}</h3>
+        <div key={getKey()} className="mt-8 mb-4 min-w-0">
+          <div className="flex items-center gap-3 mb-2 min-w-0">
+            <div className="w-1 h-8 rounded-full bg-gradient-to-b from-neon-cyan to-neon-purple shadow-[0_0_8px_rgba(0,245,255,0.3)] flex-shrink-0" />
+            <h3 className="text-lg font-bold text-foreground break-words min-w-0">{formatInline(line.slice(4))}</h3>
           </div>
           <div className="h-px bg-gradient-to-l from-neon-cyan/20 via-neon-purple/10 to-transparent mr-4" />
         </div>
@@ -285,13 +285,13 @@ function renderContent(content: string) {
     // H2 - Section header with icon and glow
     if (line.startsWith('## ')) {
       elements.push(
-        <div key={getKey()} className="mt-10 mb-5 relative">
+        <div key={getKey()} className="mt-10 mb-5 relative min-w-0">
           <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-16 h-16 bg-neon-cyan/5 rounded-full blur-2xl" />
-          <div className="relative flex items-center gap-3">
+          <div className="relative flex items-center gap-3 min-w-0">
             <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-neon-cyan/20 to-neon-purple/20 border border-neon-cyan/20 flex items-center justify-center shadow-[0_0_15px_rgba(0,245,255,0.1)]">
               <Sparkles className="w-4 h-4 text-neon-cyan" />
             </div>
-            <h2 className="text-xl font-bold text-foreground">{formatInline(line.slice(3))}</h2>
+            <h2 className="text-xl font-bold text-foreground break-words min-w-0">{formatInline(line.slice(3))}</h2>
           </div>
           <div className="mt-3 h-0.5 rounded-full bg-gradient-to-l from-neon-cyan/30 via-neon-purple/15 to-transparent" />
         </div>
@@ -302,9 +302,9 @@ function renderContent(content: string) {
     // H1 - Main title with neon glow
     if (line.startsWith('# ')) {
       elements.push(
-        <div key={getKey()} className="mt-6 mb-6 relative">
+        <div key={getKey()} className="mt-6 mb-6 relative min-w-0">
           <div className="absolute -right-4 top-0 w-24 h-24 bg-neon-cyan/8 rounded-full blur-3xl" />
-          <h1 className="relative text-2xl font-black neon-text leading-relaxed">
+          <h1 className="relative text-2xl font-black neon-text leading-relaxed break-words min-w-0">
             {formatInline(line.slice(2))}
           </h1>
           <div className="mt-3 h-1 rounded-full bg-gradient-to-l from-neon-cyan/40 via-neon-purple/20 to-transparent w-1/2" />
@@ -333,7 +333,7 @@ function renderContent(content: string) {
               <div className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-full h-2 w-0.5 bg-neon-cyan/15" />
             )}
           </div>
-          <span className="text-foreground/80 leading-8 flex-1 text-[15px]">{formatInline(text)}</span>
+          <span className="text-foreground/80 leading-8 flex-1 text-[15px] break-words min-w-0">{formatInline(text)}</span>
         </motion.div>
       )
       continue
@@ -347,13 +347,13 @@ function renderContent(content: string) {
           key={getKey()}
           initial={{ opacity: 0, x: -15 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex gap-3 my-2.5 items-start mr-2 group"
+          className="flex gap-3 my-2.5 items-start mr-2 group min-w-0"
         >
           <div className="flex-shrink-0 mt-2.5">
             <div className="w-2 h-2 rounded-full bg-gradient-to-br from-neon-cyan to-neon-blue shadow-[0_0_6px_rgba(0,245,255,0.4)]" />
           </div>
-          <div className="flex-1 px-3 py-2 rounded-lg bg-muted/20 border border-border group-hover:border-neon-cyan/15 group-hover:bg-muted/30 transition-all">
-            <span className="text-foreground/80 leading-7 text-[15px]">{formatInline(text)}</span>
+          <div className="flex-1 px-3 py-2 rounded-lg bg-muted/20 border border-border group-hover:border-neon-cyan/15 group-hover:bg-muted/30 transition-all min-w-0">
+            <span className="text-foreground/80 leading-7 text-[15px] break-words">{formatInline(text)}</span>
           </div>
         </motion.div>
       )
@@ -362,7 +362,7 @@ function renderContent(content: string) {
 
     // Regular paragraph with improved typography
     elements.push(
-      <p key={getKey()} className="text-foreground/80 leading-[2] my-3 text-[15px]">
+      <p key={getKey()} className="text-foreground/80 leading-[2] my-3 text-[15px] break-words min-w-0">
         {formatInline(line)}
       </p>
     )
@@ -428,13 +428,14 @@ function renderTable(headers: string[], rows: string[][]) {
       key={getKey()}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="my-6 overflow-x-auto rounded-xl border border-border shadow-[0_0_20px_rgba(0,245,255,0.05)]"
+      className="lesson-table-wrapper my-6"
+      dir="rtl"
     >
-      <table className="w-full text-sm">
+      <table className="lesson-table">
         <thead>
-          <tr className="bg-gradient-to-l from-neon-cyan/10 to-neon-blue/5">
+          <tr>
             {headers.map((h, i) => (
-              <th key={i} className="px-5 py-3.5 text-right font-bold text-neon-cyan border-b border-neon-cyan/15 text-[13px]">
+              <th key={i}>
                 {h}
               </th>
             ))}
@@ -442,9 +443,9 @@ function renderTable(headers: string[], rows: string[][]) {
         </thead>
         <tbody>
           {rows.map((row, ri) => (
-            <tr key={ri} className={`border-b border-border ${ri % 2 === 0 ? 'bg-muted/10' : ''} hover:bg-muted/20 transition-colors`}>
+            <tr key={ri}>
               {row.map((cell, ci) => (
-                <td key={ci} className="px-5 py-3 text-right text-foreground/80 text-[13px] leading-6">
+                <td key={ci}>
                   {formatInline(cell)}
                 </td>
               ))}
@@ -2955,7 +2956,7 @@ export function CourseViewerPage() {
                           </div>
                         </div>
                         
-                        <div className="prose-content" dir="rtl" style={{ textAlign: 'right' }}>
+                        <div className="prose-content px-1 sm:px-2" dir="rtl" style={{ textAlign: 'right' }}>
                           {renderContent(currentLesson.content)}
                         </div>
                         
@@ -3081,7 +3082,7 @@ export function CourseViewerPage() {
                         {/* Video description/content if exists */}
                         {currentLesson.content && (
                           <div className="p-4 border-t border-border">
-                            <div className="prose-content" dir="rtl" style={{ textAlign: 'right' }}>
+                            <div className="prose-content px-1 sm:px-2" dir="rtl" style={{ textAlign: 'right' }}>
                               {renderContent(currentLesson.content)}
                             </div>
                           </div>
