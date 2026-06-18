@@ -67,41 +67,59 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="أكاديمية نبض" />
         <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
         {/*
-          CRITICAL: Anti-FOUC theme bootstrap + force dark as the default.
+          CRITICAL: FORCE DARK MODE PERMANENTLY.
           Runs SYNCHRONOUSLY before React hydration.
 
-          WHY we ignore prefers-color-scheme:
-          The app's UI components were authored against a dark palette
-          (bg-slate-900, text-cyan-400, etc. — 1000+ explicit dark colors).
-          Auto-switching to light mode via system preference makes the UI
-          look broken on phones whose OS is set to light mode. Until the
-          light theme is fully migrated to use CSS variables, we default
-          to dark and ONLY honor the user's explicit choice in localStorage.
+          WHY: The app's UI components were authored against a dark palette
+          (bg-slate-900, text-cyan-400, bg-[#0a0e1a], etc. — 1000+ explicit
+          dark colors). Auto-switching to light mode based on prefers-color-scheme
+          or even an old localStorage value breaks the UI (e.g. "تسجيل الدخول"
+          text becomes invisible: text-muted-foreground (#64748B in light) on
+          a hardcoded #0a0e1a black background).
+
+          FIX: Always force `dark` class on <html>. Remove any `light` class.
+          Even if localStorage has 'medai-theme=light' from an old session,
+          we still force dark — the `.light` CSS class is now aliased to the
+          same dark palette as a safety net, so even if it leaks through, the
+          UI still looks correct.
         */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  var STORAGE_KEY = 'medai-theme';
-                  var saved = localStorage.getItem(STORAGE_KEY);
-                  // Only honor an EXPLICIT user choice. Ignore OS preference.
-                  var theme = (saved === 'light') ? 'light' : 'dark';
+                  // ALWAYS force dark. Ignore localStorage AND prefers-color-scheme.
+                  // The light theme is disabled at the CSS level too (.light is
+                  // aliased to the dark palette), so this is belt-and-suspenders.
                   var root = document.documentElement;
-                  root.classList.remove('dark', 'light');
-                  root.classList.add(theme);
-                  root.style.colorScheme = theme;
+                  root.classList.remove('light');
+                  if (!root.classList.contains('dark')) {
+                    root.classList.add('dark');
+                  }
+                  root.style.colorScheme = 'dark';
+
+                  // Overwrite any stale 'light' preference in localStorage so
+                  // the ThemeProvider (which reads localStorage) also stays dark.
+                  try {
+                    if (localStorage.getItem('medai-theme') !== 'dark') {
+                      localStorage.setItem('medai-theme', 'dark');
+                    }
+                  } catch (e) {}
+
+                  // Force <meta name="theme-color"> to the dark color
                   var meta = document.querySelector('meta[name="theme-color"]');
                   if (!meta) {
                     meta = document.createElement('meta');
                     meta.setAttribute('name', 'theme-color');
                     document.head.appendChild(meta);
                   }
-                  meta.setAttribute('content', theme === 'light' ? '#F4F7FB' : '#0a0e1a');
+                  meta.setAttribute('content', '#0a0e1a');
                 } catch (e) {
-                  console.warn('[Theme] Bootstrap failed, defaulting to dark:', e);
-                  document.documentElement.classList.add('dark');
-                  document.documentElement.style.colorScheme = 'dark';
+                  // Last-resort fallback: just ensure the dark class is set.
+                  try {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                  } catch (e2) {}
                 }
               })();
             `,
