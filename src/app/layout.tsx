@@ -15,11 +15,10 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  // Single dark themeColor — we force dark as the default regardless of OS
-  // preference because the app's components use 1000+ hardcoded dark colors.
-  // The user can still toggle to light mode manually via the in-app toggle,
-  // and the inline bootstrap script in <head> keeps this meta tag in sync.
-  themeColor: '#0a0e1a',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0a0e1a' },
+    { media: '(prefers-color-scheme: light)', color: '#F4F7FB' },
+  ],
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -67,59 +66,41 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="أكاديمية نبض" />
         <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
         {/*
-          CRITICAL: FORCE DARK MODE PERMANENTLY.
-          Runs SYNCHRONOUSLY before React hydration.
+          CRITICAL: Anti-FOUC (Flash Of Unstyled Content) theme bootstrap.
+          Runs SYNCHRONOUSLY before React hydration to set the correct theme
+          class on <html> based on localStorage or system preference.
 
-          WHY: The app's UI components were authored against a dark palette
-          (bg-slate-900, text-cyan-400, bg-[#0a0e1a], etc. — 1000+ explicit
-          dark colors). Auto-switching to light mode based on prefers-color-scheme
-          or even an old localStorage value breaks the UI (e.g. "تسجيل الدخول"
-          text becomes invisible: text-muted-foreground (#64748B in light) on
-          a hardcoded #0a0e1a black background).
-
-          FIX: Always force `dark` class on <html>. Remove any `light` class.
-          Even if localStorage has 'medai-theme=light' from an old session,
-          we still force dark — the `.light` CSS class is now aliased to the
-          same dark palette as a safety net, so even if it leaks through, the
-          UI still looks correct.
+          SUPPORTS BOTH DARK AND LIGHT THEMES. The user can toggle between
+          them via the in-app button, or the app will follow prefers-color-scheme.
         */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  // ALWAYS force dark. Ignore localStorage AND prefers-color-scheme.
-                  // The light theme is disabled at the CSS level too (.light is
-                  // aliased to the dark palette), so this is belt-and-suspenders.
-                  var root = document.documentElement;
-                  root.classList.remove('light');
-                  if (!root.classList.contains('dark')) {
-                    root.classList.add('dark');
+                  var STORAGE_KEY = 'medai-theme';
+                  var saved = localStorage.getItem(STORAGE_KEY);
+                  var theme = 'dark';
+                  if (saved === 'light' || saved === 'dark') {
+                    theme = saved;
+                  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    theme = 'light';
                   }
-                  root.style.colorScheme = 'dark';
-
-                  // Overwrite any stale 'light' preference in localStorage so
-                  // the ThemeProvider (which reads localStorage) also stays dark.
-                  try {
-                    if (localStorage.getItem('medai-theme') !== 'dark') {
-                      localStorage.setItem('medai-theme', 'dark');
-                    }
-                  } catch (e) {}
-
-                  // Force <meta name="theme-color"> to the dark color
+                  var root = document.documentElement;
+                  root.classList.remove('dark', 'light');
+                  root.classList.add(theme);
+                  root.style.colorScheme = theme;
                   var meta = document.querySelector('meta[name="theme-color"]');
                   if (!meta) {
                     meta = document.createElement('meta');
                     meta.setAttribute('name', 'theme-color');
                     document.head.appendChild(meta);
                   }
-                  meta.setAttribute('content', '#0a0e1a');
+                  meta.setAttribute('content', theme === 'light' ? '#F4F7FB' : '#0a0e1a');
                 } catch (e) {
-                  // Last-resort fallback: just ensure the dark class is set.
-                  try {
-                    document.documentElement.classList.add('dark');
-                    document.documentElement.style.colorScheme = 'dark';
-                  } catch (e2) {}
+                  console.warn('[Theme] Bootstrap failed, defaulting to dark:', e);
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.style.colorScheme = 'dark';
                 }
               })();
             `,
