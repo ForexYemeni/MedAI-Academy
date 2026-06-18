@@ -15,10 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#0a0e1a' },
-    { media: '(prefers-color-scheme: light)', color: '#F4F7FB' },
-  ],
+  // Single dark themeColor. The app defaults to dark mode on first visit
+  // regardless of OS preference — this matches the original design intent.
+  // The user can still manually toggle to light mode via the in-app button,
+  // and the ThemeProvider will update this meta tag accordingly.
+  themeColor: '#0a0e1a',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -67,11 +68,21 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
         {/*
           CRITICAL: Anti-FOUC (Flash Of Unstyled Content) theme bootstrap.
-          Runs SYNCHRONOUSLY before React hydration to set the correct theme
-          class on <html> based on localStorage or system preference.
+          Runs SYNCHRONOUSLY before React hydration.
 
-          SUPPORTS BOTH DARK AND LIGHT THEMES. The user can toggle between
-          them via the in-app button, or the app will follow prefers-color-scheme.
+          BEHAVIOR:
+          - If the user has explicitly chosen a theme via the in-app toggle
+            (stored in localStorage as 'medai-theme'), honor that choice.
+          - Otherwise, DEFAULT TO DARK. Do NOT follow prefers-color-scheme.
+
+          WHY: The app's UI was designed for dark mode. On phones whose OS
+          is set to light mode, following prefers-color-scheme would switch
+          the app to light mode automatically — but the user reported that
+          this looks "broken" and inconsistent with other phones. Defaulting
+          to dark on first visit ensures every phone sees the same intended
+          design. The user can still manually toggle to light mode if they
+          want via the in-app button (the ThemeProvider persists that choice
+          to localStorage, which this script will then honor on next visit).
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -80,12 +91,8 @@ export default function RootLayout({
                 try {
                   var STORAGE_KEY = 'medai-theme';
                   var saved = localStorage.getItem(STORAGE_KEY);
-                  var theme = 'dark';
-                  if (saved === 'light' || saved === 'dark') {
-                    theme = saved;
-                  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-                    theme = 'light';
-                  }
+                  // ONLY honor an explicit user choice. Ignore OS preference.
+                  var theme = (saved === 'light') ? 'light' : 'dark';
                   var root = document.documentElement;
                   root.classList.remove('dark', 'light');
                   root.classList.add(theme);
@@ -99,8 +106,10 @@ export default function RootLayout({
                   meta.setAttribute('content', theme === 'light' ? '#F4F7FB' : '#0a0e1a');
                 } catch (e) {
                   console.warn('[Theme] Bootstrap failed, defaulting to dark:', e);
-                  document.documentElement.classList.add('dark');
-                  document.documentElement.style.colorScheme = 'dark';
+                  try {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                  } catch (e2) {}
                 }
               })();
             `,
