@@ -18,61 +18,62 @@ const ThemeContext = createContext<ThemeContextType>({
 
 const STORAGE_KEY = 'medai-theme'
 
-function getInitialTheme(): Theme {
-  // SSR-safe: only access window/localStorage on client
-  if (typeof window === 'undefined') return 'dark'
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY) as Theme | null
-    // IMPORTANT: Only honor an EXPLICIT user choice.
-    // Do NOT auto-switch based on prefers-color-scheme, because the UI
-    // components use 1000+ hardcoded dark colors (bg-slate-900, etc.)
-    // that don't have light-mode equivalents yet. Auto-switching breaks
-    // the layout on phones whose OS is set to light mode.
-    if (saved === 'light' || saved === 'dark') return saved
-  } catch {
-    // localStorage may be unavailable (incognito / privacy mode) — default to dark
-  }
-  return 'dark'
-}
+/**
+ * THEME IS LOCKED TO DARK.
+ *
+ * The app's UI components use 1000+ hardcoded dark colors (bg-slate-900,
+ * text-cyan-400, bg-[#0a0e1a], etc.) that have no light-mode equivalents.
+ * Switching to light mode breaks the UI (e.g. "تسجيل الدخول" text
+ * disappears because text-muted-foreground becomes dark gray on a
+ * hardcoded #0a0e1a black background).
+ *
+ * Until a full light-mode migration is done, the theme is permanently
+ * locked to dark. The toggle button still exists in the UI but is a no-op.
+ * The `.light` CSS class is also aliased to the dark palette as a safety
+ * net, so even if anything ever sets `.light` on <html>, colors stay correct.
+ */
 
-function applyThemeToDocument(theme: Theme) {
+function applyDarkTheme() {
   if (typeof document === 'undefined') return
   const root = document.documentElement
-  // Use classList so we don't blow away other classes Next.js may add to <html>
-  root.classList.remove('dark', 'light')
-  root.classList.add(theme)
-  // color-scheme lets native form controls, scrollbars, etc. match the theme
-  root.style.colorScheme = theme
-  // Keep <meta name="theme-color"> in sync for mobile browser chrome
+  root.classList.remove('light')
+  if (!root.classList.contains('dark')) {
+    root.classList.add('dark')
+  }
+  root.style.colorScheme = 'dark'
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) {
-    meta.setAttribute('content', theme === 'light' ? '#F4F7FB' : '#0a0e1a')
+    meta.setAttribute('content', '#0a0e1a')
   }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Lazy initializer runs ONCE on the client, reads localStorage before first paint
+  // Theme is always 'dark'. We keep the state for API compatibility with
+  // components that call useTheme(), but it never actually changes.
   const [theme, setThemeState] = useState<Theme>('dark')
 
-  // Set initial theme on mount (after hydration) — this matches what the
-  // inline script in layout.tsx already did, so there's no flash.
+  // On mount, force dark on the document and overwrite any stale localStorage.
   useEffect(() => {
-    const initial = getInitialTheme()
-    setThemeState(initial)
-    applyThemeToDocument(initial)
-  }, [])
-
-  useEffect(() => {
-    applyThemeToDocument(theme)
+    applyDarkTheme()
     try {
-      localStorage.setItem(STORAGE_KEY, theme)
+      localStorage.setItem(STORAGE_KEY, 'dark')
     } catch {
       // ignore write failures (private mode / quota)
     }
-  }, [theme])
+  }, [])
 
-  const setTheme = (next: Theme) => setThemeState(next)
-  const toggleTheme = () => setThemeState(prev => prev === 'dark' ? 'light' : 'dark')
+  // toggleTheme and setTheme are NO-OPS — they keep the API stable for
+  // existing call sites but don't actually change the theme.
+  const setTheme = (_next: Theme) => {
+    // forced dark — ignore
+    setThemeState('dark')
+    applyDarkTheme()
+  }
+  const toggleTheme = () => {
+    // forced dark — ignore
+    setThemeState('dark')
+    applyDarkTheme()
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
