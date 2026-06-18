@@ -23,11 +23,12 @@ function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'dark'
   try {
     const saved = localStorage.getItem(STORAGE_KEY) as Theme | null
+    // IMPORTANT: Only honor an EXPLICIT user choice.
+    // Do NOT auto-switch based on prefers-color-scheme, because the UI
+    // components use 1000+ hardcoded dark colors (bg-slate-900, etc.)
+    // that don't have light-mode equivalents yet. Auto-switching breaks
+    // the layout on phones whose OS is set to light mode.
     if (saved === 'light' || saved === 'dark') return saved
-    // Fall back to system preference if no explicit choice
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-      return 'light'
-    }
   } catch {
     // localStorage may be unavailable (incognito / privacy mode) — default to dark
   }
