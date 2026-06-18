@@ -1,14 +1,14 @@
-// أكاديمية نبض - Service Worker v14.0 (Push Notifications + Sound Forwarding)
+// أكاديمية نبض - Service Worker v15.0 (Push Notifications + Sound Forwarding)
 // يدعم الإشعارات الفورية حتى عند إغلاق التطبيق
 // يقوم بإعادة توجيه إشعارات Push للعملاء المفتوحين لتشغيل الصوت
 //
-// v14.0: Bumped version to force all clients to update after the
-// "default to dark, keep toggle" fix. The previous version (v13.0) was
-// still following prefers-color-scheme which made Phone 2 (light OS)
-// show the app in light mode. Now the app defaults to dark on first
-// visit on every device, and the user can toggle to light manually.
+// v15.0: Bumped version to force all clients to update after the
+// "bulletproof auth page" fix. The auth page now uses ONLY inline styles
+// with direct CSS variable references — no color-mix(), no oklab, no
+// gradients, no opacity modifiers, no backdrop-filter, no blur filters.
+// This guarantees identical rendering on every WebView.
 
-const SW_VERSION = 'v14.0';
+const SW_VERSION = 'v15.0';
 
 // Install - delete ALL old caches immediately, skip waiting
 self.addEventListener('install', (event) => {

@@ -158,13 +158,14 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
-      {/* Background Effects — kept subtle so they don't bleed through on WebViews without backdrop-filter */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
-      </div>
-
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      dir="rtl"
+      style={{
+        backgroundColor: 'var(--background)',
+        color: 'var(--foreground)',
+      }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -176,37 +177,79 @@ export default function AuthPage() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-            className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/25"
+            className="w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center"
+            style={{
+              backgroundColor: 'var(--primary)',
+              boxShadow: '0 4px 20px rgba(0, 245, 255, 0.25)',
+            }}
           >
-            <Stethoscope className="w-10 h-10 text-white" />
+            <Stethoscope className="w-10 h-10" style={{ color: '#ffffff' }} />
           </motion.div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+          <h1
+            className="text-3xl font-bold"
+            style={{ color: 'var(--primary)' }}
+          >
             MedAI Academy
           </h1>
-          <p className="text-muted-foreground mt-2">المنصة الطبية الذكية</p>
+          <p className="mt-2" style={{ color: 'var(--muted-foreground)' }}>
+            المنصة الطبية الذكية
+          </p>
         </div>
 
-        {/* Auth Card */}
-        <div className="glass-card p-8">
-          {/* Mode Toggle — use theme-aware bg, NOT a hardcoded dark color */}
-          <div className="flex gap-2 mb-6 p-1 rounded-xl bg-muted/70 border border-border">
+        {/* Auth Card — solid background, no backdrop-filter dependency */}
+        <div
+          className="p-8 rounded-2xl"
+          style={{
+            backgroundColor: 'var(--card)',
+            border: '1px solid var(--border)',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          {/* Mode Toggle — solid background, no opacity modifiers */}
+          <div
+            className="flex gap-2 mb-6 p-1 rounded-xl"
+            style={{
+              backgroundColor: 'var(--muted)',
+              border: '1px solid var(--border)',
+            }}
+          >
             <button
               onClick={() => { setMode('login'); setError(''); setSuccess('') }}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
+              style={
                 mode === 'login'
-                  ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg'
-                  : 'text-foreground hover:text-foreground/80'
-              }`}
+                  ? {
+                      backgroundColor: 'var(--primary)',
+                      color: 'var(--primary-foreground)',
+                      border: 'none',
+                      boxShadow: '0 2px 8px rgba(0, 245, 255, 0.2)',
+                    }
+                  : {
+                      backgroundColor: 'transparent',
+                      color: 'var(--muted-foreground)',
+                      border: 'none',
+                    }
+              }
             >
               تسجيل الدخول
             </button>
             <button
               onClick={() => { setMode('register'); setError(''); setSuccess('') }}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
+              style={
                 mode === 'register'
-                  ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg'
-                  : 'text-foreground hover:text-foreground/80'
-              }`}
+                  ? {
+                      backgroundColor: 'var(--primary)',
+                      color: 'var(--primary-foreground)',
+                      border: 'none',
+                      boxShadow: '0 2px 8px rgba(0, 245, 255, 0.2)',
+                    }
+                  : {
+                      backgroundColor: 'transparent',
+                      color: 'var(--muted-foreground)',
+                      border: 'none',
+                    }
+              }
             >
               حساب جديد
             </button>
@@ -222,12 +265,17 @@ export default function AuthPage() {
               onSubmit={handleSubmit}
               className="space-y-4"
             >
-              {/* Error Message */}
+              {/* Error Message — solid background, no opacity modifiers */}
               {error && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
+                  className="flex items-center gap-2 p-3 rounded-xl text-sm"
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: '#ef4444',
+                  }}
                 >
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
@@ -239,7 +287,12 @@ export default function AuthPage() {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm"
+                  className="flex items-center gap-2 p-3 rounded-xl text-sm"
+                  style={{
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#10b981',
+                  }}
                 >
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>{success}</span>
@@ -249,14 +302,24 @@ export default function AuthPage() {
               {/* Name (Register Only) */}
               {mode === 'register' && (
                 <div className="space-y-1.5">
-                  <label className="text-sm text-foreground">الاسم الكامل</label>
+                  <label className="text-sm" style={{ color: 'var(--foreground)' }}>
+                    الاسم الكامل
+                  </label>
                   <div className="relative">
-                    <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <User
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                      style={{ color: 'var(--muted-foreground)' }}
+                    />
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="د. أحمد الخالدي"
-                      className="pr-10 bg-input border-border focus:border-cyan-500 rounded-xl h-12 text-foreground placeholder:text-muted-foreground/70"
+                      className="pr-10 rounded-xl h-12"
+                      style={{
+                        backgroundColor: 'var(--input)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--foreground)',
+                      }}
                       required
                     />
                   </div>
@@ -265,68 +328,109 @@ export default function AuthPage() {
 
               {/* Phone */}
               <div className="space-y-1.5">
-                <label className="text-sm text-foreground">رقم الهاتف</label>
+                <label className="text-sm" style={{ color: 'var(--foreground)' }}>
+                  رقم الهاتف
+                </label>
                 <div className="relative">
-                  <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Phone
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                    style={{ color: 'var(--muted-foreground)' }}
+                  />
                   <Input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="777123456"
                     type="tel"
                     dir="ltr"
-                    className="pr-10 text-left bg-input border-border focus:border-cyan-500 rounded-xl h-12 text-foreground placeholder:text-muted-foreground/70"
+                    className="pr-10 text-left rounded-xl h-12"
+                    style={{
+                      backgroundColor: 'var(--input)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
+                    }}
                     required
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">أدخل الرقم بدون رمز الدولة أو معه</p>
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  أدخل الرقم بدون رمز الدولة أو معه
+                </p>
               </div>
 
               {/* Password */}
               <div className="space-y-1.5">
-                <label className="text-sm text-foreground">كلمة السر</label>
+                <label className="text-sm" style={{ color: 'var(--foreground)' }}>
+                  كلمة السر
+                </label>
                 <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Lock
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                    style={{ color: 'var(--muted-foreground)' }}
+                  />
                   <Input
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
-                    className="pr-10 pl-10 bg-input border-border focus:border-cyan-500 rounded-xl h-12 text-foreground placeholder:text-muted-foreground/70"
+                    className="pr-10 pl-10 rounded-xl h-12"
+                    style={{
+                      backgroundColor: 'var(--input)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
+                    }}
                     required
                     minLength={6}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute left-3 top-1/2 -translate-y-1/2"
+                    style={{ color: 'var(--muted-foreground)' }}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground">6 أحرف على الأقل</p>
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  6 أحرف على الأقل
+                </p>
               </div>
 
               {/* Specialty (Register Only) */}
               {mode === 'register' && (
                 <div className="space-y-1.5">
-                  <label className="text-sm text-foreground">التخصص الطبي (اختياري)</label>
+                  <label className="text-sm" style={{ color: 'var(--foreground)' }}>
+                    التخصص الطبي (اختياري)
+                  </label>
                   <div className="relative">
-                    <Stethoscope className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Stethoscope
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                      style={{ color: 'var(--muted-foreground)' }}
+                    />
                     <Input
                       value={specialty}
                       onChange={(e) => setSpecialty(e.target.value)}
                       placeholder="طب الطوارئ، أمراض القلب..."
-                      className="pr-10 bg-input border-border focus:border-cyan-500 rounded-xl h-12 text-foreground placeholder:text-muted-foreground/70"
+                      className="pr-10 rounded-xl h-12"
+                      style={{
+                        backgroundColor: 'var(--input)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--foreground)',
+                      }}
                     />
                   </div>
                 </div>
               )}
 
-              {/* Submit Button */}
+              {/* Submit Button — solid background, no gradient */}
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-medium rounded-xl shadow-lg shadow-cyan-500/25 transition-all"
+                className="w-full h-12 font-medium rounded-xl transition-all"
+                style={{
+                  backgroundColor: 'var(--primary)',
+                  color: 'var(--primary-foreground)',
+                  border: 'none',
+                  boxShadow: '0 4px 16px rgba(0, 245, 255, 0.25)',
+                }}
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -341,12 +445,15 @@ export default function AuthPage() {
           </AnimatePresence>
 
           {/* Footer */}
-          <div className="mt-6 pt-4 border-t border-border text-center">
-            <p className="text-xs text-muted-foreground">
+          <div
+            className="mt-6 pt-4 text-center"
+            style={{ borderTop: '1px solid var(--border)' }}
+          >
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
               بتسجيلك أنت توافق على{' '}
-              <span className="text-cyan-400 cursor-pointer hover:underline">شروط الاستخدام</span>
+              <span style={{ color: 'var(--primary)', cursor: 'pointer' }}>شروط الاستخدام</span>
               {' '}و{' '}
-              <span className="text-cyan-400 cursor-pointer hover:underline">سياسة الخصوصية</span>
+              <span style={{ color: 'var(--primary)', cursor: 'pointer' }}>سياسة الخصوصية</span>
             </p>
           </div>
         </div>
