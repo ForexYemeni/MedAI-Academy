@@ -15,10 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a1a' },
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-  ],
+  // Single dark themeColor — we force dark as the default regardless of OS
+  // preference because the app's components use 1000+ hardcoded dark colors.
+  // The user can still toggle to light mode manually via the in-app toggle,
+  // and the inline bootstrap script in <head> keeps this meta tag in sync.
+  themeColor: '#0a0e1a',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -66,11 +67,16 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="أكاديمية نبض" />
         <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
         {/*
-          CRITICAL: Anti-FOUC (Flash Of Unstyled Content) theme bootstrap.
-          Runs SYNCHRONOUSLY before React hydration to set the correct theme
-          class on <html> based on localStorage or system preference.
-          This prevents the dark→light color flash on phones and ensures
-          consistent colors across devices.
+          CRITICAL: Anti-FOUC theme bootstrap + force dark as the default.
+          Runs SYNCHRONOUSLY before React hydration.
+
+          WHY we ignore prefers-color-scheme:
+          The app's UI components were authored against a dark palette
+          (bg-slate-900, text-cyan-400, etc. — 1000+ explicit dark colors).
+          Auto-switching to light mode via system preference makes the UI
+          look broken on phones whose OS is set to light mode. Until the
+          light theme is fully migrated to use CSS variables, we default
+          to dark and ONLY honor the user's explicit choice in localStorage.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -79,14 +85,8 @@ export default function RootLayout({
                 try {
                   var STORAGE_KEY = 'medai-theme';
                   var saved = localStorage.getItem(STORAGE_KEY);
-                  var theme = 'dark';
-                  if (saved === 'light' || saved === 'dark') {
-                    theme = saved;
-                  } else if (!window.matchMedia) {
-                    theme = 'dark';
-                  } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-                    theme = 'light';
-                  }
+                  // Only honor an EXPLICIT user choice. Ignore OS preference.
+                  var theme = (saved === 'light') ? 'light' : 'dark';
                   var root = document.documentElement;
                   root.classList.remove('dark', 'light');
                   root.classList.add(theme);
@@ -100,6 +100,8 @@ export default function RootLayout({
                   meta.setAttribute('content', theme === 'light' ? '#F4F7FB' : '#0a0e1a');
                 } catch (e) {
                   console.warn('[Theme] Bootstrap failed, defaulting to dark:', e);
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.style.colorScheme = 'dark';
                 }
               })();
             `,
