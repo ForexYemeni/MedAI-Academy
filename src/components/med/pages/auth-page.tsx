@@ -158,9 +158,9 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4" dir="rtl">
-      {/* Background Effects */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
+      {/* Background Effects — kept subtle so they don't bleed through on WebViews without backdrop-filter */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
       </div>
@@ -188,14 +188,14 @@ export default function AuthPage() {
 
         {/* Auth Card */}
         <div className="glass-card p-8">
-          {/* Mode Toggle */}
-          <div className="flex gap-2 mb-6 p-1 rounded-xl bg-[#0a0e1a]">
+          {/* Mode Toggle — use theme-aware bg, NOT a hardcoded dark color */}
+          <div className="flex gap-2 mb-6 p-1 rounded-xl bg-muted/70 border border-border">
             <button
               onClick={() => { setMode('login'); setError(''); setSuccess('') }}
               className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 mode === 'login'
                   ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-foreground hover:text-foreground/80'
               }`}
             >
               تسجيل الدخول
@@ -205,7 +205,7 @@ export default function AuthPage() {
               className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 mode === 'register'
                   ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-lg'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-foreground hover:text-foreground/80'
               }`}
             >
               حساب جديد
@@ -249,14 +249,14 @@ export default function AuthPage() {
               {/* Name (Register Only) */}
               {mode === 'register' && (
                 <div className="space-y-1.5">
-                  <label className="text-sm text-muted-foreground">الاسم الكامل</label>
+                  <label className="text-sm text-foreground">الاسم الكامل</label>
                   <div className="relative">
                     <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="د. أحمد الخالدي"
-                      className="pr-10 bg-[#0a0e1a] border-med-border focus:border-cyan-500 rounded-xl h-12"
+                      className="pr-10 bg-input border-border focus:border-cyan-500 rounded-xl h-12 text-foreground placeholder:text-muted-foreground/70"
                       required
                     />
                   </div>
@@ -265,7 +265,7 @@ export default function AuthPage() {
 
               {/* Phone */}
               <div className="space-y-1.5">
-                <label className="text-sm text-muted-foreground">رقم الهاتف</label>
+                <label className="text-sm text-foreground">رقم الهاتف</label>
                 <div className="relative">
                   <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -274,7 +274,7 @@ export default function AuthPage() {
                     placeholder="777123456"
                     type="tel"
                     dir="ltr"
-                    className="pr-10 text-left bg-[#0a0e1a] border-med-border focus:border-cyan-500 rounded-xl h-12"
+                    className="pr-10 text-left bg-input border-border focus:border-cyan-500 rounded-xl h-12 text-foreground placeholder:text-muted-foreground/70"
                     required
                   />
                 </div>
@@ -283,7 +283,7 @@ export default function AuthPage() {
 
               {/* Password */}
               <div className="space-y-1.5">
-                <label className="text-sm text-muted-foreground">كلمة السر</label>
+                <label className="text-sm text-foreground">كلمة السر</label>
                 <div className="relative">
                   <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -291,7 +291,7 @@ export default function AuthPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
-                    className="pr-10 pl-10 bg-[#0a0e1a] border-med-border focus:border-cyan-500 rounded-xl h-12"
+                    className="pr-10 pl-10 bg-input border-border focus:border-cyan-500 rounded-xl h-12 text-foreground placeholder:text-muted-foreground/70"
                     required
                     minLength={6}
                   />
@@ -309,14 +309,14 @@ export default function AuthPage() {
               {/* Specialty (Register Only) */}
               {mode === 'register' && (
                 <div className="space-y-1.5">
-                  <label className="text-sm text-muted-foreground">التخصص الطبي (اختياري)</label>
+                  <label className="text-sm text-foreground">التخصص الطبي (اختياري)</label>
                   <div className="relative">
                     <Stethoscope className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       value={specialty}
                       onChange={(e) => setSpecialty(e.target.value)}
                       placeholder="طب الطوارئ، أمراض القلب..."
-                      className="pr-10 bg-[#0a0e1a] border-med-border focus:border-cyan-500 rounded-xl h-12"
+                      className="pr-10 bg-input border-border focus:border-cyan-500 rounded-xl h-12 text-foreground placeholder:text-muted-foreground/70"
                     />
                   </div>
                 </div>
@@ -341,7 +341,7 @@ export default function AuthPage() {
           </AnimatePresence>
 
           {/* Footer */}
-          <div className="mt-6 pt-4 border-t border-med-border text-center">
+          <div className="mt-6 pt-4 border-t border-border text-center">
             <p className="text-xs text-muted-foreground">
               بتسجيلك أنت توافق على{' '}
               <span className="text-cyan-400 cursor-pointer hover:underline">شروط الاستخدام</span>

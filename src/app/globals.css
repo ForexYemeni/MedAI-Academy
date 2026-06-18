@@ -110,67 +110,59 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   LIGHT THEME — DISABLED
+   LIGHT THEME — RESTORED
    ═══════════════════════════════════════════════════════════════
-   The app's UI components use 1000+ hardcoded dark colors
-   (bg-slate-900, text-cyan-400, bg-[#0a0e1a], etc.) that have no
-   light-mode equivalents. Auto-switching to light mode breaks the UI
-   (e.g. "تسجيل الدخول" text disappears because text-muted-foreground
-   becomes dark gray on a hardcoded #0a0e1a black background).
-
-   Until the full light-mode migration is done, `.light` is aliased
-   to the SAME dark palette. This way, even if a `.light` class ever
-   ends up on <html> (via stale localStorage, browser extension, etc.),
-   the colors will remain identical to dark mode. No more broken UI.
+   Both dark and light themes are now supported again. The user can
+   toggle between them via the in-app button or via prefers-color-scheme.
    ═══════════════════════════════════════════════════════════════ */
 
 .light {
   --radius: 0.75rem;
-  --background: #0a0e1a;
-  --foreground: #e2e8f0;
-  --card: #111827;
-  --card-foreground: #e2e8f0;
-  --popover: #111827;
-  --popover-foreground: #e2e8f0;
-  --primary: #00f5ff;
-  --primary-foreground: #0a0e1a;
-  --secondary: #1e293b;
-  --secondary-foreground: #e2e8f0;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #8b5cf6;
-  --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --border: rgba(0, 245, 255, 0.12);
-  --input: rgba(0, 245, 255, 0.12);
-  --ring: #00f5ff;
-  --chart-1: #00f5ff;
-  --chart-2: #8b5cf6;
-  --chart-3: #10b981;
-  --chart-4: #f59e0b;
-  --chart-5: #ec4899;
-  --sidebar: #060810;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #00f5ff;
-  --sidebar-primary-foreground: #0a0e1a;
-  --sidebar-accent: rgba(0, 245, 255, 0.08);
-  --sidebar-accent-foreground: #00f5ff;
-  --sidebar-border: rgba(0, 245, 255, 0.08);
-  --sidebar-ring: #00f5ff;
+  --background: #F4F7FB;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E2E8F0;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #475569;
+  --accent: #8B5CF6;
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --border: rgba(0, 0, 0, 0.10);
+  --input: rgba(0, 0, 0, 0.10);
+  --ring: #2563EB;
+  --chart-1: #2563EB;
+  --chart-2: #8B5CF6;
+  --chart-3: #10B981;
+  --chart-4: #F59E0B;
+  --chart-5: #EC4899;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #2563EB;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(37, 99, 235, 0.08);
+  --sidebar-accent-foreground: #2563EB;
+  --sidebar-border: rgba(0, 0, 0, 0.06);
+  --sidebar-ring: #2563EB;
 
-  /* Med custom colors — same as dark mode */
-  --neon-cyan: #00f5ff;
-  --neon-blue: #0088ff;
-  --neon-purple: #8b5cf6;
-  --neon-pink: #ec4899;
-  --neon-green: #10b981;
-  --neon-orange: #f59e0b;
-  --med-dark: #0a0e1a;
-  --med-darker: #060810;
-  --med-card: #111827;
-  --med-card-hover: #1a2332;
-  --med-border: rgba(0, 245, 255, 0.12);
-  --med-glow: rgba(0, 245, 255, 0.06);
+  /* Med custom colors for light mode */
+  --neon-cyan: #2563EB;
+  --neon-blue: #3B82F6;
+  --neon-purple: #8B5CF6;
+  --neon-pink: #EC4899;
+  --neon-green: #059669;
+  --neon-orange: #D97706;
+  --med-dark: #F4F7FB;
+  --med-darker: #FFFFFF;
+  --med-card: #FFFFFF;
+  --med-card-hover: #F8FAFC;
+  --med-border: rgba(0, 0, 0, 0.10);
+  --med-glow: rgba(37, 99, 235, 0.04);
 }
 
 @layer base {
@@ -185,12 +177,13 @@
 /* ═══════════════════════════════════════════════════════════════
    color-scheme: tells the browser to render native UI (scrollbars,
    form controls, <input type=date>, etc.) in the matching palette.
-   We force dark everywhere because the light theme is disabled.
    ═══════════════════════════════════════════════════════════════ */
 :root,
-.dark,
-.light {
+.dark {
   color-scheme: dark;
+}
+.light {
+  color-scheme: light;
 }
 
 /* Custom Scrollbar */
@@ -209,23 +202,54 @@
   background: rgba(0, 245, 255, 0.4);
 }
 
-/* Glassmorphism Utilities - Dark (also applies to .light which is aliased to dark) */
+/* Light mode scrollbar */
+.light ::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.2);
+}
+.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Glassmorphism Utilities — with SOLID COLOR FALLBACKS
+   ═══════════════════════════════════════════════════════════════
+   CRITICAL FIX: On some mobile WebViews (older Android System WebView,
+   in-app browsers, etc.), `backdrop-filter: blur()` is either not
+   supported or silently fails. When that happens, the rgba() background
+   alone is too transparent and the decorative glow blobs behind the
+   card show through at full strength, flooding the form area and
+   making text invisible (this is exactly the bug reported on Phone 2).
+
+   To fix this, we declare a SOLID background-color FIRST, then layer
+   the rgba() on top via `background-image`. If `backdrop-filter` fails,
+   the solid color still provides the dark navy panel that hides the
+   glow blobs and keeps text readable.
+
+   We also use `@supports not (backdrop-filter: blur(1px))` to upgrade
+   to a fully opaque background when backdrop-filter is unavailable.
+   ═══════════════════════════════════════════════════════════════ */
+
 .glass {
-  background: rgba(17, 24, 39, 0.6);
+  /* Solid fallback first */
+  background-color: #0d1424;
+  /* Semi-transparent layer on top (only visible if backdrop-filter works) */
+  background-image: rgba(17, 24, 39, 0.6);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(0, 245, 255, 0.1);
 }
 
 .glass-strong {
-  background: rgba(17, 24, 39, 0.8);
+  background-color: #0a0f1c;
+  background-image: rgba(17, 24, 39, 0.8);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   border: 1px solid rgba(0, 245, 255, 0.15);
 }
 
 .glass-card {
-  background: rgba(17, 24, 39, 0.5);
+  background-color: #0d1424;
+  background-image: rgba(17, 24, 39, 0.5);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(0, 245, 255, 0.08);
@@ -233,12 +257,78 @@
   transition: all 0.3s ease;
 }
 .glass-card:hover {
-  background: rgba(26, 35, 50, 0.7);
+  background-color: #11192c;
+  background-image: rgba(26, 35, 50, 0.7);
   border-color: rgba(0, 245, 255, 0.2);
   box-shadow: 0 0 30px rgba(0, 245, 255, 0.05);
 }
 
-/* Neon Glow Effects - Dark (also applies to .light which is aliased to dark) */
+/* When backdrop-filter is NOT supported, force fully opaque backgrounds
+   so the glow blobs never bleed through. */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass {
+    background-color: #0d1424;
+    background-image: none;
+  }
+  .glass-strong {
+    background-color: #0a0f1c;
+    background-image: none;
+  }
+  .glass-card {
+    background-color: #0d1424;
+    background-image: none;
+  }
+  .glass-card:hover {
+    background-color: #11192c;
+    background-image: none;
+  }
+}
+
+/* Light mode glassmorphism */
+.light .glass {
+  background-color: #FFFFFF;
+  background-image: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.light .glass-strong {
+  background-color: #FFFFFF;
+  background-image: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.light .glass-card {
+  background-color: #FFFFFF;
+  background-image: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+.light .glass-card:hover {
+  background-color: #FFFFFF;
+  background-image: rgba(255, 255, 255, 0.98);
+  border-color: rgba(37, 99, 235, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .light .glass,
+  .light .glass-strong,
+  .light .glass-card,
+  .light .glass-card:hover {
+    background-image: none;
+    background-color: #FFFFFF;
+  }
+}
+
+/* Neon Glow Effects */
 .neon-glow {
   box-shadow: 0 0 20px rgba(0, 245, 255, 0.15), 0 0 40px rgba(0, 245, 255, 0.05);
 }
@@ -253,6 +343,25 @@
 
 .neon-text-purple {
   text-shadow: 0 0 10px rgba(139, 92, 246, 0.5), 0 0 30px rgba(139, 92, 246, 0.2);
+}
+
+/* Light mode glow effects */
+.light .neon-glow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.light .neon-glow-strong {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(37, 99, 235, 0.1);
+}
+
+.light .neon-text {
+  text-shadow: none;
+  color: #2563EB;
+}
+
+.light .neon-text-purple {
+  text-shadow: none;
+  color: #8B5CF6;
 }
 
 /* Gradient Borders */
@@ -274,7 +383,11 @@
   z-index: 0;
 }
 
-/* .light .gradient-border override removed — .light is now aliased to dark */
+.light .gradient-border::before {
+  background: linear-gradient(135deg, #2563EB, #8B5CF6, #EC4899);
+  pointer-events: none;
+  z-index: 0;
+}
 
 /* Pulse Animations */
 @keyframes neon-pulse {
@@ -314,7 +427,11 @@
   animation: shimmer 2s infinite;
 }
 
-/* .light .animate-shimmer override removed — .light is aliased to dark */
+.light .animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.06), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
 
 .animate-heartbeat {
   animation: heartbeat 1.5s ease-in-out infinite;
