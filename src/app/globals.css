@@ -171,6 +171,20 @@
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   color-scheme: tells the browser to render native UI (scrollbars,
+   form controls, <input type=date>, etc.) in the matching palette.
+   Without this, phones with light system preference will render
+   native widgets in light mode even inside our dark theme.
+   ═══════════════════════════════════════════════════════════════ */
+:root,
+.dark {
+  color-scheme: dark;
+}
+.light {
+  color-scheme: light;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
